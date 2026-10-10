@@ -3,6 +3,7 @@ Content.Android/bin/
 Content.Android/obj/
 Content.Android/lib/
 .build-natives/
+native-build/
 bin/
 obj/
 *.apk

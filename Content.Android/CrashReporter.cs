@@ -49,8 +49,14 @@ public static class CrashReporter
         {
             var sb = new StringBuilder();
             sb.AppendLine($"UTC: {DateTime.UtcNow:yyyy-MM-dd HH:mm:ss}Z");
-            sb.AppendLine($"Device: {global::Android.OS.Build.Manufacturer} {global::Android.OS.Build.Model}");
-            sb.AppendLine($"Android: {global::Android.OS.Build.VERSION.Release} (SDK {(int)global::Android.OS.Build.VERSION.SdkInt})");
+            // NOTE: kept out of the interpolation holes below — alias-qualified
+            // names (global::) are not accepted inside them by this toolchain.
+            var manufacturer = global::Android.OS.Build.Manufacturer;
+            var model = global::Android.OS.Build.Model;
+            var androidRelease = global::Android.OS.Build.VERSION.Release;
+            var sdkInt = (int)global::Android.OS.Build.VERSION.SdkInt;
+            sb.AppendLine($"Device: {manufacturer} {model}");
+            sb.AppendLine($"Android: {androidRelease} (SDK {sdkInt})");
             try
             {
                 var ctx = global::Android.App.Application.Context;

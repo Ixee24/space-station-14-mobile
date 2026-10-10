@@ -1918,8 +1918,9 @@ public sealed class LauncherActivity : Activity
         try
         {
             var report = CrashReporter.GetFullReport();
-            var clipboard = (ClipboardManager?)GetSystemService(ClipboardService);
-            clipboard?.SetPrimaryClip(ClipData.NewPlainText("SS14 crash report", report));
+            var clipboard = GetSystemService(ClipboardService) as ClipboardManager;
+            if (clipboard != null)
+                clipboard.PrimaryClip = ClipData.NewPlainText("SS14 crash report", report);
             Toast.MakeText(this, "Crash report copied to clipboard", ToastLength.Short)?.Show();
         }
         catch (Exception ex)

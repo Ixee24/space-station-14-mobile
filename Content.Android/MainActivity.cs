@@ -380,26 +380,62 @@ namespace Content.Android
         {
             try
             {
-                var cur = ex;
-                var sb = new System.Text.StringBuilder();
-                sb.AppendLine($"[{DateTime.UtcNow}] CRASH AT STAGE: {stage}");
-                while (cur != null)
-                {
-                    sb.AppendLine($"Exception ({cur.GetType().FullName}): {cur.Message}");
-                    sb.AppendLine($"StackTrace: {cur.StackTrace}");
-                    cur = cur.InnerException;
-                }
-                var text = sb.ToString();
-                global::Android.Util.Log.Error("SS14_CRASH", text);
-                System.Console.WriteLine(text);
-                try
-                {
-                    var path = "/data/data/io.spacestation14.android/files/crash.txt";
-                    File.AppendAllText(path, text);
-                }
-                catch {}
+                CrashReporter.WriteCrash(stage, ex);
             }
             catch {}
+        }
+
+        /// <summary>
+        /// Catches Java-side (non-.NET) crashes and routes them to crash.txt.
+        /// </summary>
+        private sealed class JavaCrashHandler : Java.Lang.Object, Java.Lang.Thread.IUncaughtExceptionHandler
+        {
+            private readonly Java.Lang.Thread.IUncaughtExceptionHandler? _default;
+
+            public JavaCrashHandler(Java.Lang.Thread.IUncaughtExceptionHandler? def)
+            {
+                _default = def;
+            }
+
+            public void UncaughtException(Java.Lang.Thread t, Java.Lang.Throwable e)
+            {
+                try
+                {
+                    CrashReporter.WriteJavaCrash($"JavaThread:{t?.Name ?? "?"}",
+                        e?.ToString() ?? "<no throwable>");
+                }
+                catch { }
+                try
+                {
+                    // Give the file write a moment before the process dies.
+                    System.Threading.Thread.Sleep(300);
+                }
+                catch { }
+                if (_default != null)
+                {
+                    try { _default.UncaughtException(t, e); } catch { }
+                }
+            }
+        }
+
+        private static bool _javaHandlerInstalled;
+
+        private static void InstallJavaCrashHandler()
+        {
+            if (_javaHandlerInstalled)
+                return;
+            _javaHandlerInstalled = true;
+            try
+            {
+                var def = Java.Lang.Thread.DefaultUncaughtExceptionHandler;
+                if (def is JavaCrashHandler)
+                    return;
+                Java.Lang.Thread.DefaultUncaughtExceptionHandler = new JavaCrashHandler(def);
+            }
+            catch (Exception ex)
+            {
+                try { CrashReporter.WriteCrash("InstallJavaCrashHandler", ex); } catch { }
+            }
         }
 
         static MainActivity()
@@ -414,6 +450,14 @@ namespace Content.Android
                 {
                     LogCrash("UnobservedTaskException", args.Exception);
                 };
+                try
+                {
+                    global::Android.Runtime.AndroidEnvironment.UnhandledExceptionRaiser += (sender, args) =>
+                    {
+                        LogCrash("AndroidEnvironment.Unhandled", args.Exception);
+                    };
+                }
+                catch { }
 
                 AppDomain.CurrentDomain.AssemblyResolve += (sender, args) =>
                 {
@@ -445,6 +489,7 @@ namespace Content.Android
 
         protected override void OnCreate(Bundle? savedInstanceState)
         {
+            InstallJavaCrashHandler();
             try
             {
                 LaunchMountZip = Intent?.GetStringExtra("mount_zip") ?? LaunchMountZip;

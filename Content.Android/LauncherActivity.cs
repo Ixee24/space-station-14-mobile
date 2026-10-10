@@ -107,6 +107,8 @@ public sealed class LauncherActivity : Activity
         {
             _ = CheckForUpdatesAsync();
         }
+
+        CheckForCrashAndPrompt();
     }
 
     protected override void OnResume()
@@ -355,6 +357,33 @@ public sealed class LauncherActivity : Activity
         sandboxBtn.LayoutParameters = sandboxLp;
         sandboxBtn.Click += (_, _) => LaunchOfflineSandbox();
         bottomBar.AddView(sandboxBtn);
+
+        var logsBtn = new Button(this)
+        {
+            Text = "Logs",
+            TextSize = 11
+        };
+        logsBtn.Background = LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
+        logsBtn.SetTextColor(LauncherTheme.Foreground);
+        logsBtn.SetPadding((int)(10 * density), 0, (int)(10 * density), 0);
+        var logsLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WrapContent, ViewGroup.LayoutParams.WrapContent);
+        logsLp.SetMargins(0, 0, (int)(8 * density), 0);
+        logsBtn.LayoutParameters = logsLp;
+        logsBtn.Click += (_, _) => ShowCrashReporterDialog();
+        // Long-press writes a test entry so you can verify the reporter
+        // without waiting for a real crash.
+        logsBtn.LongClick += (s, e) =>
+        {
+            try
+            {
+                CrashReporter.WriteCrash("ManualTest",
+                    new Exception("Test crash entry (long-pressed Logs button). If you can read this, the reporter works."));
+            }
+            catch { }
+            e.Handled = true;
+            ShowCrashReporterDialog();
+        };
+        bottomBar.AddView(logsBtn);
 
         var versionBtn = new Button(this)
         {
@@ -1773,6 +1802,143 @@ public sealed class LauncherActivity : Activity
 
         StartActivity(intent);
     }
+
+    #region Crash Reporter (no logcat required)
+
+    private void CheckForCrashAndPrompt()
+    {
+        try
+        {
+            if (!CrashReporter.HasNewCrash())
+                return;
+            var builder = new AlertDialog.Builder(this);
+            builder.SetTitle("Last session crashed");
+            builder.SetMessage("The game crashed last time. You can view the crash report " +
+                "and share it (no logcat / PC needed).\n\n" + CrashReporter.GetStatusLine());
+            builder.SetPositiveButton("View Report", (_, _) => ShowCrashReporterDialog());
+            builder.SetNegativeButton("Dismiss", (_, _) => CrashReporter.MarkSeen());
+            builder.SetCancelable(true);
+            RunOnUiThread(() =>
+            {
+                try { builder.Show(); } catch { }
+            });
+        }
+        catch { }
+    }
+
+    private void ShowCrashReporterDialog()
+    {
+        var density = Resources?.DisplayMetrics?.Density ?? 1f;
+        string report;
+        try { report = CrashReporter.GetFullReport(); }
+        catch (Exception ex) { report = $"Failed to load report: {ex.Message}"; }
+        // Keep the on-screen preview short; Share sends the fuller text.
+        var preview = report.Length > 15000
+            ? "[... showing tail ...]\n" + report.Substring(report.Length - 15000)
+            : report;
+
+        var builder = new AlertDialog.Builder(this);
+        builder.SetTitle("Crash Report (no logcat needed)");
+
+        var scroll = new ScrollView(this);
+        var view = new LinearLayout(this) { Orientation = Orientation.Vertical };
+        view.SetPadding((int)(16 * density), (int)(12 * density), (int)(16 * density), (int)(12 * density));
+
+        var status = new TextView(this) { Text = CrashReporter.GetStatusLine(), TextSize = 11 };
+        status.SetTextColor(LauncherTheme.SubText);
+        status.SetPadding(0, 0, 0, (int)(8 * density));
+        view.AddView(status);
+
+        var btnRow = new LinearLayout(this) { Orientation = Orientation.Horizontal };
+        btnRow.SetPadding(0, 0, 0, (int)(8 * density));
+
+        var logView = new TextView(this)
+        {
+            Text = string.IsNullOrWhiteSpace(preview) ? "(empty)" : preview,
+            TextSize = 10
+        };
+        logView.SetTextColor(LauncherTheme.Foreground);
+        logView.SetTextIsSelectable(true);
+
+        var clearBtn = new Button(this) { Text = "Clear Logs", TextSize = 11 };
+        clearBtn.Background = LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
+        clearBtn.SetTextColor(Color.ParseColor("#ef4444"));
+        clearBtn.LayoutParameters = new LinearLayout.LayoutParams(0, (int)(34 * density), 1f)
+        {
+            RightMargin = (int)(6 * density)
+        };
+        clearBtn.Click += (_, _) =>
+        {
+            ClearCrashReports();
+            status.Text = CrashReporter.GetStatusLine();
+            logView.Text = "(cleared)";
+        };
+        btnRow.AddView(clearBtn);
+
+        var issuesBtn = new Button(this) { Text = "GitHub Issues", TextSize = 11 };
+        issuesBtn.Background = LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
+        issuesBtn.SetTextColor(LauncherTheme.Foreground);
+        issuesBtn.LayoutParameters = new LinearLayout.LayoutParams(0, (int)(34 * density), 1f);
+        issuesBtn.Click += (_, _) => OpenUrl("https://github.com/Ixee24/space-station-14-mobile/issues");
+        btnRow.AddView(issuesBtn);
+        view.AddView(btnRow);
+
+        view.AddView(logView);
+        scroll.AddView(view);
+        builder.SetView(scroll);
+
+        builder.SetPositiveButton("Share", (_, _) => ShareCrashReport());
+        builder.SetNeutralButton("Copy", (_, _) => CopyCrashReport());
+        builder.SetNegativeButton("Close", (_, _) => CrashReporter.MarkSeen());
+        var dialog = builder.Create();
+
+        dialog.Show();
+        CrashReporter.MarkSeen();
+    }
+
+    private void ShareCrashReport()
+    {
+        try
+        {
+            var report = CrashReporter.GetFullReport();
+            var intent = new Intent(Intent.ActionSend);
+            intent.SetType("text/plain");
+            intent.PutExtra(Intent.ExtraSubject, $"SS14 Android crash report {GetCurrentAppVersion()}");
+            intent.PutExtra(Intent.ExtraText, report);
+            StartActivity(Intent.CreateChooser(intent, "Share crash report"));
+        }
+        catch (Exception ex)
+        {
+            Toast.MakeText(this, $"Share failed: {ex.Message}", ToastLength.Short)?.Show();
+        }
+    }
+
+    private void CopyCrashReport()
+    {
+        try
+        {
+            var report = CrashReporter.GetFullReport();
+            var clipboard = (ClipboardManager?)GetSystemService(ClipboardService);
+            clipboard?.SetPrimaryClip(ClipData.NewPlainText("SS14 crash report", report));
+            Toast.MakeText(this, "Crash report copied to clipboard", ToastLength.Short)?.Show();
+        }
+        catch (Exception ex)
+        {
+            Toast.MakeText(this, $"Copy failed: {ex.Message}", ToastLength.Short)?.Show();
+        }
+    }
+
+    private void ClearCrashReports()
+    {
+        try
+        {
+            CrashReporter.Clear();
+            Toast.MakeText(this, "Crash reports cleared", ToastLength.Short)?.Show();
+        }
+        catch { }
+    }
+
+    #endregion
 
     private void LaunchOfflineSandbox()
     {

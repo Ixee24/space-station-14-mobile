@@ -71,10 +71,15 @@ jobs:
         run: dotnet workload install android
 
       - name: Set up Release Keystore
-        if: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' }}
+        env:
+          KEYSTORE_B64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
         run: |
-          echo "${{ secrets.ANDROID_KEYSTORE_BASE64 }}" | base64 -d > Content.Android/release.keystore
-          echo "Keystore restored."
+          if [ -n "$KEYSTORE_B64" ]; then
+            echo "$KEYSTORE_B64" | base64 -d > Content.Android/release.keystore
+            echo "Keystore restored."
+          else
+            echo "No keystore secret configured; falling back to debug signing."
+          fi
 
       - name: Build Android Release APK
         run: dotnet build Content.Android/Content.Android.csproj -c Release

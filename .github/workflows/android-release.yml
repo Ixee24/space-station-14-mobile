@@ -35,27 +35,22 @@ jobs:
           git apply --ignore-whitespace --whitespace=nowarn ../patches/client-fixes.patch
           cd ..
 
-      - name: Auto bump version
+      - name: Read version
         id: ver
         run: |
+          NEW=$(grep -oP '<ApplicationDisplayVersion>\K[^<]+' Content.Android/Content.Android.csproj)
+          if ! echo "$NEW" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+            echo "ERROR: unexpected DisplayVersion format: $NEW" >&2
+            exit 1
+          fi
           INPUT_TAG="${{ inputs.release_tag }}"
           if [ -n "$INPUT_TAG" ]; then
-            NEW="${INPUT_TAG#v}"
+            TAG="$INPUT_TAG"
           else
-            CUR=$(grep -oP '<ApplicationDisplayVersion>\K[^<]+' Content.Android/Content.Android.csproj)
-            if ! echo "$CUR" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
-              echo "ERROR: unexpected DisplayVersion format: $CUR" >&2
-              exit 1
-            fi
-            NEW=$(echo "$CUR" | awk -F. '{print $1"."$2"."$3+1}')
+            TAG="v$NEW"
           fi
-          TAG="v$NEW"
-          CODE=$(($(grep -oP '<ApplicationVersion>\K[0-9]+' Content.Android/Content.Android.csproj) + 1))
-          sed -i "s|<ApplicationDisplayVersion>.*</ApplicationDisplayVersion>|<ApplicationDisplayVersion>${NEW}</ApplicationDisplayVersion>|" Content.Android/Content.Android.csproj
-          sed -i "s|<ApplicationVersion>[0-9]*</ApplicationVersion>|<ApplicationVersion>${CODE}</ApplicationVersion>|" Content.Android/Content.Android.csproj
-          sed -i "s|public const string CurrentAppVersion = \".*\"|public const string CurrentAppVersion = \"${TAG}\"|" Content.Android/LauncherActivity.cs
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "Bumped to $TAG (versionCode $CODE)"
+          echo "Releasing $TAG"
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -137,7 +132,7 @@ jobs:
         uses: softprops/action-gh-release@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          tag_name: ${{ inputs.release_tag != '' && inputs.release_tag || steps.ver.outputs.tag }}
+          tag_name: ${{ steps.ver.outputs.tag }}
           files: ${{ steps.find_apk.outputs.apk_path }}
           draft: false
           prerelease: false

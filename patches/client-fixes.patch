@@ -2434,16 +2434,10 @@ index 620187a74d..d218fe8104 100644
  
      /// <summary>
 diff --git a/Content.Client/Audio/AudioUIController.cs b/Content.Client/Audio/AudioUIController.cs
-index 779f56d619..76e022aeee 100644
+index 779f56d619..550acb510f 100644
 --- a/Content.Client/Audio/AudioUIController.cs
 +++ b/Content.Client/Audio/AudioUIController.cs
-@@ -50,11 +50,18 @@ private void SetInterfaceVolume(float obj)
-         }
-     }
- 
-+    private void SetClickSound(string value)
-     private void SetClickSound(string value)
-     {
+@@ -55,6 +55,12 @@ private void SetClickSound(string value)
          if (!string.IsNullOrEmpty(value))
          {
              var resource = GetSoundOrFallback(value, CCVars.UIClickSound.DefaultValue);
@@ -2456,7 +2450,7 @@ index 779f56d619..76e022aeee 100644
              var source =
                  _audioManager.CreateAudioSource(resource);
  
-@@ -78,6 +85,12 @@ private void SetHoverSound(string value)
+@@ -78,6 +84,12 @@ private void SetHoverSound(string value)
          if (!string.IsNullOrEmpty(value))
          {
              var hoverResource = GetSoundOrFallback(value, CCVars.UIHoverSound.DefaultValue);
@@ -2469,7 +2463,7 @@ index 779f56d619..76e022aeee 100644
              var hoverSource =
                  _audioManager.CreateAudioSource(hoverResource);
  
-@@ -96,11 +109,16 @@ private void SetHoverSound(string value)
+@@ -96,11 +108,16 @@ private void SetHoverSound(string value)
          }
      }
  

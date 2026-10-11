@@ -1501,10 +1501,10 @@ index 72d61cbe3..d432c594d 100644
          EnsureCursorVisible();
 diff --git a/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs b/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs
 new file mode 100644
-index 000000000..5cd22afe9
+index 000000000..0ea3a098e
 --- /dev/null
 +++ b/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs
-@@ -0,0 +1,1002 @@
+@@ -0,0 +1,1023 @@
 +using System;
 +using System.Collections.Generic;
 +using System.Globalization;
@@ -2330,6 +2330,26 @@ index 000000000..5cd22afe9
 +        DumpMobileDebugInfo();
 +    }
 +
++    private void DumpArrangeDebugInfo(Vector2 viewport, float scale)
++    {
++        try
++        {
++            var dir = ProgramShared.PathOffset;
++            if (string.IsNullOrEmpty(dir))
++                return;
++            var sb = new System.Text.StringBuilder();
++            sb.AppendLine($"utc={DateTime.UtcNow:O}");
++            sb.AppendLine($"viewport={viewport} controls_scale={scale.ToString(CultureInfo.InvariantCulture)}");
++            sb.AppendLine($"stick pos={_thumbstick.GlobalPosition} size={_thumbstick.Size} custom={_thumbstick.CustomPosition?.ToString() ?? "<none>"}");
++            foreach (var b in _allButtons)
++            {
++                sb.AppendLine($"btn {b.Id} pos={b.GlobalPosition} size={b.Size} custom={b.CustomPosition?.ToString() ?? "<none>"} label=\"{b.Text}\"");
++            }
++            File.WriteAllText(Path.Combine(dir, "mobile-arrange-debug.txt"), sb.ToString());
++        }
++        catch { }
++    }
++
 +    /// <summary>
 +    /// Writes current touch-control state where the launcher crash reporter
 +    /// can pick it up (separate process, same files dir). Proves the overlay
@@ -2414,6 +2434,7 @@ index 000000000..5cd22afe9
 +        _topUtilityContainer.Arrange(new UIBox2(Vector2.Zero, finalSize));
 +
 +        var scale = Math.Clamp(_cfg.GetCVar(CVars.MobileControlsScale), 0.6f, 3.0f);
++        DumpArrangeDebugInfo(finalSize, scale);
 +
 +        var stickRadius = 135f * scale;
 +        var stickDiameter = stickRadius * 2f;

@@ -352,10 +352,18 @@ public static class CrashReporter
     {
         try
         {
+            var sb = new StringBuilder();
             var path = Path.Combine(FilesDir, "mobile-controls-debug.txt");
             if (!File.Exists(path))
-                return "(mobile-controls-debug.txt not found - overlay never wrote it)";
-            return File.ReadAllText(path);
+                sb.AppendLine("(mobile-controls-debug.txt not found - overlay never wrote it)");
+            else
+                sb.AppendLine(File.ReadAllText(path));
+            var arrange = Path.Combine(FilesDir, "mobile-arrange-debug.txt");
+            if (!File.Exists(arrange))
+                sb.AppendLine("(mobile-arrange-debug.txt not found - overlay never arranged)");
+            else
+                sb.AppendLine(File.ReadAllText(arrange));
+            return sb.ToString();
         }
         catch (Exception ex)
         {

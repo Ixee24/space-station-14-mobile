@@ -29,7 +29,7 @@ jobs:
       - name: Apply Mobile Patches
         run: |
           cd space-station-14/RobustToolbox
-          git apply --ignore-whitespace --whitespace=nowarn ../../../patches/mobile.patch
+          git apply --ignore-whitespace --whitespace=nowarn ../../patches/mobile.patch
           cd ../..
           cd space-station-14
           git apply --ignore-whitespace --whitespace=nowarn ../patches/client-fixes.patch

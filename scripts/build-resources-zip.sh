@@ -40,11 +40,17 @@ for d in Shaders Interface; do
     fi
 done
 
-# UI click/hover sounds (kilobytes); without these the client crashes at
-# startup when audio is otherwise omitted (see AudioUIController hardening).
-if [ -d "$SRC/Audio/UserInterface" ]; then
-    mkdir -p "$STAGE/Audio/UserInterface"
-    cp -r "$SRC/Audio/UserInterface/." "$STAGE/Audio/UserInterface/"
+# Startup touches audio all over (UI, voting, lobby, ...) and any missing
+# file without a fallback is a fatal startup crash, so pack nearly all of
+# Audio/. Only the giant music/ambience banks are skipped (they stream
+# lazily during gameplay and come with server content on connect).
+# OGGs barely compress; revisit with on-demand download if APK size bites.
+if [ -d "$SRC/Audio" ]; then
+    mkdir -p "$STAGE/Audio"
+    cp -r "$SRC/Audio/." "$STAGE/Audio/"
+    for d in Lobby MidiCustom Cosmic Ambience Jukebox; do
+        rm -rf "$STAGE/Audio/$d"
+    done
 fi
 
 # Small root-level metadata files (manifest, keybinds, attributions, ...).

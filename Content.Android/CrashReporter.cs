@@ -231,6 +231,12 @@ public static class CrashReporter
         sb.AppendLine();
         sb.AppendLine("=== game.log (tail) ===");
         sb.AppendLine(TailText(GameLogPath, MaxLogTailChars));
+        sb.AppendLine();
+        sb.AppendLine("=== client config (mobile/display/interface/input) ===");
+        var cfgSection = GetMobileConfigSection();
+        sb.AppendLine(cfgSection.Length > MaxLogTailChars
+            ? cfgSection.Substring(cfgSection.Length - MaxLogTailChars)
+            : cfgSection);
         var report = sb.ToString();
         if (report.Length > MaxReportChars)
             report = report.Substring(report.Length - MaxReportChars);
@@ -248,6 +254,49 @@ public static class CrashReporter
             return $"crash.txt: {FormatBytes(crashSize)}   game.log: {FormatBytes(logSize)}";
         }
         catch { return "Log status unavailable."; }
+    }
+
+    /// <summary>
+    /// Locates the engine client config to expose input/UI settings for debugging.
+    /// </summary>
+    public static string? FindClientConfig()
+    {
+        try
+        {
+            var direct = Directory.GetFiles(FilesDir, "client_config.toml", SearchOption.AllDirectories);
+            if (direct.Length > 0)
+                return direct[0];
+        }
+        catch { }
+        return null;
+    }
+
+    private static string GetMobileConfigSection()
+    {
+        try
+        {
+            var path = FindClientConfig();
+            if (path == null)
+                return "(client_config.toml not found)";
+            var sb = new StringBuilder();
+            foreach (var line in File.ReadLines(path))
+            {
+                var t = line.Trim();
+                if (t.StartsWith("mobile.", StringComparison.OrdinalIgnoreCase) ||
+                    t.StartsWith("display.", StringComparison.OrdinalIgnoreCase) ||
+                    t.StartsWith("interface.", StringComparison.OrdinalIgnoreCase) ||
+                    t.StartsWith("input.", StringComparison.OrdinalIgnoreCase))
+                {
+                    sb.AppendLine(line.Length > 2000 ? line.Substring(0, 2000) + "..." : line);
+                }
+            }
+            var out_ = sb.ToString();
+            return string.IsNullOrWhiteSpace(out_) ? "(no mobile/display/interface/input entries)" : out_;
+        }
+        catch (Exception ex)
+        {
+            return $"(could not read config: {ex.Message})";
+        }
     }
 
     private static string TailText(string path, int maxChars)

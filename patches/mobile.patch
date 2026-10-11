@@ -649,10 +649,10 @@ index 60fabdcac..127214339 100644
              GameControllerOptions options,
              Func<ILogHandler>? logHandlerFactory,
 diff --git a/Robust.Client/GameObjects/Components/Renderable/SpriteComponent.cs b/Robust.Client/GameObjects/Components/Renderable/SpriteComponent.cs
-index a183d7572..06c796db5 100644
+index f02166579..3626b8e9b 100644
 --- a/Robust.Client/GameObjects/Components/Renderable/SpriteComponent.cs
 +++ b/Robust.Client/GameObjects/Components/Renderable/SpriteComponent.cs
-@@ -658,7 +658,7 @@ namespace Robust.Client.GameObjects
+@@ -653,7 +653,7 @@ namespace Robust.Client.GameObjects
  
          private object ParseKey(string keyString)
          {
@@ -683,7 +683,7 @@ index c3ca7a240..2879fe1c7 100644
          Entity<SpriteComponent> sprite,
          DrawingHandleWorld drawingHandle,
 diff --git a/Robust.Client/GameObjects/EntitySystems/SpriteSystem.cs b/Robust.Client/GameObjects/EntitySystems/SpriteSystem.cs
-index 0e52fc49d..16b4b56ed 100644
+index 17452d547..32fd4e1a0 100644
 --- a/Robust.Client/GameObjects/EntitySystems/SpriteSystem.cs
 +++ b/Robust.Client/GameObjects/EntitySystems/SpriteSystem.cs
 @@ -298,9 +298,23 @@ namespace Robust.Client.GameObjects
@@ -716,10 +716,10 @@ index 0e52fc49d..16b4b56ed 100644
 +    }
  }
 diff --git a/Robust.Client/Graphics/Clyde/Clyde.LightRendering.cs b/Robust.Client/Graphics/Clyde/Clyde.LightRendering.cs
-index 4be833c94..cec6eb34d 100644
+index 8506f7863..29eed7b3e 100644
 --- a/Robust.Client/Graphics/Clyde/Clyde.LightRendering.cs
 +++ b/Robust.Client/Graphics/Clyde/Clyde.LightRendering.cs
-@@ -40,7 +40,7 @@ namespace Robust.Client.Graphics.Clyde
+@@ -38,7 +38,7 @@ namespace Robust.Client.Graphics.Clyde
          private const float SharedOccluderNeighbourQueryPadding = 1f + SharedOccluderEdgeTolerance;
          // Horizontal width, in pixels, of the shadow maps used to render FOV.
          // I figured this was more accuracy sensitive than lights so resolution is significantly higher.
@@ -728,7 +728,7 @@ index 4be833c94..cec6eb34d 100644
  
          private ClydeShaderInstance _fovDebugShaderInstance = default!;
  
-@@ -218,9 +218,19 @@ namespace Robust.Client.Graphics.Clyde
+@@ -216,9 +216,19 @@ namespace Robust.Client.Graphics.Clyde
  
              ClydeHandle LoadShaderHandle(string path)
              {
@@ -750,7 +750,7 @@ index 4be833c94..cec6eb34d 100644
                  }
  
                  _clydeSawmill.Warning($"Can't load shader {path}\n");
-@@ -318,15 +328,30 @@ namespace Robust.Client.Graphics.Clyde
+@@ -316,15 +326,30 @@ namespace Robust.Client.Graphics.Clyde
              CheckGlError();
              if (_hasGLFloatFramebuffers)
              {
@@ -784,7 +784,7 @@ index 4be833c94..cec6eb34d 100644
              CheckGlError();
  
              BindVertexArray(_occlusionVao.Handle);
-@@ -453,8 +478,22 @@ namespace Robust.Client.Graphics.Clyde
+@@ -451,8 +476,22 @@ namespace Robust.Client.Graphics.Clyde
  
              ApplyLightingFovToBuffer(viewport, eye);
  
@@ -809,7 +809,7 @@ index 4be833c94..cec6eb34d 100644
              lightShader.Use();
  
              SetupGlobalUniformsImmediate(lightShader, ShadowTexture);
-@@ -570,14 +609,17 @@ namespace Robust.Client.Graphics.Clyde
+@@ -568,14 +607,17 @@ namespace Robust.Client.Graphics.Clyde
              if (_cfg.GetCVar(CVars.LightBlur))
                  BlurRenderTarget(viewport, viewport.LightRenderTarget, viewport.LightBlurTarget, eye, 14f);
  
@@ -833,7 +833,7 @@ index 4be833c94..cec6eb34d 100644
              }
  
              BindRenderTargetFull(viewport.RenderTarget);
-@@ -898,7 +940,10 @@ namespace Robust.Client.Graphics.Clyde
+@@ -895,7 +937,10 @@ namespace Robust.Client.Graphics.Clyde
              CalcScreenMatrices(viewport.Size, out var proj, out var view);
              SetProjViewBuffer(proj, view);
  
@@ -845,7 +845,7 @@ index 4be833c94..cec6eb34d 100644
              shader.Use();
  
              SetupGlobalUniformsImmediate(shader, viewport.LightRenderTarget.Texture);
-@@ -959,7 +1004,10 @@ namespace Robust.Client.Graphics.Clyde
+@@ -956,7 +1001,10 @@ namespace Robust.Client.Graphics.Clyde
              CheckGlError();
              IsBlending = false;
  
@@ -857,7 +857,7 @@ index 4be833c94..cec6eb34d 100644
              shader.Use();
  
              var tex = viewport.WallBleedIntermediateRenderTarget2.Texture;
-@@ -991,7 +1039,13 @@ namespace Robust.Client.Graphics.Clyde
+@@ -988,7 +1036,13 @@ namespace Robust.Client.Graphics.Clyde
  
              // Applies FOV to the final framebuffer.
  
@@ -872,7 +872,7 @@ index 4be833c94..cec6eb34d 100644
              fovShader.Use();
  
              SetupGlobalUniformsImmediate(fovShader, FovTexture);
-@@ -1014,7 +1068,10 @@ namespace Robust.Client.Graphics.Clyde
+@@ -1011,7 +1065,10 @@ namespace Robust.Client.Graphics.Clyde
          {
              // Applies FOV to the lighting framebuffer.
  
@@ -884,7 +884,7 @@ index 4be833c94..cec6eb34d 100644
              fovShader.Use();
  
              SetupGlobalUniformsImmediate(fovShader, FovTexture);
-@@ -1947,6 +2004,10 @@ namespace Robust.Client.Graphics.Clyde
+@@ -1954,6 +2011,10 @@ namespace Robust.Client.Graphics.Clyde
  
          private void MaxShadowcastingLightsChanged(int newValue)
          {
@@ -895,7 +895,7 @@ index 4be833c94..cec6eb34d 100644
              _maxShadowcastingLights = newValue;
              DebugTools.Assert(_maxLights >= _maxShadowcastingLights);
  
-@@ -1979,6 +2040,10 @@ namespace Robust.Client.Graphics.Clyde
+@@ -1986,6 +2047,10 @@ namespace Robust.Client.Graphics.Clyde
  
          private void MaxLightsChanged(int value)
          {
@@ -1177,7 +1177,7 @@ index da4d28f69..30da35af0 100644
  
              _clyde._currentHoveredWindow = windowReg;
 diff --git a/Robust.Client/Graphics/Clyde/Windowing/Sdl3.Window.cs b/Robust.Client/Graphics/Clyde/Windowing/Sdl3.Window.cs
-index 70fa5edb4..120fa92a8 100644
+index d1d79e8d6..5ec585ca5 100644
 --- a/Robust.Client/Graphics/Clyde/Windowing/Sdl3.Window.cs
 +++ b/Robust.Client/Graphics/Clyde/Windowing/Sdl3.Window.cs
 @@ -1,4 +1,4 @@
@@ -1199,7 +1199,7 @@ index 70fa5edb4..120fa92a8 100644
                  int ctxFlags = 0;
  #if DEBUG
                  ctxFlags |= SDL.SDL_GL_CONTEXT_DEBUG_FLAG;
-@@ -319,7 +318,10 @@ internal partial class Clyde
+@@ -315,7 +314,10 @@ internal partial class Clyde
              SDL.SDL_GL_MakeCurrent(IntPtr.Zero, IntPtr.Zero);
  
              if (parameters.Visible)
@@ -1210,7 +1210,7 @@ index 70fa5edb4..120fa92a8 100644
  
              return (window, glContext);
          }
-@@ -370,6 +372,8 @@ internal partial class Clyde
+@@ -366,6 +368,8 @@ internal partial class Clyde
  
              reg.PixelRatio = reg.FramebufferSize / (Vector2)reg.WindowSize;
  
@@ -1219,7 +1219,7 @@ index 70fa5edb4..120fa92a8 100644
              return reg;
          }
  
-@@ -536,6 +540,25 @@ internal partial class Clyde
+@@ -532,6 +536,25 @@ internal partial class Clyde
              }
          }
  
@@ -1245,7 +1245,7 @@ index 70fa5edb4..120fa92a8 100644
          public unsafe void WindowSwapBuffers(WindowReg window)
          {
              var reg = (Sdl3WindowReg)window;
-@@ -554,13 +577,12 @@ internal partial class Clyde
+@@ -550,13 +573,12 @@ internal partial class Clyde
              var dwmFlush = false;
              var swapInterval = 0;
  
@@ -1261,7 +1261,7 @@ index 70fa5edb4..120fa92a8 100644
                  {
                      var curCtx = SDL.SDL_GL_GetCurrentContext();
                      var curWin = SDL.SDL_GL_GetCurrentWindow();
-@@ -579,13 +601,9 @@ internal partial class Clyde
+@@ -575,13 +597,9 @@ internal partial class Clyde
              SDL.SDL_GL_SwapWindow(windowPtr);
  
  #if WINDOWS
@@ -1277,7 +1277,7 @@ index 70fa5edb4..120fa92a8 100644
  
                  SDL.SDL_GL_SetSwapInterval(swapInterval);
              }
-@@ -660,7 +678,18 @@ internal partial class Clyde
+@@ -656,7 +674,18 @@ internal partial class Clyde
  
          private static void WinThreadStartTextInput(CmdTextInputStart cmd)
          {
@@ -1296,7 +1296,7 @@ index 70fa5edb4..120fa92a8 100644
          }
  
          public void TextInputStop(WindowReg reg)
-@@ -671,6 +700,7 @@ internal partial class Clyde
+@@ -667,6 +696,7 @@ internal partial class Clyde
          private static void WinThreadStopTextInput(CmdTextInputStop cmd)
          {
              SDL.SDL_StopTextInput(cmd.Window);
@@ -1304,7 +1304,7 @@ index 70fa5edb4..120fa92a8 100644
          }
  
          public void ClipboardSetText(WindowReg mainWindow, string text)
-@@ -715,6 +745,11 @@ internal partial class Clyde
+@@ -711,6 +741,11 @@ internal partial class Clyde
                      return windowReg;
              }
  
@@ -1331,7 +1331,7 @@ index 1f5c19301..27a25f60d 100644
          {
              var advanceTotal = Vector2.Zero;
 diff --git a/Robust.Client/Input/InputManager.cs b/Robust.Client/Input/InputManager.cs
-index e4aeda9a1..8c7134099 100644
+index 2ed826b59..c0d137243 100644
 --- a/Robust.Client/Input/InputManager.cs
 +++ b/Robust.Client/Input/InputManager.cs
 @@ -9,6 +9,7 @@ using System.Runtime.InteropServices;
@@ -1342,7 +1342,7 @@ index e4aeda9a1..8c7134099 100644
  using Robust.Shared.Collections;
  using Robust.Shared.Console;
  using Robust.Shared.ContentPack;
-@@ -237,6 +238,34 @@ namespace Robust.Client.Input
+@@ -235,6 +236,34 @@ namespace Robust.Client.Input
                  return;
              }
  
@@ -1377,7 +1377,7 @@ index e4aeda9a1..8c7134099 100644
              _keysPressed[(int)args.Key] = true;
  
              PackedKeyCombo matchedCombo = default;
-@@ -269,9 +298,13 @@ namespace Robust.Client.Input
+@@ -267,9 +296,13 @@ namespace Robust.Client.Input
                      }
                      else if (PackedIsSubPattern(matchedCombo, binding.PackedKeyCombo))
                      {
@@ -1392,7 +1392,7 @@ index e4aeda9a1..8c7134099 100644
                          }
                          else
                          {
-@@ -331,6 +364,11 @@ namespace Robust.Client.Input
+@@ -329,6 +362,11 @@ namespace Robust.Client.Input
                  return;
              }
  
@@ -1501,10 +1501,10 @@ index 72d61cbe3..d432c594d 100644
          EnsureCursorVisible();
 diff --git a/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs b/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs
 new file mode 100644
-index 000000000..0b0889a9a
+index 000000000..4e037fd69
 --- /dev/null
 +++ b/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs
-@@ -0,0 +1,965 @@
+@@ -0,0 +1,972 @@
 +using System;
 +using System.Collections.Generic;
 +using System.Globalization;
@@ -2108,7 +2108,7 @@ index 000000000..0b0889a9a
 +    private void AdjustScale(float delta)
 +    {
 +        var current = _cfg.GetCVar(CVars.MobileControlsScale);
-+        var updated = Math.Clamp(current + delta, 0.6f, 1.6f);
++        var updated = Math.Clamp(current + delta, 0.6f, 3.0f);
 +        _cfg.SetCVar(CVars.MobileControlsScale, updated);
 +        UpdateStyling();
 +        InvalidateArrange();
@@ -2327,7 +2327,7 @@ index 000000000..0b0889a9a
 +        _cfg.SetCVar(CVars.MobileControlsLayout, serialized);
 +    }
 +
-+    private void ArrangeChild(Control control, Vector2 defaultPos, Vector2 defaultSize)
++    private void ArrangeChild(Control control, Vector2 defaultPos, Vector2 defaultSize, Vector2 viewport)
 +    {
 +        Vector2 pos;
 +        Vector2 size = defaultSize;
@@ -2368,6 +2368,13 @@ index 000000000..0b0889a9a
 +            pos = defaultPos;
 +        }
 +
++        // Mobile: never arrange off-screen (stale saved coords from another
++        // orientation, or a foreign layout format, used to lose controls).
++        var maxPos = viewport - size;
++        if (maxPos.X < 0f) maxPos.X = 0f;
++        if (maxPos.Y < 0f) maxPos.Y = 0f;
++        pos = new Vector2(Math.Clamp(pos.X, 0f, maxPos.X), Math.Clamp(pos.Y, 0f, maxPos.Y));
++
 +        control.Arrange(new UIBox2(pos, pos + size));
 +    }
 +
@@ -2376,7 +2383,7 @@ index 000000000..0b0889a9a
 +        _clusterContainer.Arrange(new UIBox2(Vector2.Zero, finalSize));
 +        _topUtilityContainer.Arrange(new UIBox2(Vector2.Zero, finalSize));
 +
-+        var scale = Math.Clamp(_cfg.GetCVar(CVars.MobileControlsScale), 0.6f, 1.4f);
++        var scale = Math.Clamp(_cfg.GetCVar(CVars.MobileControlsScale), 0.6f, 3.0f);
 +
 +        var stickRadius = 135f * scale;
 +        var stickDiameter = stickRadius * 2f;
@@ -2390,39 +2397,39 @@ index 000000000..0b0889a9a
 +        var defaultStickY = stickCenterY - stickRadius;
 +        var defaultStickPos = new Vector2(stickMarginX, defaultStickY);
 +        var stickSize = new Vector2(stickDiameter + 30f, stickDiameter + 30f);
-+        ArrangeChild(_thumbstick, defaultStickPos, stickSize);
++        ArrangeChild(_thumbstick, defaultStickPos, stickSize, finalSize);
 +
 +        var useSize = 54f * scale;
 +        var useDefPos = new Vector2(finalSize.X - useSize - 24f * scale, finalSize.Y * 0.54f);
-+        ArrangeChild(_useButton, useDefPos, new Vector2(useSize, useSize));
++        ArrangeChild(_useButton, useDefPos, new Vector2(useSize, useSize), finalSize);
 +
 +        var interSize = 48f * scale;
 +        var interDefPos = new Vector2(useDefPos.X - interSize - 16f * scale, useDefPos.Y + 14f * scale);
-+        ArrangeChild(_interactButton, interDefPos, new Vector2(interSize, interSize));
++        ArrangeChild(_interactButton, interDefPos, new Vector2(interSize, interSize), finalSize);
 +
 +        var secSize = 46f * scale;
 +        var secDefPos = new Vector2(interDefPos.X - secSize - 14f * scale, interDefPos.Y + 12f * scale);
-+        ArrangeChild(_secButton, secDefPos, new Vector2(secSize, secSize));
++        ArrangeChild(_secButton, secDefPos, new Vector2(secSize, secSize), finalSize);
 +
 +        var handSize = 44f * scale;
 +        var handDefPos = new Vector2(useDefPos.X + 4f * scale, useDefPos.Y - handSize - 16f * scale);
-+        ArrangeChild(_handButton, handDefPos, new Vector2(handSize, handSize));
++        ArrangeChild(_handButton, handDefPos, new Vector2(handSize, handSize), finalSize);
 +
 +        var dropSize = 42f * scale;
 +        var dropDefPos = new Vector2(interDefPos.X - 2f * scale, interDefPos.Y - dropSize - 18f * scale);
-+        ArrangeChild(_dropButton, dropDefPos, new Vector2(dropSize, dropSize));
++        ArrangeChild(_dropButton, dropDefPos, new Vector2(dropSize, dropSize), finalSize);
 +
 +        var altSize = 42f * scale;
 +        var altDefPos = new Vector2(secDefPos.X, secDefPos.Y - altSize - 16f * scale);
-+        ArrangeChild(_altButton, altDefPos, new Vector2(altSize, altSize));
++        ArrangeChild(_altButton, altDefPos, new Vector2(altSize, altSize), finalSize);
 +
 +        var examSize = 42f * scale;
 +        var examDefPos = new Vector2(dropDefPos.X, dropDefPos.Y - examSize - 14f * scale);
-+        ArrangeChild(_examButton, examDefPos, new Vector2(examSize, examSize));
++        ArrangeChild(_examButton, examDefPos, new Vector2(examSize, examSize), finalSize);
 +
 +        var pullSize = 42f * scale;
 +        var pullDefPos = new Vector2(altDefPos.X, altDefPos.Y - pullSize - 14f * scale);
-+        ArrangeChild(_pullButton, pullDefPos, new Vector2(pullSize, pullSize));
++        ArrangeChild(_pullButton, pullDefPos, new Vector2(pullSize, pullSize), finalSize);
 +
 +        foreach (var btn in _allButtons)
 +        {
@@ -2430,7 +2437,7 @@ index 000000000..0b0889a9a
 +            {
 +                var defSize = new Vector2(50f * scale, 50f * scale);
 +                var defPos = new Vector2(finalSize.X / 2f - 25f, finalSize.Y / 2f - 25f);
-+                ArrangeChild(btn, defPos, defSize);
++                ArrangeChild(btn, defPos, defSize, finalSize);
 +            }
 +        }
 +
@@ -2438,16 +2445,16 @@ index 000000000..0b0889a9a
 +        var topBtnH = 34f * scale;
 +        var topY = 14f * scale;
 +
-+        ArrangeChild(_escButton, new Vector2(24f * scale, topY), new Vector2(topBtnW, topBtnH));
-+        ArrangeChild(_editButton, new Vector2(24f * scale + topBtnW + 12f * scale, topY), new Vector2(topBtnW + 8f * scale, topBtnH));
++        ArrangeChild(_escButton, new Vector2(24f * scale, topY), new Vector2(topBtnW, topBtnH), finalSize);
++        ArrangeChild(_editButton, new Vector2(24f * scale + topBtnW + 12f * scale, topY), new Vector2(topBtnW + 8f * scale, topBtnH), finalSize);
 +
 +        var keybX = finalSize.X - topBtnW - (24f * scale);
-+        ArrangeChild(_keybButton, new Vector2(keybX, topY), new Vector2(topBtnW, topBtnH));
++        ArrangeChild(_keybButton, new Vector2(keybX, topY), new Vector2(topBtnW, topBtnH), finalSize);
 +
 +        var hideW = 42f * scale;
 +        var hideH = 26f * scale;
 +        var hideX = (finalSize.X - hideW) / 2f;
-+        ArrangeChild(_hideButton, new Vector2(hideX, 6f * scale), new Vector2(hideW, hideH));
++        ArrangeChild(_hideButton, new Vector2(hideX, 6f * scale), new Vector2(hideW, hideH), finalSize);
 +
 +        if (_editorBarContainer.Visible)
 +        {
@@ -3075,7 +3082,7 @@ index d6a83e8d7..ed7b1ae82 100644
                  if (newPath == null)
                  {
 diff --git a/Robust.Shared.CompNetworkGenerator/ComponentNetworkGenerator.cs b/Robust.Shared.CompNetworkGenerator/ComponentNetworkGenerator.cs
-index 4a82cfeb8..9428b2838 100644
+index 011d668fe..dff7736a8 100644
 --- a/Robust.Shared.CompNetworkGenerator/ComponentNetworkGenerator.cs
 +++ b/Robust.Shared.CompNetworkGenerator/ComponentNetworkGenerator.cs
 @@ -1,4 +1,4 @@
@@ -3084,7 +3091,7 @@ index 4a82cfeb8..9428b2838 100644
  using System.Text;
  using Microsoft.CodeAnalysis;
  using Microsoft.CodeAnalysis.CSharp;
-@@ -1069,6 +1069,22 @@ namespace Robust.Shared.CompNetworkGenerator
+@@ -908,6 +908,22 @@ namespace Robust.Shared.CompNetworkGenerator
                          fieldDeltas = fields;
                          excludeReplays = exclude;
                      }
@@ -3161,10 +3168,10 @@ index 18703ca0c..43496a381 100644
  
  /// <summary>
 diff --git a/Robust.Shared/CVars.cs b/Robust.Shared/CVars.cs
-index d4c004f4a..0f73ba50b 100644
+index 4ec96b10b..4fe051948 100644
 --- a/Robust.Shared/CVars.cs
 +++ b/Robust.Shared/CVars.cs
-@@ -992,38 +992,44 @@ namespace Robust.Shared
+@@ -962,38 +962,44 @@ namespace Robust.Shared
          /// Maximum number of lights that the client will draw.
          /// </summary>
          public static readonly CVarDef<int> MaxLightCount =
@@ -3215,7 +3222,16 @@ index d4c004f4a..0f73ba50b 100644
  
          /// <summary>
          /// Factor by which to blur the lighting framebuffer under <c>light.blur</c>.
-@@ -1357,6 +1363,30 @@ namespace Robust.Shared
+@@ -1174,7 +1180,7 @@ namespace Robust.Shared
+         /// UI scale for all UI controls. If zero, this value is automatically calculated from the OS.
+         /// </summary>
+         public static readonly CVarDef<float> DisplayUIScale =
+-            CVarDef.Create("display.uiScale", 0f, CVar.ARCHIVE | CVar.CLIENTONLY);
++            CVarDef.Create("display.uiScale", 1f, CVar.ARCHIVE | CVar.CLIENTONLY);
+ 
+         // Clyde related enums are in Clyde.Constants.cs.
+ 
+@@ -1327,6 +1333,30 @@ namespace Robust.Shared
          public static readonly CVarDef<bool> DisplayWin32Experience =
              CVarDef.Create("display.win32_experience", false, CVar.CLIENTONLY);
  
@@ -3235,7 +3251,7 @@ index d4c004f4a..0f73ba50b 100644
 +        /// Scale multiplier for on-screen touch controls.
 +        /// </summary>
 +        public static readonly CVarDef<float> MobileControlsScale =
-+            CVarDef.Create("mobile.controls_scale", 1.0f, CVar.CLIENTONLY | CVar.ARCHIVE);
++            CVarDef.Create("mobile.controls_scale", 2.0f, CVar.CLIENTONLY | CVar.ARCHIVE);
 +
 +        /// <summary>
 +        /// Persistent custom layout positions for on-screen touch controls.
@@ -3549,10 +3565,10 @@ index 509cf09cd..7289da8df 100644
              _typeToIdx = typeToidx.ToFrozenDictionary();
              _names = names.ToFrozenDictionary();
 diff --git a/Robust.Shared/GameObjects/Components/Light/OccluderComponent.cs b/Robust.Shared/GameObjects/Components/Light/OccluderComponent.cs
-index b5d321f0d..23c44d253 100644
+index 8c82b5190..c61c862a4 100644
 --- a/Robust.Shared/GameObjects/Components/Light/OccluderComponent.cs
 +++ b/Robust.Shared/GameObjects/Components/Light/OccluderComponent.cs
-@@ -20,6 +20,13 @@ public sealed partial class OccluderComponent : Component, IComponentTreeEntry<O
+@@ -19,6 +19,13 @@ public sealed partial class OccluderComponent : Component, IComponentTreeEntry<O
      [DataField, AutoNetworkedField]
      public bool Enabled = true;
  
@@ -4092,10 +4108,10 @@ index 509322be6..c1614abbb 100644
                  request.Headers.Authorization = new AuthenticationHeaderValue("SS14Auth", authToken);
                  var joinResp = await _http.Client.SendAsync(request, cancel);
 diff --git a/Robust.Shared/Network/NetManager.cs b/Robust.Shared/Network/NetManager.cs
-index b79a8d0ef..c12b5a316 100644
+index ad9c541fc..4ed00ed89 100644
 --- a/Robust.Shared/Network/NetManager.cs
 +++ b/Robust.Shared/Network/NetManager.cs
-@@ -1140,15 +1140,17 @@ namespace Robust.Shared.Network
+@@ -1144,15 +1144,17 @@ namespace Robust.Shared.Network
              }
              catch (InvalidCastException ice)
              {
@@ -4208,10 +4224,10 @@ index a75bfa08b..2c8479afc 100644
  #endif
  
 diff --git a/Robust.Shared/Prototypes/PrototypeManager.cs b/Robust.Shared/Prototypes/PrototypeManager.cs
-index 64d2669e7..70d7004bb 100644
+index a9d282cc2..7f54c92d0 100644
 --- a/Robust.Shared/Prototypes/PrototypeManager.cs
 +++ b/Robust.Shared/Prototypes/PrototypeManager.cs
-@@ -702,34 +702,58 @@ namespace Robust.Shared.Prototypes
+@@ -693,34 +693,58 @@ namespace Robust.Shared.Prototypes
  
              foreach (var root in tree.RootNodes)
              {
@@ -4283,7 +4299,7 @@ index 64d2669e7..70d7004bb 100644
                          }
                      }
  
-@@ -737,21 +761,35 @@ namespace Robust.Shared.Prototypes
+@@ -728,21 +752,35 @@ namespace Robust.Shared.Prototypes
                      {
                          foreach (var child in children)
                          {
@@ -4325,7 +4341,7 @@ index 64d2669e7..70d7004bb 100644
                      throw;
                  }
              }
-@@ -798,7 +836,7 @@ namespace Robust.Shared.Prototypes
+@@ -789,7 +827,7 @@ namespace Robust.Shared.Prototypes
          {
              if (!_kinds.TryGetValue(typeof(T), out var index))
              {
@@ -4334,7 +4350,7 @@ index 64d2669e7..70d7004bb 100644
              }
  
              return index.Instances.ContainsKey(id);
-@@ -847,7 +885,8 @@ namespace Robust.Shared.Prototypes
+@@ -838,7 +876,8 @@ namespace Robust.Shared.Prototypes
          {
              if (!_kinds.TryGetValue(kind, out var index))
              {
@@ -5367,121 +5383,3 @@ index 8831e60fa..2b328737c 100644
          }
  
          internal static bool HasParameterlessConstructor(this Type type, BindingFlags flags = BindingFlags.Instance | BindingFlags.Public)
-diff --git a/Robust.Shared/CVars.cs b/Robust.Shared/CVars.cs
---- a/Robust.Shared/CVars.cs
-+++ b/Robust.Shared/CVars.cs
-@@ -1174,7 +1174,7 @@ namespace Robust.Shared
-         /// UI scale for all UI controls. If zero, this value is automatically calculated from the OS.
-         /// </summary>
-         public static readonly CVarDef<float> DisplayUIScale =
--            CVarDef.Create("display.uiScale", 0f, CVar.ARCHIVE | CVar.CLIENTONLY);
-+            CVarDef.Create("display.uiScale", 1f, CVar.ARCHIVE | CVar.CLIENTONLY);
- 
-         // Clyde related enums are in Clyde.Constants.cs.
- 
-diff --git a/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs b/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs
-index 0b0889a9a..177fbb6c8 100644
---- a/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs
-+++ b/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs
-@@ -820,7 +820,7 @@ public sealed partial class MobileControlsOverlay : Control
-         _cfg.SetCVar(CVars.MobileControlsLayout, serialized);
-     }
- 
--    private void ArrangeChild(Control control, Vector2 defaultPos, Vector2 defaultSize)
-+    private void ArrangeChild(Control control, Vector2 defaultPos, Vector2 defaultSize, Vector2 viewport)
-     {
-         Vector2 pos;
-         Vector2 size = defaultSize;
-@@ -861,6 +861,13 @@ public sealed partial class MobileControlsOverlay : Control
-             pos = defaultPos;
-         }
- 
-+        // Mobile: never arrange off-screen (stale saved coords from another
-+        // orientation, or a foreign layout format, used to lose controls).
-+        var maxPos = viewport - size;
-+        if (maxPos.X < 0f) maxPos.X = 0f;
-+        if (maxPos.Y < 0f) maxPos.Y = 0f;
-+        pos = new Vector2(Math.Clamp(pos.X, 0f, maxPos.X), Math.Clamp(pos.Y, 0f, maxPos.Y));
-+
-         control.Arrange(new UIBox2(pos, pos + size));
-     }
- 
-@@ -883,39 +890,39 @@ public sealed partial class MobileControlsOverlay : Control
-         var defaultStickY = stickCenterY - stickRadius;
-         var defaultStickPos = new Vector2(stickMarginX, defaultStickY);
-         var stickSize = new Vector2(stickDiameter + 30f, stickDiameter + 30f);
--        ArrangeChild(_thumbstick, defaultStickPos, stickSize);
-+        ArrangeChild(_thumbstick, defaultStickPos, stickSize, finalSize);
- 
-         var useSize = 54f * scale;
-         var useDefPos = new Vector2(finalSize.X - useSize - 24f * scale, finalSize.Y * 0.54f);
--        ArrangeChild(_useButton, useDefPos, new Vector2(useSize, useSize));
-+        ArrangeChild(_useButton, useDefPos, new Vector2(useSize, useSize), finalSize);
- 
-         var interSize = 48f * scale;
-         var interDefPos = new Vector2(useDefPos.X - interSize - 16f * scale, useDefPos.Y + 14f * scale);
--        ArrangeChild(_interactButton, interDefPos, new Vector2(interSize, interSize));
-+        ArrangeChild(_interactButton, interDefPos, new Vector2(interSize, interSize), finalSize);
- 
-         var secSize = 46f * scale;
-         var secDefPos = new Vector2(interDefPos.X - secSize - 14f * scale, interDefPos.Y + 12f * scale);
--        ArrangeChild(_secButton, secDefPos, new Vector2(secSize, secSize));
-+        ArrangeChild(_secButton, secDefPos, new Vector2(secSize, secSize), finalSize);
- 
-         var handSize = 44f * scale;
-         var handDefPos = new Vector2(useDefPos.X + 4f * scale, useDefPos.Y - handSize - 16f * scale);
--        ArrangeChild(_handButton, handDefPos, new Vector2(handSize, handSize));
-+        ArrangeChild(_handButton, handDefPos, new Vector2(handSize, handSize), finalSize);
- 
-         var dropSize = 42f * scale;
-         var dropDefPos = new Vector2(interDefPos.X - 2f * scale, interDefPos.Y - dropSize - 18f * scale);
--        ArrangeChild(_dropButton, dropDefPos, new Vector2(dropSize, dropSize));
-+        ArrangeChild(_dropButton, dropDefPos, new Vector2(dropSize, dropSize), finalSize);
- 
-         var altSize = 42f * scale;
-         var altDefPos = new Vector2(secDefPos.X, secDefPos.Y - altSize - 16f * scale);
--        ArrangeChild(_altButton, altDefPos, new Vector2(altSize, altSize));
-+        ArrangeChild(_altButton, altDefPos, new Vector2(altSize, altSize), finalSize);
- 
-         var examSize = 42f * scale;
-         var examDefPos = new Vector2(dropDefPos.X, dropDefPos.Y - examSize - 14f * scale);
--        ArrangeChild(_examButton, examDefPos, new Vector2(examSize, examSize));
-+        ArrangeChild(_examButton, examDefPos, new Vector2(examSize, examSize), finalSize);
- 
-         var pullSize = 42f * scale;
-         var pullDefPos = new Vector2(altDefPos.X, altDefPos.Y - pullSize - 14f * scale);
--        ArrangeChild(_pullButton, pullDefPos, new Vector2(pullSize, pullSize));
-+        ArrangeChild(_pullButton, pullDefPos, new Vector2(pullSize, pullSize), finalSize);
- 
-         foreach (var btn in _allButtons)
-         {
-@@ -923,7 +930,7 @@ public sealed partial class MobileControlsOverlay : Control
-             {
-                 var defSize = new Vector2(50f * scale, 50f * scale);
-                 var defPos = new Vector2(finalSize.X / 2f - 25f, finalSize.Y / 2f - 25f);
--                ArrangeChild(btn, defPos, defSize);
-+                ArrangeChild(btn, defPos, defSize, finalSize);
-             }
-         }
- 
-@@ -931,16 +938,16 @@ public sealed partial class MobileControlsOverlay : Control
-         var topBtnH = 34f * scale;
-         var topY = 14f * scale;
- 
--        ArrangeChild(_escButton, new Vector2(24f * scale, topY), new Vector2(topBtnW, topBtnH));
--        ArrangeChild(_editButton, new Vector2(24f * scale + topBtnW + 12f * scale, topY), new Vector2(topBtnW + 8f * scale, topBtnH));
-+        ArrangeChild(_escButton, new Vector2(24f * scale, topY), new Vector2(topBtnW, topBtnH), finalSize);
-+        ArrangeChild(_editButton, new Vector2(24f * scale + topBtnW + 12f * scale, topY), new Vector2(topBtnW + 8f * scale, topBtnH), finalSize);
- 
-         var keybX = finalSize.X - topBtnW - (24f * scale);
--        ArrangeChild(_keybButton, new Vector2(keybX, topY), new Vector2(topBtnW, topBtnH));
-+        ArrangeChild(_keybButton, new Vector2(keybX, topY), new Vector2(topBtnW, topBtnH), finalSize);
- 
-         var hideW = 42f * scale;
-         var hideH = 26f * scale;
-         var hideX = (finalSize.X - hideW) / 2f;
--        ArrangeChild(_hideButton, new Vector2(hideX, 6f * scale), new Vector2(hideW, hideH));
-+        ArrangeChild(_hideButton, new Vector2(hideX, 6f * scale), new Vector2(hideW, hideH), finalSize);
- 
-         if (_editorBarContainer.Visible)
-         {

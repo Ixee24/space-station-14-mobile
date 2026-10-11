@@ -237,6 +237,9 @@ public static class CrashReporter
         sb.AppendLine(cfgSection.Length > MaxLogTailChars
             ? cfgSection.Substring(cfgSection.Length - MaxLogTailChars)
             : cfgSection);
+        sb.AppendLine();
+        sb.AppendLine("=== overlay debug dump (written by game) ===");
+        sb.AppendLine(ReadOverlayDebugDump());
         var report = sb.ToString();
         if (report.Length > MaxReportChars)
             report = report.Substring(report.Length - MaxReportChars);
@@ -342,6 +345,21 @@ public static class CrashReporter
         catch (Exception ex)
         {
             return $"(could not read {Path.GetFileName(path)}: {ex.Message})";
+        }
+    }
+
+    private static string ReadOverlayDebugDump()
+    {
+        try
+        {
+            var path = Path.Combine(FilesDir, "mobile-controls-debug.txt");
+            if (!File.Exists(path))
+                return "(mobile-controls-debug.txt not found - overlay never wrote it)";
+            return File.ReadAllText(path);
+        }
+        catch (Exception ex)
+        {
+            return $"(could not read dump: {ex.Message})";
         }
     }
 

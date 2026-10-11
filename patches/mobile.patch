@@ -1501,13 +1501,14 @@ index 72d61cbe3..d432c594d 100644
          EnsureCursorVisible();
 diff --git a/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs b/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs
 new file mode 100644
-index 000000000..4e037fd69
+index 000000000..5cd22afe9
 --- /dev/null
 +++ b/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs
-@@ -0,0 +1,972 @@
+@@ -0,0 +1,1002 @@
 +using System;
 +using System.Collections.Generic;
 +using System.Globalization;
++using System.IO;
 +using System.Numerics;
 +using Robust.Client.Graphics;
 +using Robust.Client.Input;
@@ -1878,6 +1879,7 @@ index 000000000..4e037fd69
 +
 +        LoadSavedLayout();
 +        UpdateStyling();
++        DumpMobileDebugInfo();
 +    }
 +
 +    private PojavActionButton CreateButton(
@@ -2325,6 +2327,34 @@ index 000000000..4e037fd69
 +
 +        var serialized = string.Join(";", parts);
 +        _cfg.SetCVar(CVars.MobileControlsLayout, serialized);
++        DumpMobileDebugInfo();
++    }
++
++    /// <summary>
++    /// Writes current touch-control state where the launcher crash reporter
++    /// can pick it up (separate process, same files dir). Proves the overlay
++    /// constructed and shows exact positions/scales.
++    /// </summary>
++    private void DumpMobileDebugInfo()
++    {
++        try
++        {
++            var dir = ProgramShared.PathOffset;
++            if (string.IsNullOrEmpty(dir))
++                return;
++            var sb = new System.Text.StringBuilder();
++            sb.AppendLine($"utc={DateTime.UtcNow:O}");
++            sb.AppendLine($"overlay_constructed=true");
++            sb.AppendLine($"mobile.touch_controls={_cfg.GetCVar(CVars.MobileTouchControls)}");
++            sb.AppendLine($"mobile.controls_scale={_cfg.GetCVar(CVars.MobileControlsScale).ToString(CultureInfo.InvariantCulture)}");
++            sb.AppendLine($"mobile.controls_opacity={_cfg.GetCVar(CVars.MobileControlsOpacity).ToString(CultureInfo.InvariantCulture)}");
++            sb.AppendLine($"mobile.controls_layout={_cfg.GetCVar(CVars.MobileControlsLayout)}");
++            sb.AppendLine($"display.uiScale={_cfg.GetCVar(CVars.DisplayUIScale).ToString(CultureInfo.InvariantCulture)}");
++            sb.AppendLine($"stick_default={_thumbstick.DefaultPosition} stick_custom={_thumbstick.CustomPosition?.ToString() ?? "<none>"}");
++            sb.AppendLine($"stick_size={_thumbstick.Size} overlay_size={Size} overlay_visible={Visible}");
++            File.WriteAllText(Path.Combine(dir, "mobile-controls-debug.txt"), sb.ToString());
++        }
++        catch { }
 +    }
 +
 +    private void ArrangeChild(Control control, Vector2 defaultPos, Vector2 defaultSize, Vector2 viewport)

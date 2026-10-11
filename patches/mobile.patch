@@ -1501,10 +1501,10 @@ index 72d61cbe3..d432c594d 100644
          EnsureCursorVisible();
 diff --git a/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs b/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs
 new file mode 100644
-index 000000000..0ea3a098e
+index 000000000..f70f56279
 --- /dev/null
 +++ b/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs
-@@ -0,0 +1,1023 @@
+@@ -0,0 +1,1024 @@
 +using System;
 +using System.Collections.Generic;
 +using System.Globalization;
@@ -2434,7 +2434,6 @@ index 000000000..0ea3a098e
 +        _topUtilityContainer.Arrange(new UIBox2(Vector2.Zero, finalSize));
 +
 +        var scale = Math.Clamp(_cfg.GetCVar(CVars.MobileControlsScale), 0.6f, 3.0f);
-+        DumpArrangeDebugInfo(finalSize, scale);
 +
 +        var stickRadius = 135f * scale;
 +        var stickDiameter = stickRadius * 2f;
@@ -2524,6 +2523,8 @@ index 000000000..0ea3a098e
 +            var dialogY = (finalSize.Y - dialogH) / 2f;
 +            _dialogPanel.Arrange(new UIBox2(dialogX, dialogY, dialogX + dialogW, dialogY + dialogH));
 +        }
++
++        DumpArrangeDebugInfo(finalSize, Math.Clamp(_cfg.GetCVar(CVars.MobileControlsScale), 0.6f, 3.0f));
 +
 +        return finalSize;
 +    }

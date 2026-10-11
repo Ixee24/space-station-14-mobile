@@ -40,6 +40,13 @@ for d in Shaders Interface; do
     fi
 done
 
+# UI click/hover sounds (kilobytes); without these the client crashes at
+# startup when audio is otherwise omitted (see AudioUIController hardening).
+if [ -d "$SRC/Audio/UserInterface" ]; then
+    mkdir -p "$STAGE/Audio/UserInterface"
+    cp -r "$SRC/Audio/UserInterface/." "$STAGE/Audio/UserInterface/"
+fi
+
 # Small root-level metadata files (manifest, keybinds, attributions, ...).
 for f in "$SRC"/*.yml "$SRC"/*.txt; do
     [ -f "$f" ] && cp "$f" "$STAGE/"

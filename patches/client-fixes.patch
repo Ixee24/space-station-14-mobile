@@ -2433,3 +2433,60 @@ index 620187a74d..d218fe8104 100644
      }
  
      /// <summary>
+diff --git a/Content.Client/Audio/AudioUIController.cs b/Content.Client/Audio/AudioUIController.cs
+index 779f56d619..76e022aeee 100644
+--- a/Content.Client/Audio/AudioUIController.cs
++++ b/Content.Client/Audio/AudioUIController.cs
+@@ -50,11 +50,18 @@ private void SetInterfaceVolume(float obj)
+         }
+     }
+ 
++    private void SetClickSound(string value)
+     private void SetClickSound(string value)
+     {
+         if (!string.IsNullOrEmpty(value))
+         {
+             var resource = GetSoundOrFallback(value, CCVars.UIClickSound.DefaultValue);
++            if (resource == null)
++            {
++                // Mobile: baked content pack may omit audio; run silent instead of crashing.
++                UIManager.SetClickSound(null);
++                return;
++            }
+             var source =
+                 _audioManager.CreateAudioSource(resource);
+ 
+@@ -78,6 +85,12 @@ private void SetHoverSound(string value)
+         if (!string.IsNullOrEmpty(value))
+         {
+             var hoverResource = GetSoundOrFallback(value, CCVars.UIHoverSound.DefaultValue);
++            if (hoverResource == null)
++            {
++                // Mobile: baked content pack may omit audio; run silent instead of crashing.
++                UIManager.SetHoverSound(null);
++                return;
++            }
+             var hoverSource =
+                 _audioManager.CreateAudioSource(hoverResource);
+ 
+@@ -96,11 +109,16 @@ private void SetHoverSound(string value)
+         }
+     }
+ 
+-    private AudioResource GetSoundOrFallback(string path, string fallback)
++    private AudioResource? GetSoundOrFallback(string path, string fallback)
+     {
+-        if (!_cache.TryGetResource(path, out AudioResource? resource))
+-            return _cache.GetResource<AudioResource>(fallback);
++        if (_cache.TryGetResource(path, out AudioResource? resource))
++            return resource;
++
++        // Mobile: neither the sound nor its fallback may exist in the
++        // baked pack (e.g. audio omitted for size); tolerate it.
++        if (_cache.TryGetResource(fallback, out resource))
++            return resource;
+ 
+-        return resource;
++        return null;
+     }
+ }

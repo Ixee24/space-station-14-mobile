@@ -2,6 +2,11 @@ name: Build Android Release
 
 on:
   workflow_dispatch:
+    inputs:
+      release_tag:
+        description: 'Create GitHub release with this tag (e.g. v1.0.5). Empty = build only, no release.'
+        required: false
+        default: ''
   push:
     tags:
       - 'v*'
@@ -88,10 +93,11 @@ jobs:
           retention-days: 14
 
       - name: Release APK
-        if: startsWith(github.ref, 'refs/tags/')
+        if: startsWith(github.ref, 'refs/tags/') || inputs.release_tag != ''
         uses: softprops/action-gh-release@v2
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || inputs.release_tag }}
           files: ${{ steps.find_apk.outputs.apk_path }}
           draft: false
           prerelease: false

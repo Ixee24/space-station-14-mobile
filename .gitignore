@@ -8,6 +8,7 @@ bin/
 obj/
 *.apk
 *.log
+*.keystore
 
 # IDE & OS
 .vs/

@@ -62,6 +62,15 @@
     <UseSystemSqlite>True</UseSystemSqlite>
   </PropertyGroup>
 
+  <!-- Release signing: one permanent key for all builds so APKs update
+       over each other. Passwords/alias come from env (CI secrets). -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release' and '$(AndroidSigningKeyStore)' != ''">
+    <AndroidKeyStore>True</AndroidKeyStore>
+    <AndroidSigningKeyAlias>$(AndroidSigningKeyAlias)</AndroidSigningKeyAlias>
+    <AndroidSigningKeyPass>$(AndroidSigningKeyPass)</AndroidSigningKeyPass>
+    <AndroidSigningStorePass>$(AndroidSigningStorePass)</AndroidSigningStorePass>
+  </PropertyGroup>
+
   <ItemGroup>
     <AndroidNativeLibrary Include="lib\arm64-v8a\*.so" />
     <AndroidNativeLibrary Include="lib\x86_64\*.so" />

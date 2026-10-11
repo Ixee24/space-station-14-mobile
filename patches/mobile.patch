@@ -1501,10 +1501,10 @@ index 72d61cbe3..d432c594d 100644
          EnsureCursorVisible();
 diff --git a/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs b/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs
 new file mode 100644
-index 000000000..f70f56279
+index 000000000..13964ed1d
 --- /dev/null
 +++ b/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs
-@@ -0,0 +1,1024 @@
+@@ -0,0 +1,1025 @@
 +using System;
 +using System.Collections.Generic;
 +using System.Globalization;
@@ -2086,6 +2086,7 @@ index 000000000..f70f56279
 +    private void ToggleEditMode()
 +    {
 +        IsEditMode = !IsEditMode;
++        System.Console.WriteLine($"[MobileEdit] ToggleEditMode now={IsEditMode} buttons={_allButtons.Count}");
 +        MouseFilter = IsEditMode ? MouseFilterMode.Stop : MouseFilterMode.Ignore;
 +        _editorBarContainer.Visible = IsEditMode;
 +        _editButton.Text = IsEditMode ? "DONE" : "EDIT";
@@ -2343,7 +2344,7 @@ index 000000000..f70f56279
 +            sb.AppendLine($"stick pos={_thumbstick.GlobalPosition} size={_thumbstick.Size} custom={_thumbstick.CustomPosition?.ToString() ?? "<none>"}");
 +            foreach (var b in _allButtons)
 +            {
-+                sb.AppendLine($"btn {b.Id} pos={b.GlobalPosition} size={b.Size} custom={b.CustomPosition?.ToString() ?? "<none>"} label=\"{b.Text}\"");
++                sb.AppendLine($"btn {b.Id} pos={b.GlobalPosition} size={b.Size} custom={b.CustomPosition?.ToString() ?? "<none>"} label=\"{b.Text}\" edit={b.IsEditMode}");
 +            }
 +            File.WriteAllText(Path.Combine(dir, "mobile-arrange-debug.txt"), sb.ToString());
 +        }

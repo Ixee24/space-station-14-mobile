@@ -490,6 +490,13 @@ namespace Content.Android
         protected override void OnCreate(Bundle? savedInstanceState)
         {
             InstallJavaCrashHandler();
+            // The SDL runtime can reset orientation at startup; enforce
+            // landscape in code (manifest attribute alone doesn't stick).
+            try
+            {
+                RequestedOrientation = global::Android.Content.PM.ScreenOrientation.SensorLandscape;
+            }
+            catch { }
             try
             {
                 LaunchMountZip = Intent?.GetStringExtra("mount_zip") ?? LaunchMountZip;
@@ -650,6 +657,12 @@ namespace Content.Android
         protected override void OnResume()
         {
             base.OnResume();
+            try
+            {
+                if (RequestedOrientation != global::Android.Content.PM.ScreenOrientation.SensorLandscape)
+                    RequestedOrientation = global::Android.Content.PM.ScreenOrientation.SensorLandscape;
+            }
+            catch { }
             UpdateHardwareKeyboardState();
             ApplyImmersiveMode();
             EnsureSurfaceFocus();

@@ -263,9 +263,22 @@ public static class CrashReporter
     {
         try
         {
-            var direct = Directory.GetFiles(FilesDir, "client_config.toml", SearchOption.AllDirectories);
-            if (direct.Length > 0)
-                return direct[0];
+            // Manual recursion: Directory.GetFiles(AllDirectories) aborts on
+            // the first inaccessible directory; skip failures per-directory.
+            var stack = new Stack<string>();
+            stack.Push(FilesDir);
+            while (stack.Count > 0)
+            {
+                var dir = stack.Pop();
+                string[] subDirs = [];
+                string[] files = [];
+                try { subDirs = Directory.GetDirectories(dir); } catch { continue; }
+                try { files = Directory.GetFiles(dir, "client_config.toml"); } catch { }
+                if (files.Length > 0)
+                    return files[0];
+                foreach (var sub in subDirs)
+                    stack.Push(sub);
+            }
         }
         catch { }
         return null;

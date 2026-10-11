@@ -673,6 +673,24 @@ namespace Content.Android
             base.OnWindowFocusChanged(hasFocus);
             if (hasFocus)
             {
+                try
+                {
+                    // SDL sets its own orientation at runtime, stomping the
+                    // manifest; re-assert after focus lands (and again shortly
+                    // after, to win any late SDL reset).
+                    RequestedOrientation = global::Android.Content.PM.ScreenOrientation.SensorLandscape;
+                    var view = Window?.DecorView;
+                    view?.PostDelayed(() =>
+                    {
+                        try
+                        {
+                            if (RequestedOrientation != global::Android.Content.PM.ScreenOrientation.SensorLandscape)
+                                RequestedOrientation = global::Android.Content.PM.ScreenOrientation.SensorLandscape;
+                        }
+                        catch { }
+                    }, 500);
+                }
+                catch { }
                 ApplyImmersiveMode();
                 EnsureSurfaceFocus();
             }

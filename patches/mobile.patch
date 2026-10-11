@@ -5379,3 +5379,109 @@ diff --git a/Robust.Shared/CVars.cs b/Robust.Shared/CVars.cs
  
          // Clyde related enums are in Clyde.Constants.cs.
  
+diff --git a/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs b/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs
+index 0b0889a9a..177fbb6c8 100644
+--- a/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs
++++ b/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs
+@@ -820,7 +820,7 @@ public sealed partial class MobileControlsOverlay : Control
+         _cfg.SetCVar(CVars.MobileControlsLayout, serialized);
+     }
+ 
+-    private void ArrangeChild(Control control, Vector2 defaultPos, Vector2 defaultSize)
++    private void ArrangeChild(Control control, Vector2 defaultPos, Vector2 defaultSize, Vector2 viewport)
+     {
+         Vector2 pos;
+         Vector2 size = defaultSize;
+@@ -861,6 +861,13 @@ public sealed partial class MobileControlsOverlay : Control
+             pos = defaultPos;
+         }
+ 
++        // Mobile: never arrange off-screen (stale saved coords from another
++        // orientation, or a foreign layout format, used to lose controls).
++        var maxPos = viewport - size;
++        if (maxPos.X < 0f) maxPos.X = 0f;
++        if (maxPos.Y < 0f) maxPos.Y = 0f;
++        pos = new Vector2(Math.Clamp(pos.X, 0f, maxPos.X), Math.Clamp(pos.Y, 0f, maxPos.Y));
++
+         control.Arrange(new UIBox2(pos, pos + size));
+     }
+ 
+@@ -883,39 +890,39 @@ public sealed partial class MobileControlsOverlay : Control
+         var defaultStickY = stickCenterY - stickRadius;
+         var defaultStickPos = new Vector2(stickMarginX, defaultStickY);
+         var stickSize = new Vector2(stickDiameter + 30f, stickDiameter + 30f);
+-        ArrangeChild(_thumbstick, defaultStickPos, stickSize);
++        ArrangeChild(_thumbstick, defaultStickPos, stickSize, finalSize);
+ 
+         var useSize = 54f * scale;
+         var useDefPos = new Vector2(finalSize.X - useSize - 24f * scale, finalSize.Y * 0.54f);
+-        ArrangeChild(_useButton, useDefPos, new Vector2(useSize, useSize));
++        ArrangeChild(_useButton, useDefPos, new Vector2(useSize, useSize), finalSize);
+ 
+         var interSize = 48f * scale;
+         var interDefPos = new Vector2(useDefPos.X - interSize - 16f * scale, useDefPos.Y + 14f * scale);
+-        ArrangeChild(_interactButton, interDefPos, new Vector2(interSize, interSize));
++        ArrangeChild(_interactButton, interDefPos, new Vector2(interSize, interSize), finalSize);
+ 
+         var secSize = 46f * scale;
+         var secDefPos = new Vector2(interDefPos.X - secSize - 14f * scale, interDefPos.Y + 12f * scale);
+-        ArrangeChild(_secButton, secDefPos, new Vector2(secSize, secSize));
++        ArrangeChild(_secButton, secDefPos, new Vector2(secSize, secSize), finalSize);
+ 
+         var handSize = 44f * scale;
+         var handDefPos = new Vector2(useDefPos.X + 4f * scale, useDefPos.Y - handSize - 16f * scale);
+-        ArrangeChild(_handButton, handDefPos, new Vector2(handSize, handSize));
++        ArrangeChild(_handButton, handDefPos, new Vector2(handSize, handSize), finalSize);
+ 
+         var dropSize = 42f * scale;
+         var dropDefPos = new Vector2(interDefPos.X - 2f * scale, interDefPos.Y - dropSize - 18f * scale);
+-        ArrangeChild(_dropButton, dropDefPos, new Vector2(dropSize, dropSize));
++        ArrangeChild(_dropButton, dropDefPos, new Vector2(dropSize, dropSize), finalSize);
+ 
+         var altSize = 42f * scale;
+         var altDefPos = new Vector2(secDefPos.X, secDefPos.Y - altSize - 16f * scale);
+-        ArrangeChild(_altButton, altDefPos, new Vector2(altSize, altSize));
++        ArrangeChild(_altButton, altDefPos, new Vector2(altSize, altSize), finalSize);
+ 
+         var examSize = 42f * scale;
+         var examDefPos = new Vector2(dropDefPos.X, dropDefPos.Y - examSize - 14f * scale);
+-        ArrangeChild(_examButton, examDefPos, new Vector2(examSize, examSize));
++        ArrangeChild(_examButton, examDefPos, new Vector2(examSize, examSize), finalSize);
+ 
+         var pullSize = 42f * scale;
+         var pullDefPos = new Vector2(altDefPos.X, altDefPos.Y - pullSize - 14f * scale);
+-        ArrangeChild(_pullButton, pullDefPos, new Vector2(pullSize, pullSize));
++        ArrangeChild(_pullButton, pullDefPos, new Vector2(pullSize, pullSize), finalSize);
+ 
+         foreach (var btn in _allButtons)
+         {
+@@ -923,7 +930,7 @@ public sealed partial class MobileControlsOverlay : Control
+             {
+                 var defSize = new Vector2(50f * scale, 50f * scale);
+                 var defPos = new Vector2(finalSize.X / 2f - 25f, finalSize.Y / 2f - 25f);
+-                ArrangeChild(btn, defPos, defSize);
++                ArrangeChild(btn, defPos, defSize, finalSize);
+             }
+         }
+ 
+@@ -931,16 +938,16 @@ public sealed partial class MobileControlsOverlay : Control
+         var topBtnH = 34f * scale;
+         var topY = 14f * scale;
+ 
+-        ArrangeChild(_escButton, new Vector2(24f * scale, topY), new Vector2(topBtnW, topBtnH));
+-        ArrangeChild(_editButton, new Vector2(24f * scale + topBtnW + 12f * scale, topY), new Vector2(topBtnW + 8f * scale, topBtnH));
++        ArrangeChild(_escButton, new Vector2(24f * scale, topY), new Vector2(topBtnW, topBtnH), finalSize);
++        ArrangeChild(_editButton, new Vector2(24f * scale + topBtnW + 12f * scale, topY), new Vector2(topBtnW + 8f * scale, topBtnH), finalSize);
+ 
+         var keybX = finalSize.X - topBtnW - (24f * scale);
+-        ArrangeChild(_keybButton, new Vector2(keybX, topY), new Vector2(topBtnW, topBtnH));
++        ArrangeChild(_keybButton, new Vector2(keybX, topY), new Vector2(topBtnW, topBtnH), finalSize);
+ 
+         var hideW = 42f * scale;
+         var hideH = 26f * scale;
+         var hideX = (finalSize.X - hideW) / 2f;
+-        ArrangeChild(_hideButton, new Vector2(hideX, 6f * scale), new Vector2(hideW, hideH));
++        ArrangeChild(_hideButton, new Vector2(hideX, 6f * scale), new Vector2(hideW, hideH), finalSize);
+ 
+         if (_editorBarContainer.Visible)
+         {

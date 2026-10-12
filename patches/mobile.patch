@@ -496,6 +496,21 @@ index 5e947233e..6fa602113 100644
          }
  
          public static void StartLibrary(string[] args, GameControllerOptions options)
+diff --git a/Robust.Client/GameController/GameController.Input.cs b/Robust.Client/GameController/GameController.Input.cs
+index a6bc6a0cb..42ecf9907 100644
+--- a/Robust.Client/GameController/GameController.Input.cs
++++ b/Robust.Client/GameController/GameController.Input.cs
+@@ -49,5 +49,10 @@ namespace Robust.Client
+                 return;
+             }
+         }
++
++        public void TouchFinger(TouchFingerEventArgs touchEvent)
++        {
++            _userInterfaceManager.TouchFinger(touchEvent);
++        }
+     }
+ }
 diff --git a/Robust.Client/GameController/GameController.IoC.cs b/Robust.Client/GameController/GameController.IoC.cs
 index 6079fa63f..3e2161bf8 100644
 --- a/Robust.Client/GameController/GameController.IoC.cs
@@ -547,7 +562,7 @@ index de20f0e75..b918ded66 100644
  
              CleanupGameThread();
 diff --git a/Robust.Client/GameController/GameController.cs b/Robust.Client/GameController/GameController.cs
-index 60fabdcac..127214339 100644
+index 60fabdcac..67dde9a42 100644
 --- a/Robust.Client/GameController/GameController.cs
 +++ b/Robust.Client/GameController/GameController.cs
 @@ -265,7 +265,14 @@ namespace Robust.Client
@@ -648,6 +663,14 @@ index 60fabdcac..127214339 100644
          internal bool StartupSystemSplash(
              GameControllerOptions options,
              Func<ILogHandler>? logHandlerFactory,
+@@ -481,6 +560,7 @@ namespace Robust.Client
+             _clyde.KeyUp += KeyUp;
+             _clyde.KeyDown += KeyDown;
+             _clyde.MouseWheel += MouseWheel;
++            _clyde.TouchFinger += TouchFinger;
+             _clyde.CloseWindow += args =>
+             {
+                 if (args.Window == _clyde.MainWindow)
 diff --git a/Robust.Client/GameObjects/Components/Renderable/SpriteComponent.cs b/Robust.Client/GameObjects/Components/Renderable/SpriteComponent.cs
 index a183d7572..06c796db5 100644
 --- a/Robust.Client/GameObjects/Components/Renderable/SpriteComponent.cs
@@ -715,6 +738,43 @@ index 0e52fc49d..16b4b56ed 100644
 +        }
 +    }
  }
+diff --git a/Robust.Client/Graphics/Clyde/Clyde.Events.cs b/Robust.Client/Graphics/Clyde/Clyde.Events.cs
+index 029d12c5f..3ff4be22e 100644
+--- a/Robust.Client/Graphics/Clyde/Clyde.Events.cs
++++ b/Robust.Client/Graphics/Clyde/Clyde.Events.cs
+@@ -1,4 +1,4 @@
+-﻿// Makes switching easier.
++// Makes switching easier.
+ #if EXCEPTION_TOLERANCE
+ #define EXCEPTION_TOLERANCE_LOCAL
+ using System;
+@@ -87,6 +87,9 @@ namespace Robust.Client.Graphics.Clyde
+                 case DEventInputModeChanged:
+                     RaiseInputModeChanged();
+                     break;
++                case DEventTouchFinger(var args):
++                    TouchFinger?.Invoke(args);
++                    break;
+             }
+         }
+ 
+@@ -163,9 +166,16 @@ namespace Robust.Client.Graphics.Clyde
+             _eventDispatchQueue.Enqueue(new DEventInputModeChanged());
+         }
+ 
++        private void SendTouchFinger(TouchFingerEventArgs ev)
++        {
++            _eventDispatchQueue.Enqueue(new DEventTouchFinger(ev));
++        }
++
+         // D stands for Dispatch
+         private abstract record DEventBase;
+ 
++        private sealed record DEventTouchFinger(TouchFingerEventArgs Args) : DEventBase;
++
+         private sealed record DEventKeyUp(KeyEventArgs Args) : DEventBase;
+ 
+         private sealed record DEventKeyDown(KeyEventArgs Args) : DEventBase;
 diff --git a/Robust.Client/Graphics/Clyde/Clyde.LightRendering.cs b/Robust.Client/Graphics/Clyde/Clyde.LightRendering.cs
 index 4be833c94..cec6eb34d 100644
 --- a/Robust.Client/Graphics/Clyde/Clyde.LightRendering.cs
@@ -955,6 +1015,36 @@ index 1dc619dc7..632fd50ee 100644
                  }
  
                  return program;
+diff --git a/Robust.Client/Graphics/Clyde/Clyde.Windowing.cs b/Robust.Client/Graphics/Clyde/Clyde.Windowing.cs
+index c77add4c7..221d0346e 100644
+--- a/Robust.Client/Graphics/Clyde/Clyde.Windowing.cs
++++ b/Robust.Client/Graphics/Clyde/Clyde.Windowing.cs
+@@ -1,4 +1,4 @@
+-﻿using System;
++using System;
+ using System.Collections.Generic;
+ using System.Diagnostics.CodeAnalysis;
+ using System.Numerics;
+@@ -50,6 +50,7 @@ namespace Robust.Client.Graphics.Clyde
+         public event Action<KeyEventArgs>? KeyUp;
+         public event Action<KeyEventArgs>? KeyDown;
+         public event Action<MouseWheelEventArgs>? MouseWheel;
++        public event Action<TouchFingerEventArgs>? TouchFinger;
+         public event Action<WindowRequestClosedEventArgs>? CloseWindow;
+         public event Action<WindowDestroyedEventArgs>? DestroyWindow;
+         public event Action<WindowContentScaleEventArgs>? OnWindowScaleChanged;
+diff --git a/Robust.Client/Graphics/Clyde/ClydeHeadless.cs b/Robust.Client/Graphics/Clyde/ClydeHeadless.cs
+index ffc8cd08c..1dc1a4e8e 100644
+--- a/Robust.Client/Graphics/Clyde/ClydeHeadless.cs
++++ b/Robust.Client/Graphics/Clyde/ClydeHeadless.cs
+@@ -64,6 +64,7 @@ namespace Robust.Client.Graphics.Clyde
+         public event Action<KeyEventArgs>? KeyUp { add { } remove { } }
+         public event Action<KeyEventArgs>? KeyDown { add { } remove { } }
+         public event Action<MouseWheelEventArgs>? MouseWheel { add { } remove { } }
++        public event Action<TouchFingerEventArgs>? TouchFinger { add { } remove { } }
+         public event Action<WindowRequestClosedEventArgs>? CloseWindow { add { } remove { } }
+         public event Action<WindowDestroyedEventArgs>? DestroyWindow { add { } remove { } }
+ 
 diff --git a/Robust.Client/Graphics/Clyde/GLContext/GLContextEgl.cs b/Robust.Client/Graphics/Clyde/GLContext/GLContextEgl.cs
 index 9f1412583..16841d678 100644
 --- a/Robust.Client/Graphics/Clyde/GLContext/GLContextEgl.cs
@@ -1084,7 +1174,7 @@ index 75211d3ba..a0f5bee5a 100644
  void main()
  {
 diff --git a/Robust.Client/Graphics/Clyde/Windowing/Sdl3.Event.cs b/Robust.Client/Graphics/Clyde/Windowing/Sdl3.Event.cs
-index da4d28f69..30da35af0 100644
+index da4d28f69..7ee104a92 100644
 --- a/Robust.Client/Graphics/Clyde/Windowing/Sdl3.Event.cs
 +++ b/Robust.Client/Graphics/Clyde/Windowing/Sdl3.Event.cs
 @@ -1,9 +1,10 @@
@@ -1154,7 +1244,17 @@ index da4d28f69..30da35af0 100644
          }
  
          // Block waiting on the windowing -> game thread channel.
-@@ -162,18 +202,19 @@ internal partial class Clyde
+@@ -69,6 +109,9 @@ internal partial class Clyde
+                 case EventMouseButton ev:
+                     ProcessEventMouseButton(ev);
+                     break;
++                case EventTouchFinger ev:
++                    ProcessEventTouchFinger(ev);
++                    break;
+                 case EventWheel ev:
+                     ProcessEventWheel(ev);
+                     break;
+@@ -162,18 +205,45 @@ internal partial class Clyde
                  return;
  
              var button = ConvertSdl3Button(ev.Button);
@@ -1164,6 +1264,32 @@ index da4d28f69..30da35af0 100644
          }
  
 -        private void ProcessEventMouseMotion(EventMouseMotion ev)
++        private void ProcessEventTouchFinger(EventTouchFinger ev)
++        {
++            var windowReg = FindWindow(ev.WindowId) ?? _clyde._mainWindow;
++            if (windowReg == null)
++                return;
++
++            var fb = windowReg.FramebufferSize;
++            if (fb.X <= 0 || fb.Y <= 0)
++                fb = windowReg.WindowSize;
++            if (fb.X <= 0) fb.X = 1;
++            if (fb.Y <= 0) fb.Y = 1;
++
++            var pixelPos = new Vector2(ev.X * fb.X, ev.Y * fb.Y);
++            TouchFingerAction action = ev.Type switch
++            {
++                ET.SDL_EVENT_FINGER_DOWN => TouchFingerAction.Down,
++                ET.SDL_EVENT_FINGER_MOTION => TouchFingerAction.Motion,
++                ET.SDL_EVENT_FINGER_UP => TouchFingerAction.Up,
++                ET.SDL_EVENT_FINGER_CANCELED => TouchFingerAction.Cancel,
++                _ => TouchFingerAction.Cancel
++            };
++
++            var screenCoords = new ScreenCoordinates(pixelPos, windowReg.Id);
++            _clyde.SendTouchFinger(new TouchFingerEventArgs(action, ev.FingerId, screenCoords));
++        }
++
 +        private void ProcessEventMouseMotion(EventMouseMotion ev, Vector2? customDelta = null)
          {
              var windowReg = FindWindow(ev.WindowId);
@@ -1176,6 +1302,68 @@ index da4d28f69..30da35af0 100644
              windowReg.LastMousePos = newPos;
  
              _clyde._currentHoveredWindow = windowReg;
+diff --git a/Robust.Client/Graphics/Clyde/Windowing/Sdl3.RawEvent.cs b/Robust.Client/Graphics/Clyde/Windowing/Sdl3.RawEvent.cs
+index 1b6cdba42..af2cb75aa 100644
+--- a/Robust.Client/Graphics/Clyde/Windowing/Sdl3.RawEvent.cs
++++ b/Robust.Client/Graphics/Clyde/Windowing/Sdl3.RawEvent.cs
+@@ -1,4 +1,4 @@
+-﻿using System;
++using System;
+ using System.Runtime.CompilerServices;
+ using System.Runtime.InteropServices;
+ using System.Threading.Tasks;
+@@ -73,6 +73,12 @@ internal partial class Clyde
+                 case ET.SDL_EVENT_QUIT:
+                     ProcessSdl3EventQuit();
+                     break;
++                case ET.SDL_EVENT_FINGER_DOWN:
++                case ET.SDL_EVENT_FINGER_UP:
++                case ET.SDL_EVENT_FINGER_MOTION:
++                case ET.SDL_EVENT_FINGER_CANCELED:
++                    ProcessSdl3EventTouchFinger(in ev.tfinger);
++                    break;
+             }
+         }
+ 
+@@ -81,6 +87,20 @@ internal partial class Clyde
+             SendEvent(new EventQuit());
+         }
+ 
++        private void ProcessSdl3EventTouchFinger(in SDL.SDL_TouchFingerEvent ev)
++        {
++            SendEvent(new EventTouchFinger
++            {
++                WindowId = ev.windowID,
++                Type = (ET)ev.type,
++                FingerId = (long)ev.fingerID,
++                X = ev.x,
++                Y = ev.y,
++                Dx = ev.dx,
++                Dy = ev.dy,
++            });
++        }
++
+         private void ProcessSdl3EventMouseWheel(in SDL.SDL_MouseWheelEvent ev)
+         {
+             SendEvent(new EventWheel { WindowId = ev.windowID, XOffset = ev.x, YOffset = ev.y });
+@@ -279,6 +299,17 @@ internal partial class Clyde
+ 
+         private sealed class EventKeyMapChanged : EventBase;
+ 
++        private sealed class EventTouchFinger : EventBase
++        {
++            public uint WindowId;
++            public ET Type;
++            public long FingerId;
++            public float X;
++            public float Y;
++            public float Dx;
++            public float Dy;
++        }
++
+         private sealed class EventQuit : EventBase;
+ 
+ #if MACOS
 diff --git a/Robust.Client/Graphics/Clyde/Windowing/Sdl3.Window.cs b/Robust.Client/Graphics/Clyde/Windowing/Sdl3.Window.cs
 index 70fa5edb4..51b60611d 100644
 --- a/Robust.Client/Graphics/Clyde/Windowing/Sdl3.Window.cs
@@ -1328,6 +1516,28 @@ index 70fa5edb4..51b60611d 100644
              return null;
          }
  
+diff --git a/Robust.Client/Graphics/Clyde/Windowing/Sdl3.cs b/Robust.Client/Graphics/Clyde/Windowing/Sdl3.cs
+index a02709bfa..c88d26445 100644
+--- a/Robust.Client/Graphics/Clyde/Windowing/Sdl3.cs
++++ b/Robust.Client/Graphics/Clyde/Windowing/Sdl3.cs
+@@ -1,4 +1,4 @@
+-﻿using System;
++using System;
+ using System.Runtime.CompilerServices;
+ using System.Runtime.InteropServices;
+ using System.Threading;
+@@ -65,6 +65,11 @@ internal partial class Clyde
+             SDL.SDL_SetHint(SDL.SDL_HINT_MAC_OPENGL_ASYNC_DISPATCH, "1");
+ #endif
+ 
++            if (OperatingSystem.IsAndroid())
++            {
++                SDL.SDL_SetHint(SDL.SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
++            }
++
+             var res = SDL.SDL_Init(SDL.SDL_InitFlags.SDL_INIT_VIDEO | SDL.SDL_InitFlags.SDL_INIT_EVENTS);
+             if (!res)
+             {
 diff --git a/Robust.Client/Graphics/Drawing/DrawingHandleScreen.cs b/Robust.Client/Graphics/Drawing/DrawingHandleScreen.cs
 index 1f5c19301..27a25f60d 100644
 --- a/Robust.Client/Graphics/Drawing/DrawingHandleScreen.cs
@@ -1342,6 +1552,18 @@ index 1f5c19301..27a25f60d 100644
          public Vector2 DrawString(Font font, Vector2 pos, ReadOnlySpan<char> str, float scale, Color color, TextOutline? outline = null)
          {
              var advanceTotal = Vector2.Zero;
+diff --git a/Robust.Client/Graphics/IClydeInternal.cs b/Robust.Client/Graphics/IClydeInternal.cs
+index 388522f31..6d889cfb5 100644
+--- a/Robust.Client/Graphics/IClydeInternal.cs
++++ b/Robust.Client/Graphics/IClydeInternal.cs
+@@ -32,6 +32,7 @@ namespace Robust.Client.Graphics
+         event Action<KeyEventArgs> KeyUp;
+         event Action<KeyEventArgs> KeyDown;
+         event Action<MouseWheelEventArgs> MouseWheel;
++        event Action<TouchFingerEventArgs> TouchFinger;
+         event Action<WindowRequestClosedEventArgs> CloseWindow;
+         event Action<WindowDestroyedEventArgs> DestroyWindow;
+ 
 diff --git a/Robust.Client/Input/InputManager.cs b/Robust.Client/Input/InputManager.cs
 index e4aeda9a1..8c7134099 100644
 --- a/Robust.Client/Input/InputManager.cs
@@ -1416,6 +1638,39 @@ index e4aeda9a1..8c7134099 100644
              FirstChanceOnKeyEvent?.Invoke(args, KeyEventType.Up);
  
              var hasCanFocus = false;
+diff --git a/Robust.Client/Input/TouchFingerEventArgs.cs b/Robust.Client/Input/TouchFingerEventArgs.cs
+new file mode 100644
+index 000000000..c139d8f4c
+--- /dev/null
++++ b/Robust.Client/Input/TouchFingerEventArgs.cs
+@@ -0,0 +1,27 @@
++using System;
++using System.Numerics;
++using Robust.Shared.Map;
++
++namespace Robust.Client.Input;
++
++public enum TouchFingerAction
++{
++    Down,
++    Motion,
++    Up,
++    Cancel
++}
++
++public sealed class TouchFingerEventArgs : EventArgs
++{
++    public TouchFingerAction Action { get; }
++    public long FingerId { get; }
++    public ScreenCoordinates Coordinates { get; }
++
++    public TouchFingerEventArgs(TouchFingerAction action, long fingerId, ScreenCoordinates coordinates)
++    {
++        Action = action;
++        FingerId = fingerId;
++        Coordinates = coordinates;
++    }
++}
 diff --git a/Robust.Client/Robust.Client.csproj b/Robust.Client/Robust.Client.csproj
 index 6ee0278b6..a3b0fef85 100644
 --- a/Robust.Client/Robust.Client.csproj
@@ -1511,12 +1766,55 @@ index 72d61cbe3..d432c594d 100644
          InsertAtCursor(args.Text);
          _blink.Reset();
          EnsureCursorVisible();
+diff --git a/Robust.Client/UserInterface/CustomControls/DefaultWindow.xaml.cs b/Robust.Client/UserInterface/CustomControls/DefaultWindow.xaml.cs
+index 5be710c83..41de6738f 100644
+--- a/Robust.Client/UserInterface/CustomControls/DefaultWindow.xaml.cs
++++ b/Robust.Client/UserInterface/CustomControls/DefaultWindow.xaml.cs
+@@ -58,7 +58,7 @@ namespace Robust.Client.UserInterface.CustomControls
+             RobustXamlLoader.Load(this);
+             MouseFilter = MouseFilterMode.Stop;
+ 
+-            WindowHeader.MinSize = new Vector2(0, HEADER_SIZE_Y);
++            WindowHeader.MinSize = new Vector2(0, HeaderSizeY);
+ 
+             Contents = ContentsContainer;
+ 
+@@ -106,7 +106,7 @@ namespace Robust.Client.UserInterface.CustomControls
+         private const int DRAG_MARGIN_SIZE = 7;
+ 
+         // TODO: Un-hard code this header size.
+-        private const float HEADER_SIZE_Y = 25;
++        private static float HeaderSizeY => OperatingSystem.IsAndroid() ? 42f : 25f;
+         protected virtual Vector2 ContentsMinimumSize => new Vector2(50, 50);
+ 
+         protected override Vector2 MeasureOverride(Vector2 availableSize)
+@@ -201,7 +201,7 @@ namespace Robust.Client.UserInterface.CustomControls
+                 }
+             }
+ 
+-            if (mode == DragMode.None && relativeMousePos.Y < HEADER_SIZE_Y)
++            if (mode == DragMode.None && relativeMousePos.Y < HeaderSizeY)
+             {
+                 mode = DragMode.Move;
+             }
+diff --git a/Robust.Client/UserInterface/IUserInterfaceManagerInternal.cs b/Robust.Client/UserInterface/IUserInterfaceManagerInternal.cs
+index 29c54bc48..a21a747e4 100644
+--- a/Robust.Client/UserInterface/IUserInterfaceManagerInternal.cs
++++ b/Robust.Client/UserInterface/IUserInterfaceManagerInternal.cs
+@@ -29,6 +29,7 @@ namespace Robust.Client.UserInterface
+         void MouseMove(MouseMoveEventArgs mouseMoveEventArgs);
+ 
+         void MouseWheel(MouseWheelEventArgs args);
++        void TouchFinger(TouchFingerEventArgs args);
+ 
+         void TextEntered(TextEnteredEventArgs textEnteredEvent);
+ 
 diff --git a/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs b/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs
 new file mode 100644
-index 000000000..df07044ff
+index 000000000..b665f961c
 --- /dev/null
 +++ b/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs
-@@ -0,0 +1,1026 @@
+@@ -0,0 +1,1123 @@
 +using System;
 +using System.Collections.Generic;
 +using System.Globalization;
@@ -1594,6 +1892,10 @@ index 000000000..df07044ff
 +    private readonly PojavActionButton _handButton;
 +    private readonly PojavActionButton _dropButton;
 +    private readonly PojavActionButton _altButton;
++    private readonly PojavActionButton _bagButton;
++    private readonly PojavActionButton _throwButton;
++
++    private readonly Dictionary<long, Control> _claimedTouches = new();
 +
 +    private readonly PojavActionButton _escButton;
 +    private readonly PojavActionButton _keybButton;
@@ -1713,6 +2015,8 @@ index 000000000..df07044ff
 +        _handButton = CreateButton("HAND", Keyboard.Key.X, id: "hand", accent: new Color(243, 156, 18));
 +        _dropButton = CreateButton("DROP", Keyboard.Key.Q, id: "drop", accent: new Color(231, 76, 60));
 +        _altButton = CreateButton("ALT", Keyboard.Key.Alt, id: "alt", accent: new Color(241, 196, 15), isToggle: true);
++        _bagButton = CreateButton("BAG", Keyboard.Key.V, id: "bag", accent: new Color(26, 188, 156));
++        _throwButton = CreateButton("THROW", null, PojavSpecialAction.Throw, id: "throw", accent: new Color(230, 81, 0));
 +
 +        _defaultButtons.AddRange(_allButtons);
 +
@@ -1818,10 +2122,10 @@ index 000000000..df07044ff
 +
 +        dialogContent.AddChild(new Label { Text = "Quick Key Preset:", FontColorOverride = new Color(200, 200, 200) });
 +        var quickRow1 = new BoxContainer { Orientation = BoxContainer.LayoutOrientation.Horizontal, SeparationOverride = 6 };
-+        string[] row1Keys = ["E", "F", "R", "C", "T", "Tab", "Space"];
++        string[] row1Keys = ["E", "Z", "Q", "V", "X", "R", "F", "C", "Space"];
 +        foreach (var k in row1Keys)
 +        {
-+            var btn = new Button { Text = k, MinSize = new Vector2(40, 28) };
++            var btn = new Button { Text = k, MinSize = new Vector2(36, 28) };
 +            var keyVal = k;
 +            btn.OnPressed += _ => SetDialogKey(keyVal);
 +            quickRow1.AddChild(btn);
@@ -1829,10 +2133,10 @@ index 000000000..df07044ff
 +        dialogContent.AddChild(quickRow1);
 +
 +        var quickRow2 = new BoxContainer { Orientation = BoxContainer.LayoutOrientation.Horizontal, SeparationOverride = 6 };
-+        string[] row2Keys = ["Shift", "Control", "Alt", "1", "2", "3", "4", "Return"];
++        string[] row2Keys = ["Shift", "Control", "Alt", "U", "Y", "G", "T", "1", "2", "3", "Return"];
 +        foreach (var k in row2Keys)
 +        {
-+            var btn = new Button { Text = k, MinSize = new Vector2(40, 28) };
++            var btn = new Button { Text = k, MinSize = new Vector2(36, 28) };
 +            var keyVal = k;
 +            btn.OnPressed += _ => SetDialogKey(keyVal);
 +            quickRow2.AddChild(btn);
@@ -2169,6 +2473,89 @@ index 000000000..df07044ff
 +        _hideButton.Text = _controlsHidden ? "SHOW" : "HIDE";
 +    }
 +
++    public bool HandleTouch(TouchFingerEventArgs args)
++    {
++        if (!VisibleInTree || _controlsHidden)
++            return false;
++
++        if (_modalOverlay.Visible || IsEditMode)
++            return false;
++
++        switch (args.Action)
++        {
++            case TouchFingerAction.Down:
++            {
++                var stickPos = args.Coordinates.Position / _thumbstick.UIScale - _thumbstick.GlobalPosition;
++                if (_thumbstick.VisibleInTree && _thumbstick.HasPoint(stickPos))
++                {
++                    _claimedTouches[args.FingerId] = _thumbstick;
++                    _thumbstick.OnTouchDown(args.FingerId, stickPos);
++                    return true;
++                }
++
++                for (int i = _allButtons.Count - 1; i >= 0; i--)
++                {
++                    var btn = _allButtons[i];
++                    var btnPos = args.Coordinates.Position / btn.UIScale - btn.GlobalPosition;
++                    if (btn.VisibleInTree && btn.HasPoint(btnPos))
++                    {
++                        _claimedTouches[args.FingerId] = btn;
++                        btn.OnTouchDown(args.FingerId);
++                        return true;
++                    }
++                }
++
++                PojavActionButton[] topBtns = [_editButton, _hideButton, _escButton, _keybButton];
++                foreach (var btn in topBtns)
++                {
++                    var btnPos = args.Coordinates.Position / btn.UIScale - btn.GlobalPosition;
++                    if (btn.VisibleInTree && btn.HasPoint(btnPos))
++                    {
++                        _claimedTouches[args.FingerId] = btn;
++                        btn.OnTouchDown(args.FingerId);
++                        return true;
++                    }
++                }
++
++                return false;
++            }
++
++            case TouchFingerAction.Motion:
++            {
++                if (_claimedTouches.TryGetValue(args.FingerId, out var target))
++                {
++                    if (target is VirtualThumbstick stick)
++                    {
++                        var stickPos = args.Coordinates.Position / stick.UIScale - stick.GlobalPosition;
++                        stick.OnTouchMove(args.FingerId, stickPos);
++                    }
++                    return true;
++                }
++                return false;
++            }
++
++            case TouchFingerAction.Up:
++            case TouchFingerAction.Cancel:
++            {
++                if (_claimedTouches.Remove(args.FingerId, out var target))
++                {
++                    if (target is VirtualThumbstick stick)
++                    {
++                        stick.OnTouchUp(args.FingerId);
++                    }
++                    else if (target is PojavActionButton btn)
++                    {
++                        btn.OnTouchUp(args.FingerId);
++                    }
++                    return true;
++                }
++                return false;
++            }
++        }
++
++        return false;
++    }
++
 +    public void UpdateStyling()
 +    {
 +        var opacity = Math.Clamp(_cfg.GetCVar(CVars.MobileControlsOpacity), 0.2f, 1.0f);
@@ -2495,6 +2882,14 @@ index 000000000..df07044ff
 +        var pullDefPos = new Vector2(altDefPos.X, altDefPos.Y - pullSize - 14f * scale);
 +        ArrangeChild(_pullButton, pullDefPos, new Vector2(pullSize, pullSize), finalSize);
 +
++        var bagSize = 44f * scale;
++        var bagDefPos = new Vector2(handDefPos.X, handDefPos.Y - bagSize - 16f * scale);
++        ArrangeChild(_bagButton, bagDefPos, new Vector2(bagSize, bagSize), finalSize);
++
++        var throwSize = 42f * scale;
++        var throwDefPos = new Vector2(examDefPos.X, examDefPos.Y - throwSize - 14f * scale);
++        ArrangeChild(_throwButton, throwDefPos, new Vector2(throwSize, throwSize), finalSize);
++
 +        foreach (var btn in _allButtons)
 +        {
 +            if (btn.IsCustom)
@@ -2545,10 +2940,10 @@ index 000000000..df07044ff
 +}
 diff --git a/Robust.Client/UserInterface/Mobile/PojavActionButton.cs b/Robust.Client/UserInterface/Mobile/PojavActionButton.cs
 new file mode 100644
-index 000000000..2386651c3
+index 000000000..ccc169211
 --- /dev/null
 +++ b/Robust.Client/UserInterface/Mobile/PojavActionButton.cs
-@@ -0,0 +1,283 @@
+@@ -0,0 +1,340 @@
 +using System;
 +using System.Numerics;
 +using Robust.Client.Graphics;
@@ -2567,6 +2962,7 @@ index 000000000..2386651c3
 +    Primary,
 +    Secondary,
 +    KeyboardToggle,
++    Throw,
 +    Custom
 +}
 +
@@ -2642,6 +3038,48 @@ index 000000000..2386651c3
 +    {
 +        _label.Arrange(new UIBox2(Vector2.Zero, finalSize));
 +        return finalSize;
++    }
++
++    private long? _activeFingerId;
++
++    public void OnTouchDown(long fingerId)
++    {
++        if (IsEditMode)
++            return;
++
++        _activeFingerId = fingerId;
++        if (IsToggle)
++        {
++            IsToggled = !IsToggled;
++            _isPressed = IsToggled;
++            if (IsToggled)
++                ExecuteDown();
++            else
++                ExecuteUp();
++            OnPressed?.Invoke();
++            return;
++        }
++
++        _isPressed = true;
++        ExecuteDown();
++        OnPressed?.Invoke();
++    }
++
++    public void OnTouchUp(long fingerId)
++    {
++        if (IsEditMode || IsToggle)
++            return;
++
++        if (_activeFingerId == fingerId || _isPressed)
++        {
++            _activeFingerId = null;
++            if (_isPressed)
++            {
++                _isPressed = false;
++                ExecuteUp();
++                OnReleased?.Invoke();
++            }
++        }
 +    }
 +
 +    protected internal override void ControlFocusExited()
@@ -2769,6 +3207,13 @@ index 000000000..2386651c3
 +            return;
 +        }
 +
++        if (SpecialAction == PojavSpecialAction.Throw)
++        {
++            _inputManager.KeyDown(new KeyEventArgs(Keyboard.Key.Control, false, false, false, false, false, 0));
++            _inputManager.KeyDown(new KeyEventArgs(Keyboard.Key.Q, false, false, false, false, false, 0));
++            return;
++        }
++
 +        if (ActionKey.HasValue)
 +        {
 +            _inputManager.KeyDown(new KeyEventArgs(ActionKey.Value, false, false, false, false, false, 0));
@@ -2783,6 +3228,13 @@ index 000000000..2386651c3
 +        if (SpecialAction == PojavSpecialAction.Secondary)
 +        {
 +            MobileControlsOverlay.IsSecondaryActive = false;
++            return;
++        }
++
++        if (SpecialAction == PojavSpecialAction.Throw)
++        {
++            _inputManager.KeyUp(new KeyEventArgs(Keyboard.Key.Q, false, false, false, false, false, 0));
++            _inputManager.KeyUp(new KeyEventArgs(Keyboard.Key.Control, false, false, false, false, false, 0));
 +            return;
 +        }
 +
@@ -2834,10 +3286,10 @@ index 000000000..2386651c3
 +}
 diff --git a/Robust.Client/UserInterface/Mobile/VirtualThumbstick.cs b/Robust.Client/UserInterface/Mobile/VirtualThumbstick.cs
 new file mode 100644
-index 000000000..a3a9d742d
+index 000000000..34b4034b8
 --- /dev/null
 +++ b/Robust.Client/UserInterface/Mobile/VirtualThumbstick.cs
-@@ -0,0 +1,279 @@
+@@ -0,0 +1,303 @@
 +using System;
 +using System.Collections.Generic;
 +using System.Numerics;
@@ -2878,11 +3330,42 @@ index 000000000..a3a9d742d
 +        SetSize = new Vector2(Radius * 2f + 20f, Radius * 2f + 20f);
 +    }
 +
++    private long? _activeFingerId;
++
++    public void OnTouchDown(long fingerId, Vector2 localPos)
++    {
++        if (IsEditMode)
++            return;
++
++        _activeFingerId = fingerId;
++        _isPressed = true;
++        var offset = localPos - (Size / 2f);
++        UpdateStickOffset(offset);
++    }
++
++    public void OnTouchMove(long fingerId, Vector2 localPos)
++    {
++        if (IsEditMode || !_isPressed || _activeFingerId != fingerId)
++            return;
++
++        var offset = localPos - (Size / 2f);
++        UpdateStickOffset(offset);
++    }
++
++    public void OnTouchUp(long fingerId)
++    {
++        if (_activeFingerId == fingerId)
++        {
++            ReleaseStick();
++        }
++    }
++
 +    public void ReleaseStick()
 +    {
 +        if (!_isPressed)
 +            return;
 +
++        _activeFingerId = null;
 +        _isPressed = false;
 +        _knobOffset = Vector2.Zero;
 +        if (UserInterfaceManager.ControlFocused == this)
@@ -2892,12 +3375,6 @@ index 000000000..a3a9d742d
 +
 +    protected internal override bool HasPoint(Vector2 point)
 +    {
-+        if (IsEditMode)
-+            return base.HasPoint(point);
-+
-+        if (_isPressed)
-+            return true;
-+
 +        var center = Size / 2f;
 +        var distSq = (point - center).LengthSquared();
 +        var touchRadius = Radius + 25f;
@@ -2929,7 +3406,6 @@ index 000000000..a3a9d742d
 +        }
 +
 +        _isPressed = true;
-+        UserInterfaceManager.ControlFocused = this;
 +        var offset = args.RelativePosition - (Size / 2f);
 +        UpdateStickOffset(offset);
 +        args.Handle();
@@ -3117,11 +3593,68 @@ index 000000000..a3a9d742d
 +        }
 +    }
 +}
+diff --git a/Robust.Client/UserInterface/UserInterfaceManager.Input.cs b/Robust.Client/UserInterface/UserInterfaceManager.Input.cs
+index 274aa2abc..83163bf9c 100644
+--- a/Robust.Client/UserInterface/UserInterfaceManager.Input.cs
++++ b/Robust.Client/UserInterface/UserInterfaceManager.Input.cs
+@@ -583,4 +583,44 @@ internal partial class UserInterfaceManager
+ 
+         return pos - control.GlobalPosition;
+     }
++
++    private long? _pointerFingerId;
++    private Vector2 _lastPointerPos;
++
++    public void TouchFinger(TouchFingerEventArgs args)
++    {
++        if (MobileOverlay != null && MobileOverlay.VisibleInTree && MobileOverlay.HandleTouch(args))
++        {
++            return;
++        }
++
++        switch (args.Action)
++        {
++            case TouchFingerAction.Down:
++                _pointerFingerId = args.FingerId;
++                _lastPointerPos = args.Coordinates.Position;
++                MouseMove(new MouseMoveEventArgs(Vector2.Zero, args.Coordinates));
++                _inputManager.KeyDown(new KeyEventArgs(Keyboard.Key.MouseLeft, false, false, false, false, false, 0));
++                break;
++
++            case TouchFingerAction.Motion:
++                if (_pointerFingerId == args.FingerId)
++                {
++                    var delta = args.Coordinates.Position - _lastPointerPos;
++                    _lastPointerPos = args.Coordinates.Position;
++                    MouseMove(new MouseMoveEventArgs(delta, args.Coordinates));
++                }
++                break;
++
++            case TouchFingerAction.Up:
++            case TouchFingerAction.Cancel:
++                if (_pointerFingerId == args.FingerId)
++                {
++                    _pointerFingerId = null;
++                    MouseMove(new MouseMoveEventArgs(Vector2.Zero, args.Coordinates));
++                    _inputManager.KeyUp(new KeyEventArgs(Keyboard.Key.MouseLeft, false, false, false, false, false, 0));
++                }
++                break;
++        }
++    }
+ }
 diff --git a/Robust.Client/UserInterface/UserInterfaceManager.cs b/Robust.Client/UserInterface/UserInterfaceManager.cs
-index 57c86c351..53bbbda45 100644
+index 57c86c351..9726191f3 100644
 --- a/Robust.Client/UserInterface/UserInterfaceManager.cs
 +++ b/Robust.Client/UserInterface/UserInterfaceManager.cs
-@@ -189,6 +189,13 @@ namespace Robust.Client.UserInterface
+@@ -52,6 +52,7 @@ namespace Robust.Client.UserInterface
+         [Dependency] private ILogManager _logManager = default!;
+         [Dependency] private IRuntimeLog _runtime = default!;
+         [Dependency] private IClipboardManager _clipboard = null!;
++        public Mobile.MobileControlsOverlay? MobileOverlay { get; private set; }
+ 
+         private IAudioSource? _clickSource;
+         private IAudioSource? _hoverSource;
+@@ -189,6 +190,14 @@ namespace Robust.Client.UserInterface
              RootControl.AddChild(WindowRoot);
  
              RootControl.CreateRootControls();
@@ -3129,6 +3662,7 @@ index 57c86c351..53bbbda45 100644
 +            if (OperatingSystem.IsAndroid() || _configurationManager.GetCVar(CVars.MobileTouchControls))
 +            {
 +                var mobileOverlay = new Mobile.MobileControlsOverlay();
++                MobileOverlay = mobileOverlay;
 +                RootControl.AddChild(mobileOverlay);
 +                LayoutContainer.SetAnchorPreset(mobileOverlay, LayoutContainer.LayoutPreset.Wide);
 +            }

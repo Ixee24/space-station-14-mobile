@@ -154,6 +154,11 @@ namespace Content.Android
 
             if (e != null)
             {
+                if (e.KeyCode is Keycode.VolumeUp or Keycode.VolumeDown or Keycode.VolumeMute)
+                {
+                    return base.DispatchKeyEvent(e);
+                }
+
                 if (e.KeyCode == Keycode.Back)
                 {
                     if (e.Action == KeyEventActions.Down)
@@ -495,6 +500,7 @@ namespace Content.Android
             try
             {
                 RequestedOrientation = global::Android.Content.PM.ScreenOrientation.SensorLandscape;
+                VolumeControlStream = global::Android.Media.Stream.Music;
             }
             catch { }
             try

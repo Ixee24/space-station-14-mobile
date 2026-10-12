@@ -702,11 +702,15 @@ namespace Content.Android
             }
         }
 
-        public override void SetRequestedOrientation(global::Android.Content.PM.ScreenOrientation requestedOrientation)
+        public override global::Android.Content.PM.ScreenOrientation RequestedOrientation
         {
-            // SDL runtime requests FULL_USER or PORTRAIT during window creation;
-            // unconditionally enforce SensorLandscape so orientation never flips.
-            base.SetRequestedOrientation(global::Android.Content.PM.ScreenOrientation.SensorLandscape);
+            get => base.RequestedOrientation;
+            set
+            {
+                // SDL runtime requests FULL_USER or PORTRAIT during window creation;
+                // unconditionally enforce SensorLandscape so orientation never flips.
+                base.RequestedOrientation = global::Android.Content.PM.ScreenOrientation.SensorLandscape;
+            }
         }
 
         protected override void OnResume()

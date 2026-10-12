@@ -1517,7 +1517,7 @@ index 70fa5edb4..51b60611d 100644
          }
  
 diff --git a/Robust.Client/Graphics/Clyde/Windowing/Sdl3.cs b/Robust.Client/Graphics/Clyde/Windowing/Sdl3.cs
-index a02709bfa..c88d26445 100644
+index a02709bfa..d57ddf6d7 100644
 --- a/Robust.Client/Graphics/Clyde/Windowing/Sdl3.cs
 +++ b/Robust.Client/Graphics/Clyde/Windowing/Sdl3.cs
 @@ -1,4 +1,4 @@
@@ -1526,14 +1526,10 @@ index a02709bfa..c88d26445 100644
  using System.Runtime.CompilerServices;
  using System.Runtime.InteropServices;
  using System.Threading;
-@@ -65,6 +65,11 @@ internal partial class Clyde
+@@ -65,6 +65,7 @@ internal partial class Clyde
              SDL.SDL_SetHint(SDL.SDL_HINT_MAC_OPENGL_ASYNC_DISPATCH, "1");
  #endif
  
-+            if (OperatingSystem.IsAndroid())
-+            {
-+                SDL.SDL_SetHint(SDL.SDL_HINT_TOUCH_MOUSE_EVENTS, "0");
-+            }
 +
              var res = SDL.SDL_Init(SDL.SDL_InitFlags.SDL_INIT_VIDEO | SDL.SDL_InitFlags.SDL_INIT_EVENTS);
              if (!res)
@@ -2940,10 +2936,10 @@ index 000000000..b665f961c
 +}
 diff --git a/Robust.Client/UserInterface/Mobile/PojavActionButton.cs b/Robust.Client/UserInterface/Mobile/PojavActionButton.cs
 new file mode 100644
-index 000000000..ccc169211
+index 000000000..1699bdf44
 --- /dev/null
 +++ b/Robust.Client/UserInterface/Mobile/PojavActionButton.cs
-@@ -0,0 +1,340 @@
+@@ -0,0 +1,352 @@
 +using System;
 +using System.Numerics;
 +using Robust.Client.Graphics;
@@ -3108,6 +3104,12 @@ index 000000000..ccc169211
 +            return;
 +        }
 +
++        if (_activeFingerId != null)
++        {
++            args.Handle();
++            return;
++        }
++
 +        if (IsToggle)
 +        {
 +            IsToggled = !IsToggled;
@@ -3170,6 +3172,12 @@ index 000000000..ccc169211
 +                OnConfigureRequested?.Invoke(this);
 +            }
 +
++            args.Handle();
++            return;
++        }
++
++        if (_activeFingerId != null)
++        {
 +            args.Handle();
 +            return;
 +        }
@@ -3286,10 +3294,10 @@ index 000000000..ccc169211
 +}
 diff --git a/Robust.Client/UserInterface/Mobile/VirtualThumbstick.cs b/Robust.Client/UserInterface/Mobile/VirtualThumbstick.cs
 new file mode 100644
-index 000000000..34b4034b8
+index 000000000..cf0d6ed3d
 --- /dev/null
 +++ b/Robust.Client/UserInterface/Mobile/VirtualThumbstick.cs
-@@ -0,0 +1,303 @@
+@@ -0,0 +1,315 @@
 +using System;
 +using System.Collections.Generic;
 +using System.Numerics;
@@ -3405,6 +3413,12 @@ index 000000000..34b4034b8
 +            return;
 +        }
 +
++        if (_activeFingerId != null)
++        {
++            args.Handle();
++            return;
++        }
++
 +        _isPressed = true;
 +        var offset = args.RelativePosition - (Size / 2f);
 +        UpdateStickOffset(offset);
@@ -3427,7 +3441,7 @@ index 000000000..34b4034b8
 +            return;
 +        }
 +
-+        if (!_isPressed || IsEditMode)
++        if (_activeFingerId != null || !_isPressed || IsEditMode)
 +            return;
 +
 +        var offset = args.RelativePosition - (Size / 2f);
@@ -3451,6 +3465,12 @@ index 000000000..34b4034b8
 +                _dragTouchOffset = null;
 +                OnPositionChanged?.Invoke();
 +            }
++            args.Handle();
++            return;
++        }
++
++        if (_activeFingerId != null)
++        {
 +            args.Handle();
 +            return;
 +        }
@@ -3594,51 +3614,19 @@ index 000000000..34b4034b8
 +    }
 +}
 diff --git a/Robust.Client/UserInterface/UserInterfaceManager.Input.cs b/Robust.Client/UserInterface/UserInterfaceManager.Input.cs
-index 274aa2abc..83163bf9c 100644
+index 274aa2abc..bc1274722 100644
 --- a/Robust.Client/UserInterface/UserInterfaceManager.Input.cs
 +++ b/Robust.Client/UserInterface/UserInterfaceManager.Input.cs
-@@ -583,4 +583,44 @@ internal partial class UserInterfaceManager
+@@ -583,4 +583,12 @@ internal partial class UserInterfaceManager
  
          return pos - control.GlobalPosition;
      }
 +
-+    private long? _pointerFingerId;
-+    private Vector2 _lastPointerPos;
-+
 +    public void TouchFinger(TouchFingerEventArgs args)
 +    {
-+        if (MobileOverlay != null && MobileOverlay.VisibleInTree && MobileOverlay.HandleTouch(args))
++        if (MobileOverlay != null && MobileOverlay.VisibleInTree)
 +        {
-+            return;
-+        }
-+
-+        switch (args.Action)
-+        {
-+            case TouchFingerAction.Down:
-+                _pointerFingerId = args.FingerId;
-+                _lastPointerPos = args.Coordinates.Position;
-+                MouseMove(new MouseMoveEventArgs(Vector2.Zero, args.Coordinates));
-+                _inputManager.KeyDown(new KeyEventArgs(Keyboard.Key.MouseLeft, false, false, false, false, false, 0));
-+                break;
-+
-+            case TouchFingerAction.Motion:
-+                if (_pointerFingerId == args.FingerId)
-+                {
-+                    var delta = args.Coordinates.Position - _lastPointerPos;
-+                    _lastPointerPos = args.Coordinates.Position;
-+                    MouseMove(new MouseMoveEventArgs(delta, args.Coordinates));
-+                }
-+                break;
-+
-+            case TouchFingerAction.Up:
-+            case TouchFingerAction.Cancel:
-+                if (_pointerFingerId == args.FingerId)
-+                {
-+                    _pointerFingerId = null;
-+                    MouseMove(new MouseMoveEventArgs(Vector2.Zero, args.Coordinates));
-+                    _inputManager.KeyUp(new KeyEventArgs(Keyboard.Key.MouseLeft, false, false, false, false, false, 0));
-+                }
-+                break;
++            MobileOverlay.HandleTouch(args);
 +        }
 +    }
  }

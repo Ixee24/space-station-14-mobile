@@ -342,19 +342,19 @@ public sealed class LauncherActivity : Activity
         _statusCountText.LayoutParameters = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1f);
         bottomBar.AddView(_statusCountText);
 
-        var controlsBtn = new Button(this)
+        var settingsBtn = new Button(this)
         {
-            Text = "Controls",
+            Text = "Settings",
             TextSize = 11
         };
-        controlsBtn.Background = LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
-        controlsBtn.SetTextColor(LauncherTheme.Foreground);
-        controlsBtn.SetPadding((int)(10 * density), 0, (int)(10 * density), 0);
-        var controlsLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WrapContent, ViewGroup.LayoutParams.WrapContent);
-        controlsLp.SetMargins(0, 0, (int)(8 * density), 0);
-        controlsBtn.LayoutParameters = controlsLp;
-        controlsBtn.Click += (_, _) => ShowControlsSettingsDialog();
-        bottomBar.AddView(controlsBtn);
+        settingsBtn.Background = LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
+        settingsBtn.SetTextColor(LauncherTheme.Foreground);
+        settingsBtn.SetPadding((int)(10 * density), 0, (int)(10 * density), 0);
+        var settingsLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WrapContent, ViewGroup.LayoutParams.WrapContent);
+        settingsLp.SetMargins(0, 0, (int)(8 * density), 0);
+        settingsBtn.LayoutParameters = settingsLp;
+        settingsBtn.Click += (_, _) => ShowSettingsDialog();
+        bottomBar.AddView(settingsBtn);
 
         var sandboxBtn = new Button(this)
         {
@@ -1208,13 +1208,13 @@ public sealed class LauncherActivity : Activity
         MainActivity.LaunchBuildCVars["mobile.controls_layout"] = serialized;
     }
 
-    private void ShowControlsSettingsDialog()
+    private void ShowSettingsDialog()
     {
         var prefs = GetSharedPreferences("ss14_mobile_config", FileCreationMode.Private);
         var density = Resources!.DisplayMetrics!.Density;
 
         var builder = new AlertDialog.Builder(this);
-        builder.SetTitle("Touch Controls Settings");
+        builder.SetTitle("Settings");
 
         var scrollView = new ScrollView(this);
         var view = new LinearLayout(this)
@@ -2248,7 +2248,7 @@ public sealed class LauncherActivity : Activity
         catch {}
     }
 
-    public const string CurrentAppVersion = "v1.1.0";
+    public const string CurrentAppVersion = "v1.1.1";
 
     public string GetCurrentAppVersion()
     {

@@ -109,6 +109,7 @@ public sealed class LauncherActivity : Activity
         }
 
         CheckForCrashAndPrompt();
+        _ = Task.Run(() => ContentCacheManager.PruneStaleCache(this, _storage));
     }
 
     protected override void OnResume()
@@ -1607,6 +1608,37 @@ public sealed class LauncherActivity : Activity
         };
         view.AddView(resetBtn);
 
+        var cacheHeader = new TextView(this)
+        {
+            Text = "Server Assets Cache:",
+            TextSize = 13,
+            Typeface = global::Android.Graphics.Typeface.DefaultBold
+        };
+        cacheHeader.SetTextColor(LauncherTheme.Foreground);
+        var clp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent);
+        clp.SetMargins(0, (int)(12 * density), 0, (int)(4 * density));
+        cacheHeader.LayoutParameters = clp;
+        view.AddView(cacheHeader);
+
+        var cacheSizeBytes = ContentCacheManager.GetTotalCacheSizeBytes(this);
+        var clearCacheBtn = new Button(this)
+        {
+            Text = $"Clear Server Cache ({ContentCacheManager.FormatBytes(cacheSizeBytes)})",
+            TextSize = 11
+        };
+        clearCacheBtn.Background = LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
+        clearCacheBtn.SetTextColor(Color.ParseColor("#ef4444"));
+        var cblp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, (int)(34 * density));
+        cblp.SetMargins(0, (int)(4 * density), 0, 0);
+        clearCacheBtn.LayoutParameters = cblp;
+        clearCacheBtn.Click += (_, _) =>
+        {
+            var freed = ContentCacheManager.ClearAllCache(this, _storage);
+            clearCacheBtn.Text = "Clear Server Cache (0 MB)";
+            Toast.MakeText(this, $"Cleared {ContentCacheManager.FormatBytes(freed)} of server assets", ToastLength.Short)?.Show();
+        };
+        view.AddView(clearCacheBtn);
+
         var infoText = new TextView(this)
         {
             Text = "In-game: tap EDIT at the top to reposition buttons by dragging.",
@@ -1876,6 +1908,7 @@ public sealed class LauncherActivity : Activity
 
             if (targetZip != null && File.Exists(targetZip))
             {
+                ContentCacheManager.PurgeOldBuildForServer(this, _storage, parsedAddress.ToString(), targetZip);
                 Window?.ClearFlags(WindowManagerFlags.KeepScreenOn);
                 _overlayText.Text = "Launching game...";
                 LaunchGameWithZip(targetZip, serverInfo, parsedAddress.ToString());
@@ -1926,6 +1959,7 @@ public sealed class LauncherActivity : Activity
     {
         RunOnUiThread(() =>
         {
+            ContentCacheManager.PurgeOldBuildForServer(this, _storage, _pendingServerAddress ?? "", targetZip);
             Window?.ClearFlags(WindowManagerFlags.KeepScreenOn);
             _overlayText.Text = "Launching game...";
             LaunchGameWithZip(targetZip, _pendingServerInfo, _pendingServerAddress ?? "");
@@ -2214,7 +2248,7 @@ public sealed class LauncherActivity : Activity
         catch {}
     }
 
-    public const string CurrentAppVersion = "v1.0.21";
+    public const string CurrentAppVersion = "v1.0.22";
 
     public string GetCurrentAppVersion()
     {

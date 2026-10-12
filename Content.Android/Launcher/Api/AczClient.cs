@@ -226,7 +226,7 @@ public sealed class AczClient
                         entryData = readBuffer.AsMemory(0, uncompressedLength);
                     }
 
-                    var zipEntry = zip.CreateEntry(entry.Path, CompressionLevel.NoCompression);
+                    var zipEntry = zip.CreateEntry(entry.Path, CompressionLevel.Fastest);
                     using (var entryStream = zipEntry.Open())
                     {
                         entryStream.Write(entryData.Span);

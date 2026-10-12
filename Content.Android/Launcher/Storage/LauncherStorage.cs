@@ -33,6 +33,9 @@ public sealed class LauncherData
 
     [JsonPropertyName("disclaimerAccepted")]
     public bool DisclaimerAccepted { get; set; } = false;
+
+    [JsonPropertyName("serverBuildCache")]
+    public Dictionary<string, string> ServerBuildCache { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 }
 
 public sealed class LauncherStorage
@@ -234,6 +237,47 @@ public sealed class LauncherStorage
                 Data.GuestUsername = username.Trim();
                 Save();
             }
+        }
+    }
+
+    public static string NormalizeServerKey(string address)
+    {
+        if (string.IsNullOrWhiteSpace(address)) return string.Empty;
+        var s = address.Trim();
+        if (s.StartsWith("ss14s://", StringComparison.OrdinalIgnoreCase)) s = s[8..];
+        else if (s.StartsWith("ss14://", StringComparison.OrdinalIgnoreCase)) s = s[7..];
+        else if (s.StartsWith("udp://", StringComparison.OrdinalIgnoreCase)) s = s[6..];
+        return s.TrimEnd('/').ToLowerInvariant();
+    }
+
+    public string? GetServerBuildZip(string address)
+    {
+        lock (_lock)
+        {
+            var key = NormalizeServerKey(address);
+            return Data.ServerBuildCache.TryGetValue(key, out var zip) ? zip : null;
+        }
+    }
+
+    public void SetServerBuildZip(string address, string zipFileName)
+    {
+        lock (_lock)
+        {
+            var key = NormalizeServerKey(address);
+            if (!string.IsNullOrEmpty(key))
+            {
+                Data.ServerBuildCache[key] = zipFileName;
+                Save();
+            }
+        }
+    }
+
+    public void ClearServerBuildCache()
+    {
+        lock (_lock)
+        {
+            Data.ServerBuildCache.Clear();
+            Save();
         }
     }
 }

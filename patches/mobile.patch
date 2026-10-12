@@ -1870,10 +1870,10 @@ index 29c54bc48..a21a747e4 100644
  
 diff --git a/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs b/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs
 new file mode 100644
-index 000000000..b665f961c
+index 000000000..f1651ce14
 --- /dev/null
 +++ b/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs
-@@ -0,0 +1,1123 @@
+@@ -0,0 +1,1133 @@
 +using System;
 +using System.Collections.Generic;
 +using System.Globalization;
@@ -2529,12 +2529,22 @@ index 000000000..b665f961c
 +    {
 +        _controlsHidden = !_controlsHidden;
 +        _clusterContainer.Visible = !_controlsHidden;
++        _editButton.Visible = !_controlsHidden;
 +        _hideButton.Text = _controlsHidden ? "SHOW" : "HIDE";
++
++        if (_controlsHidden)
++        {
++            _thumbstick.ReleaseStick();
++            foreach (var btn in _allButtons)
++            {
++                btn.Release();
++            }
++        }
 +    }
 +
 +    public bool HandleTouch(TouchFingerEventArgs args)
 +    {
-+        if (!VisibleInTree || _controlsHidden)
++        if (!VisibleInTree)
 +            return false;
 +
 +        if (_modalOverlay.Visible || IsEditMode)
@@ -2969,8 +2979,8 @@ index 000000000..b665f961c
 +        var keybX = finalSize.X - topBtnW - (24f * scale);
 +        ArrangeChild(_keybButton, new Vector2(keybX, topY), new Vector2(topBtnW, topBtnH), finalSize);
 +
-+        var hideW = 42f * scale;
-+        var hideH = 26f * scale;
++        var hideW = 48f * scale;
++        var hideH = 28f * scale;
 +        var hideX = (finalSize.X - hideW) / 2f;
 +        ArrangeChild(_hideButton, new Vector2(hideX, 6f * scale), new Vector2(hideW, hideH), finalSize);
 +
@@ -2999,10 +3009,10 @@ index 000000000..b665f961c
 +}
 diff --git a/Robust.Client/UserInterface/Mobile/PojavActionButton.cs b/Robust.Client/UserInterface/Mobile/PojavActionButton.cs
 new file mode 100644
-index 000000000..1699bdf44
+index 000000000..4f00e0ab6
 --- /dev/null
 +++ b/Robust.Client/UserInterface/Mobile/PojavActionButton.cs
-@@ -0,0 +1,352 @@
+@@ -0,0 +1,370 @@
 +using System;
 +using System.Numerics;
 +using Robust.Client.Graphics;
@@ -3139,6 +3149,24 @@ index 000000000..1699bdf44
 +                OnReleased?.Invoke();
 +            }
 +        }
++    }
++
++    public void Release()
++    {
++        _activeFingerId = null;
++        if (_isPressed && !IsToggle)
++        {
++            _isPressed = false;
++            ExecuteUp();
++            OnReleased?.Invoke();
++        }
++    }
++
++    protected internal override bool HasPoint(Vector2 point)
++    {
++        const float slop = 4f;
++        var size = Size;
++        return point.X >= -slop && point.X <= size.X + slop && point.Y >= -slop && point.Y <= size.Y + slop;
 +    }
 +
 +    protected internal override void ControlFocusExited()

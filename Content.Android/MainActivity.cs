@@ -540,22 +540,25 @@ namespace Content.Android
                 var filesDir = "/data/data/io.spacestation14.android/files";
                 var zipFile = Path.Combine(filesDir, "resources.zip");
 
-                var assembly = typeof(MainActivity).Assembly;
-                var resourceName = "Content.Android.resources.zip";
-                var names = assembly.GetManifestResourceNames();
-                foreach (var name in names)
+                if (!File.Exists(zipFile) || new FileInfo(zipFile).Length == 0)
                 {
-                    if (name.EndsWith("resources.zip"))
+                    var assembly = typeof(MainActivity).Assembly;
+                    var resourceName = "Content.Android.resources.zip";
+                    var names = assembly.GetManifestResourceNames();
+                    foreach (var name in names)
                     {
-                        resourceName = name;
-                        break;
+                        if (name.EndsWith("resources.zip"))
+                        {
+                            resourceName = name;
+                            break;
+                        }
                     }
-                }
-                using var inStream = assembly.GetManifestResourceStream(resourceName);
-                if (inStream != null)
-                {
-                    using var outStream = File.Create(zipFile);
-                    inStream.CopyTo(outStream);
+                    using var inStream = assembly.GetManifestResourceStream(resourceName);
+                    if (inStream != null)
+                    {
+                        using var outStream = File.Create(zipFile);
+                        inStream.CopyTo(outStream);
+                    }
                 }
             }
             catch (Exception ex)
@@ -652,6 +655,13 @@ namespace Content.Android
                 }
             }
             catch {}
+        }
+
+        public override void SetRequestedOrientation(global::Android.Content.PM.ScreenOrientation requestedOrientation)
+        {
+            // SDL runtime requests FULL_USER or PORTRAIT during window creation;
+            // unconditionally enforce SensorLandscape so orientation never flips.
+            base.SetRequestedOrientation(global::Android.Content.PM.ScreenOrientation.SensorLandscape);
         }
 
         protected override void OnResume()

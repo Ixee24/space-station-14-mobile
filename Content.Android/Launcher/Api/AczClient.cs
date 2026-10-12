@@ -66,8 +66,10 @@ public sealed class AczClient
             if (UriHelper.TryParseSs14Uri(serverAddress, out var uri))
             {
                 var api = UriHelper.GetServerApiAddress(uri);
-                manifestUrl ??= new Uri(api, "manifest.txt").ToString();
-                downloadUrl ??= new Uri(api, "download").ToString();
+                if (string.IsNullOrEmpty(manifestUrl))
+                    manifestUrl = new Uri(api, "manifest.txt").ToString();
+                if (string.IsNullOrEmpty(downloadUrl))
+                    downloadUrl = new Uri(api, "download").ToString();
             }
         }
 

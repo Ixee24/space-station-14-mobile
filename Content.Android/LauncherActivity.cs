@@ -1608,17 +1608,41 @@ public sealed class LauncherActivity : Activity
                 throw new FormatException($"Invalid server address: {address}");
             }
 
-            var serverInfo = await _hubClient.FetchServerInfoAsync(address);
+            ServerInfo? serverInfo = null;
+            for (var attempt = 1; attempt <= 2; attempt++)
+            {
+                if (attempt > 1)
+                {
+                    _overlayText.Text = "Server preparing content, retrying...";
+                    await Task.Delay(2000);
+                }
+                serverInfo = await _hubClient.FetchServerInfoAsync(address);
+                if (serverInfo?.Build != null)
+                    break;
+            }
+
             var build = serverInfo?.Build;
 
             global::Android.Util.Log.Info("SS14Launcher", $"Server info: connectAddr={serverInfo?.ConnectAddress}, hasBuild={build != null}, acz={build?.Acz}, engineVer={build?.EngineVersion}, manifestHash={build?.ManifestHash}");
+
+            if (build == null)
+            {
+                Window?.ClearFlags(WindowManagerFlags.KeepScreenOn);
+                _overlayBox.Visibility = ViewStates.Gone;
+                var errMsg = serverInfo == null
+                    ? "Failed to reach server. Please ensure the server is online and try again."
+                    : "Server did not provide build or content information.";
+                global::Android.Util.Log.Warn("SS14Launcher", errMsg);
+                Toast.MakeText(this, errMsg, ToastLength.Long)?.Show();
+                return;
+            }
 
             var cacheDir = Path.Combine(FilesDir?.AbsolutePath ?? AppContext.BaseDirectory, "content_cache");
             Directory.CreateDirectory(cacheDir);
 
             string? targetZip = null;
 
-            var expectedHash = build?.ManifestHash?.ToUpperInvariant() ?? build?.Hash?.ToUpperInvariant();
+            var expectedHash = build.ManifestHash?.ToUpperInvariant() ?? build.Hash?.ToUpperInvariant();
             if (!string.IsNullOrEmpty(expectedHash))
             {
                 var cachedZip = Path.Combine(cacheDir, $"{expectedHash}.zip");
@@ -1634,14 +1658,6 @@ public sealed class LauncherActivity : Activity
                 Window?.ClearFlags(WindowManagerFlags.KeepScreenOn);
                 _overlayText.Text = "Launching game...";
                 LaunchGameWithZip(targetZip, serverInfo, parsedAddress.ToString());
-                return;
-            }
-
-            if (build == null)
-            {
-                Window?.ClearFlags(WindowManagerFlags.KeepScreenOn);
-                _overlayText.Text = "Launching game...";
-                LaunchGameWithZip(null, serverInfo, parsedAddress.ToString());
                 return;
             }
 
@@ -1957,7 +1973,7 @@ public sealed class LauncherActivity : Activity
         catch {}
     }
 
-    public const string CurrentAppVersion = "v1.0.17";
+    public const string CurrentAppVersion = "v1.0.18";
 
     public string GetCurrentAppVersion()
     {

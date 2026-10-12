@@ -74,7 +74,7 @@ public sealed class HubClient
         try
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
-            cts.CancelAfter(TimeSpan.FromSeconds(8));
+            cts.CancelAfter(TimeSpan.FromSeconds(25));
 
             global::Android.Util.Log.Info("SS14Launcher", $"Querying direct server info: {infoAddr}");
             var info = await Http.GetFromJsonAsync<ServerInfo>(infoAddr, JsonOptions, cts.Token);
@@ -123,7 +123,8 @@ public sealed class HubClient
             var acz = buildInfo.Acz;
             var apiAddress = UriHelper.GetServerApiAddress(serverAddress);
 
-            buildInfo.DownloadUrl ??= new Uri(apiAddress, "client.zip").ToString();
+            if (string.IsNullOrEmpty(buildInfo.DownloadUrl))
+                buildInfo.DownloadUrl = new Uri(apiAddress, "client.zip").ToString();
 
             if (acz)
             {

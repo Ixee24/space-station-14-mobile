@@ -1177,7 +1177,7 @@ index da4d28f69..30da35af0 100644
  
              _clyde._currentHoveredWindow = windowReg;
 diff --git a/Robust.Client/Graphics/Clyde/Windowing/Sdl3.Window.cs b/Robust.Client/Graphics/Clyde/Windowing/Sdl3.Window.cs
-index d1d79e8d6..5ec585ca5 100644
+index d1d79e8d6..21a9d839b 100644
 --- a/Robust.Client/Graphics/Clyde/Windowing/Sdl3.Window.cs
 +++ b/Robust.Client/Graphics/Clyde/Windowing/Sdl3.Window.cs
 @@ -1,4 +1,4 @@
@@ -1199,7 +1199,19 @@ index d1d79e8d6..5ec585ca5 100644
                  int ctxFlags = 0;
  #if DEBUG
                  ctxFlags |= SDL.SDL_GL_CONTEXT_DEBUG_FLAG;
-@@ -315,7 +314,10 @@ internal partial class Clyde
+@@ -219,6 +218,11 @@ internal partial class Clyde
+                     WsiShared.EnsureEglAvailable();
+             }
+ 
++            if (OperatingSystem.IsAndroid())
++            {
++                SDL.SDL_SetHint("SDL_ORIENTATIONS", "LandscapeLeft LandscapeRight");
++            }
++
+             if (parameters.Fullscreen)
+                 SDL.SDL_SetBooleanProperty(createProps, SDL.SDL_PROP_WINDOW_CREATE_FULLSCREEN_BOOLEAN, true);
+ 
+@@ -315,7 +319,10 @@ internal partial class Clyde
              SDL.SDL_GL_MakeCurrent(IntPtr.Zero, IntPtr.Zero);
  
              if (parameters.Visible)
@@ -1210,7 +1222,7 @@ index d1d79e8d6..5ec585ca5 100644
  
              return (window, glContext);
          }
-@@ -366,6 +368,8 @@ internal partial class Clyde
+@@ -366,6 +373,8 @@ internal partial class Clyde
  
              reg.PixelRatio = reg.FramebufferSize / (Vector2)reg.WindowSize;
  
@@ -1219,7 +1231,7 @@ index d1d79e8d6..5ec585ca5 100644
              return reg;
          }
  
-@@ -532,6 +536,25 @@ internal partial class Clyde
+@@ -532,6 +541,25 @@ internal partial class Clyde
              }
          }
  
@@ -1245,7 +1257,7 @@ index d1d79e8d6..5ec585ca5 100644
          public unsafe void WindowSwapBuffers(WindowReg window)
          {
              var reg = (Sdl3WindowReg)window;
-@@ -550,13 +573,12 @@ internal partial class Clyde
+@@ -550,13 +578,12 @@ internal partial class Clyde
              var dwmFlush = false;
              var swapInterval = 0;
  
@@ -1261,7 +1273,7 @@ index d1d79e8d6..5ec585ca5 100644
                  {
                      var curCtx = SDL.SDL_GL_GetCurrentContext();
                      var curWin = SDL.SDL_GL_GetCurrentWindow();
-@@ -575,13 +597,9 @@ internal partial class Clyde
+@@ -575,13 +602,9 @@ internal partial class Clyde
              SDL.SDL_GL_SwapWindow(windowPtr);
  
  #if WINDOWS
@@ -1277,7 +1289,7 @@ index d1d79e8d6..5ec585ca5 100644
  
                  SDL.SDL_GL_SetSwapInterval(swapInterval);
              }
-@@ -656,7 +674,18 @@ internal partial class Clyde
+@@ -656,7 +679,18 @@ internal partial class Clyde
  
          private static void WinThreadStartTextInput(CmdTextInputStart cmd)
          {
@@ -1296,7 +1308,7 @@ index d1d79e8d6..5ec585ca5 100644
          }
  
          public void TextInputStop(WindowReg reg)
-@@ -667,6 +696,7 @@ internal partial class Clyde
+@@ -667,6 +701,7 @@ internal partial class Clyde
          private static void WinThreadStopTextInput(CmdTextInputStop cmd)
          {
              SDL.SDL_StopTextInput(cmd.Window);
@@ -1304,7 +1316,7 @@ index d1d79e8d6..5ec585ca5 100644
          }
  
          public void ClipboardSetText(WindowReg mainWindow, string text)
-@@ -711,6 +741,11 @@ internal partial class Clyde
+@@ -711,6 +746,11 @@ internal partial class Clyde
                      return windowReg;
              }
  

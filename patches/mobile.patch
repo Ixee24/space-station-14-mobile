@@ -2532,10 +2532,10 @@ index 000000000..13964ed1d
 +}
 diff --git a/Robust.Client/UserInterface/Mobile/PojavActionButton.cs b/Robust.Client/UserInterface/Mobile/PojavActionButton.cs
 new file mode 100644
-index 000000000..2c46bf6de
+index 000000000..2386651c3
 --- /dev/null
 +++ b/Robust.Client/UserInterface/Mobile/PojavActionButton.cs
-@@ -0,0 +1,275 @@
+@@ -0,0 +1,283 @@
 +using System;
 +using System.Numerics;
 +using Robust.Client.Graphics;
@@ -2634,6 +2634,10 @@ index 000000000..2c46bf6de
 +    protected internal override void ControlFocusExited()
 +    {
 +        base.ControlFocusExited();
++        if (IsEditMode)
++        {
++            _dragTouchOffset = null;
++        }
 +    }
 +
 +    protected internal override void KeyBindDown(GUIBoundKeyEventArgs args)
@@ -2645,6 +2649,7 @@ index 000000000..2c46bf6de
 +
 +        if (IsEditMode)
 +        {
++            UserInterfaceManager.ControlFocused = this;
 +            _pressStartGlobal = GlobalPosition + args.RelativePosition;
 +            _dragTouchOffset = args.RelativePosition;
 +            _hasDragged = false;
@@ -2702,6 +2707,9 @@ index 000000000..2c46bf6de
 +
 +        if (IsEditMode)
 +        {
++            if (UserInterfaceManager.ControlFocused == this)
++                UserInterfaceManager.ControlFocused = null;
++
 +            var wasDragged = _hasDragged;
 +            _dragTouchOffset = null;
 +            OnPositionChanged?.Invoke();
@@ -2775,7 +2783,7 @@ index 000000000..2c46bf6de
 +    {
 +        base.Draw(handle);
 +
-+        var center = GlobalPosition + Size / 2f;
++        var center = Size / 2f;
 +        var radius = MathF.Min(Size.X, Size.Y) / 2f - 1.5f;
 +        var active = _isPressed || IsToggled;
 +
@@ -2806,17 +2814,17 @@ index 000000000..2c46bf6de
 +
 +        if (IsEditMode)
 +        {
-+            var box = UIBox2.FromDimensions(GlobalPosition, Size);
++            var box = UIBox2.FromDimensions(Vector2.Zero, Size);
 +            handle.DrawRect(box, new Color(255, 215, 0, 140), false);
 +        }
 +    }
 +}
 diff --git a/Robust.Client/UserInterface/Mobile/VirtualThumbstick.cs b/Robust.Client/UserInterface/Mobile/VirtualThumbstick.cs
 new file mode 100644
-index 000000000..66a867625
+index 000000000..2ff4fed00
 --- /dev/null
 +++ b/Robust.Client/UserInterface/Mobile/VirtualThumbstick.cs
-@@ -0,0 +1,271 @@
+@@ -0,0 +1,279 @@
 +using System;
 +using System.Collections.Generic;
 +using System.Numerics;
@@ -2886,6 +2894,10 @@ index 000000000..66a867625
 +    protected internal override void ControlFocusExited()
 +    {
 +        base.ControlFocusExited();
++        if (IsEditMode)
++        {
++            _dragTouchOffset = null;
++        }
 +    }
 +
 +    protected internal override void KeyBindDown(GUIBoundKeyEventArgs args)
@@ -2897,6 +2909,7 @@ index 000000000..66a867625
 +
 +        if (IsEditMode)
 +        {
++            UserInterfaceManager.ControlFocused = this;
 +            _dragTouchOffset = args.RelativePosition;
 +            args.Handle();
 +            return;
@@ -2941,6 +2954,9 @@ index 000000000..66a867625
 +
 +        if (IsEditMode)
 +        {
++            if (UserInterfaceManager.ControlFocused == this)
++                UserInterfaceManager.ControlFocused = null;
++
 +            if (_dragTouchOffset != null)
 +            {
 +                _dragTouchOffset = null;
@@ -3030,7 +3046,7 @@ index 000000000..66a867625
 +    {
 +        base.Draw(handle);
 +
-+        var center = GlobalPosition + Size / 2f;
++        var center = Size / 2f;
 +
 +        handle.DrawCircle(center, Radius, new Color(15, 15, 15, 150), true);
 +        var baseBorder = IsEditMode ? new Color(255, 215, 0, 240) : new Color(240, 240, 240, 200);
@@ -3083,7 +3099,7 @@ index 000000000..66a867625
 +
 +        if (IsEditMode)
 +        {
-+            var box = UIBox2.FromDimensions(GlobalPosition, Size);
++            var box = UIBox2.FromDimensions(Vector2.Zero, Size);
 +            handle.DrawRect(box, new Color(255, 215, 0, 150), false);
 +        }
 +    }

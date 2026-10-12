@@ -250,7 +250,9 @@ public sealed class LauncherActivity : Activity
         _searchInput = new EditText(this)
         {
             Hint = "Search servers...",
-            TextSize = 12
+            TextSize = 12,
+            InputType = global::Android.Text.InputTypes.ClassText,
+            ImeOptions = (global::Android.Views.InputMethods.ImeAction)global::Android.Views.InputMethods.ImeFlags.NoExtractUi | global::Android.Views.InputMethods.ImeAction.Search
         };
         _searchInput.SetHintTextColor(LauncherTheme.ForegroundMuted);
         _searchInput.SetTextColor(LauncherTheme.Foreground);
@@ -261,6 +263,15 @@ public sealed class LauncherActivity : Activity
         {
             _searchFilter = e?.Text?.ToString() ?? string.Empty;
             RenderServerList();
+        };
+        _searchInput.EditorAction += (_, e) =>
+        {
+            if (e.ActionId == global::Android.Views.InputMethods.ImeAction.Search ||
+                e.ActionId == global::Android.Views.InputMethods.ImeAction.Done ||
+                (e.Event?.KeyCode == global::Android.Views.Keycode.Enter && e.Event.Action == global::Android.Views.KeyEventActions.Down))
+            {
+                HideKeyboard(_searchInput);
+            }
         };
         controlsRow.AddView(_searchInput);
 
@@ -752,7 +763,9 @@ public sealed class LauncherActivity : Activity
         var directInput = new EditText(this)
         {
             Text = _storage.Data.LastServer ?? "central.spacestation14.io:1212",
-            TextSize = 13
+            TextSize = 13,
+            InputType = global::Android.Text.InputTypes.ClassText | global::Android.Text.InputTypes.TextVariationUri,
+            ImeOptions = (global::Android.Views.InputMethods.ImeAction)global::Android.Views.InputMethods.ImeFlags.NoExtractUi | global::Android.Views.InputMethods.ImeAction.Go
         };
         directInput.SetTextColor(LauncherTheme.Foreground);
         directInput.Background = LauncherTheme.CreateBox(LauncherTheme.Background, 3, LauncherTheme.ControlMid);
@@ -773,10 +786,20 @@ public sealed class LauncherActivity : Activity
         };
         connectBtn.Click += async (_, _) =>
         {
+            HideKeyboard(directInput);
             var addr = directInput.Text?.Trim();
             if (!string.IsNullOrEmpty(addr))
             {
                 await StartConnectingAsync(addr);
+            }
+        };
+        directInput.EditorAction += (_, e) =>
+        {
+            if (e.ActionId == global::Android.Views.InputMethods.ImeAction.Go ||
+                e.ActionId == global::Android.Views.InputMethods.ImeAction.Done ||
+                (e.Event?.KeyCode == global::Android.Views.Keycode.Enter && e.Event.Action == global::Android.Views.KeyEventActions.Down))
+            {
+                connectBtn.PerformClick();
             }
         };
         box.AddView(connectBtn);
@@ -793,6 +816,20 @@ public sealed class LauncherActivity : Activity
             2 => "Post-Round",
             _ => "Online"
         };
+    }
+
+    private void HideKeyboard(View? view)
+    {
+        try
+        {
+            var imm = (global::Android.Views.InputMethods.InputMethodManager?)GetSystemService(global::Android.Content.Context.InputMethodService);
+            var token = view?.WindowToken ?? Window?.DecorView?.WindowToken;
+            if (imm != null && token != null)
+            {
+                imm.HideSoftInputFromWindow(token, 0);
+            }
+        }
+        catch {}
     }
 
     private void ShowAccountDialog()
@@ -869,7 +906,13 @@ public sealed class LauncherActivity : Activity
         }
         else
         {
-            var uInput = new EditText(this) { Hint = "Username or Email", TextSize = 13 };
+            var uInput = new EditText(this)
+            {
+                Hint = "Username or Email",
+                TextSize = 13,
+                InputType = global::Android.Text.InputTypes.ClassText | global::Android.Text.InputTypes.TextVariationEmailAddress,
+                ImeOptions = (global::Android.Views.InputMethods.ImeAction)global::Android.Views.InputMethods.ImeFlags.NoExtractUi | global::Android.Views.InputMethods.ImeAction.Next
+            };
             uInput.SetHintTextColor(LauncherTheme.ForegroundMuted);
             uInput.SetTextColor(LauncherTheme.Foreground);
             uInput.Background = LauncherTheme.CreateBox(LauncherTheme.Background, 3, LauncherTheme.ControlMid);
@@ -880,7 +923,8 @@ public sealed class LauncherActivity : Activity
             {
                 Hint = "Password",
                 TextSize = 13,
-                InputType = global::Android.Text.InputTypes.ClassText | global::Android.Text.InputTypes.TextVariationPassword
+                InputType = global::Android.Text.InputTypes.ClassText | global::Android.Text.InputTypes.TextVariationPassword,
+                ImeOptions = (global::Android.Views.InputMethods.ImeAction)global::Android.Views.InputMethods.ImeFlags.NoExtractUi | global::Android.Views.InputMethods.ImeAction.Done
             };
             pInput.SetHintTextColor(LauncherTheme.ForegroundMuted);
             pInput.SetTextColor(LauncherTheme.Foreground);
@@ -891,6 +935,15 @@ public sealed class LauncherActivity : Activity
                 TopMargin = (int)(6 * density)
             };
             view.AddView(pInput);
+
+            uInput.EditorAction += (_, e) =>
+            {
+                if (e.ActionId == global::Android.Views.InputMethods.ImeAction.Next ||
+                    (e.Event?.KeyCode == global::Android.Views.Keycode.Enter && e.Event.Action == global::Android.Views.KeyEventActions.Down))
+                {
+                    pInput.RequestFocus();
+                }
+            };
 
             var loginBtn = new Button(this)
             {
@@ -906,6 +959,7 @@ public sealed class LauncherActivity : Activity
             };
             loginBtn.Click += async (_, _) =>
             {
+                HideKeyboard(pInput);
                 var res = await _authClient.AuthenticateAsync(uInput.Text ?? "", pInput.Text ?? "");
                 if (res.Success && res.Account != null)
                 {
@@ -926,6 +980,16 @@ public sealed class LauncherActivity : Activity
                 }
             };
             view.AddView(loginBtn);
+
+            pInput.EditorAction += (_, e) =>
+            {
+                if (e.ActionId == global::Android.Views.InputMethods.ImeAction.Done ||
+                    e.ActionId == global::Android.Views.InputMethods.ImeAction.Go ||
+                    (e.Event?.KeyCode == global::Android.Views.Keycode.Enter && e.Event.Action == global::Android.Views.KeyEventActions.Down))
+                {
+                    loginBtn.PerformClick();
+                }
+            };
 
             var regBtn = new Button(this)
             {
@@ -953,7 +1017,9 @@ public sealed class LauncherActivity : Activity
             {
                 Text = _storage.Data.GuestUsername,
                 Hint = "Guest Player Name",
-                TextSize = 13
+                TextSize = 13,
+                InputType = global::Android.Text.InputTypes.ClassText,
+                ImeOptions = (global::Android.Views.InputMethods.ImeAction)global::Android.Views.InputMethods.ImeFlags.NoExtractUi | global::Android.Views.InputMethods.ImeAction.Done
             };
             guestInput.SetTextColor(LauncherTheme.Foreground);
             guestInput.Background = LauncherTheme.CreateBox(LauncherTheme.Background, 3, LauncherTheme.ControlMid);
@@ -972,9 +1038,19 @@ public sealed class LauncherActivity : Activity
             };
             guestSaveBtn.Click += (_, _) =>
             {
+                HideKeyboard(guestInput);
                 _storage.SetGuestUsername(guestInput.Text ?? "AndroidPlayer");
                 UpdateAccountButton();
                 Toast.MakeText(this, "Guest name saved", ToastLength.Short)?.Show();
+            };
+            guestInput.EditorAction += (_, e) =>
+            {
+                if (e.ActionId == global::Android.Views.InputMethods.ImeAction.Done ||
+                    e.ActionId == global::Android.Views.InputMethods.ImeAction.Go ||
+                    (e.Event?.KeyCode == global::Android.Views.Keycode.Enter && e.Event.Action == global::Android.Views.KeyEventActions.Down))
+                {
+                    guestSaveBtn.PerformClick();
+                }
             };
             view.AddView(guestSaveBtn);
         }
@@ -2138,7 +2214,7 @@ public sealed class LauncherActivity : Activity
         catch {}
     }
 
-    public const string CurrentAppVersion = "v1.0.20";
+    public const string CurrentAppVersion = "v1.0.21";
 
     public string GetCurrentAppVersion()
     {

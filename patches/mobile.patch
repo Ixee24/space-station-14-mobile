@@ -1726,6 +1726,24 @@ index 2c7ef9c72..d7f4f36ca 100644
  
              switch (HorizontalAlignment)
              {
+diff --git a/Robust.Client/UserInterface/Controls/ItemList.cs b/Robust.Client/UserInterface/Controls/ItemList.cs
+index d3cce9847..771b5b772 100644
+--- a/Robust.Client/UserInterface/Controls/ItemList.cs
++++ b/Robust.Client/UserInterface/Controls/ItemList.cs
+@@ -646,6 +646,13 @@ namespace Robust.Client.UserInterface.Controls
+             args.Handle();
+         }
+ 
++        public void ScrollByDelta(float deltaY)
++        {
++            _scrollBar.Value -= deltaY;
++            _scrollBar.ValueTarget = _scrollBar.Value;
++            _isAtBottom = _scrollBar.IsAtEnd;
++        }
++
+         [Pure]
+         private int _getScrollSpeed()
+         {
 diff --git a/Robust.Client/UserInterface/Controls/LineEdit.cs b/Robust.Client/UserInterface/Controls/LineEdit.cs
 index 7aff69015..5bafdfc23 100644
 --- a/Robust.Client/UserInterface/Controls/LineEdit.cs
@@ -1743,6 +1761,51 @@ index 7aff69015..5bafdfc23 100644
              InsertAtCursor(args.Text);
              OnTextTyped?.Invoke(args);
          }
+diff --git a/Robust.Client/UserInterface/Controls/OutputPanel.cs b/Robust.Client/UserInterface/Controls/OutputPanel.cs
+index 7242443b5..2780de2e3 100644
+--- a/Robust.Client/UserInterface/Controls/OutputPanel.cs
++++ b/Robust.Client/UserInterface/Controls/OutputPanel.cs
+@@ -261,6 +261,12 @@ namespace Robust.Client.UserInterface.Controls
+             _scrollBar.ValueTarget -= _getScrollSpeed() * args.Delta.Y;
+         }
+ 
++        public void ScrollByDelta(float deltaY)
++        {
++            _scrollBar.Value -= deltaY;
++            _scrollBar.ValueTarget = _scrollBar.Value;
++        }
++
+         protected override void Resized()
+         {
+             base.Resized();
+diff --git a/Robust.Client/UserInterface/Controls/ScrollBar.cs b/Robust.Client/UserInterface/Controls/ScrollBar.cs
+index 7d5d1b2ef..0f138aa46 100644
+--- a/Robust.Client/UserInterface/Controls/ScrollBar.cs
++++ b/Robust.Client/UserInterface/Controls/ScrollBar.cs
+@@ -108,7 +108,22 @@ namespace Robust.Client.UserInterface.Controls
+             var box = _getGrabberBox();
+             if (!box.Contains(args.RelativePixelPosition))
+             {
+-                return;
++                if (OperatingSystem.IsAndroid())
++                {
++                    var trackSize = _getOrientationSize();
++                    if (trackSize > 0)
++                    {
++                        var touchRel = _orientation == OrientationMode.Horizontal
++                            ? args.RelativePixelPosition.X
++                            : args.RelativePixelPosition.Y;
++                        var ratio = Math.Clamp(touchRel / trackSize, 0f, 1f);
++                        Value = MinValue + ratio * (MaxValue - MinValue);
++                    }
++                }
++                else
++                {
++                    return;
++                }
+             }
+ 
+             _grabData = (args.RelativePixelPosition, Value);
 diff --git a/Robust.Client/UserInterface/Controls/TextEdit.cs b/Robust.Client/UserInterface/Controls/TextEdit.cs
 index 72d61cbe3..d432c594d 100644
 --- a/Robust.Client/UserInterface/Controls/TextEdit.cs
@@ -3613,11 +3676,184 @@ index 000000000..cf0d6ed3d
 +        }
 +    }
 +}
+diff --git a/Robust.Client/UserInterface/Stylesheets/DefaultStylesheet.cs b/Robust.Client/UserInterface/Stylesheets/DefaultStylesheet.cs
+index 72575887c..f6cab0f82 100644
+--- a/Robust.Client/UserInterface/Stylesheets/DefaultStylesheet.cs
++++ b/Robust.Client/UserInterface/Stylesheets/DefaultStylesheet.cs
+@@ -1,4 +1,5 @@
+-﻿using Robust.Client.Graphics;
++using System;
++using Robust.Client.Graphics;
+ using Robust.Client.ResourceManagement;
+ using Robust.Client.UserInterface.Controls;
+ using Robust.Client.UserInterface.CustomControls;
+@@ -22,22 +23,23 @@ public sealed class DefaultStylesheet
+ 
+         var theme = userInterfaceManager.CurrentTheme;
+ 
++        var scrollBarWidth = OperatingSystem.IsAndroid() ? 18 : 10;
+         var scrollBarNormal = new StyleBoxFlat {
+             BackgroundColor = theme.ResolveColorOrSpecified("scrollBarDefault",Color.FromHex("#80808059")),
+-            ContentMarginLeftOverride = 10,
+-            ContentMarginTopOverride = 10
++            ContentMarginLeftOverride = scrollBarWidth,
++            ContentMarginTopOverride = scrollBarWidth
+         };
+ 
+         var scrollBarHovered = new StyleBoxFlat {
+             BackgroundColor = theme.ResolveColorOrSpecified("scrollBarHovered",Color.FromHex("#8C8C8C59")),
+-            ContentMarginLeftOverride = 10,
+-            ContentMarginTopOverride = 10
++            ContentMarginLeftOverride = scrollBarWidth,
++            ContentMarginTopOverride = scrollBarWidth
+         };
+ 
+         var scrollBarGrabbed = new StyleBoxFlat {
+             BackgroundColor = theme.ResolveColorOrSpecified("scrollBarGrabbed",Color.FromHex("#8C8C8C59")),
+-            ContentMarginLeftOverride = 10,
+-            ContentMarginTopOverride = 10,
++            ContentMarginLeftOverride = scrollBarWidth,
++            ContentMarginTopOverride = scrollBarWidth,
+         };
+ 
+         Stylesheet = new Stylesheet(new StyleRule[]
 diff --git a/Robust.Client/UserInterface/UserInterfaceManager.Input.cs b/Robust.Client/UserInterface/UserInterfaceManager.Input.cs
-index 274aa2abc..bc1274722 100644
+index 274aa2abc..f8a5fe966 100644
 --- a/Robust.Client/UserInterface/UserInterfaceManager.Input.cs
 +++ b/Robust.Client/UserInterface/UserInterfaceManager.Input.cs
-@@ -583,4 +583,12 @@ internal partial class UserInterfaceManager
+@@ -46,6 +46,29 @@ internal partial class UserInterfaceManager
+     private const float TooltipDelay = 0.25f;
+     private readonly Dictionary<BoundKeyFunction, Control> _focusedControls = new();
+ 
++    private Control? _activeScrollTarget;
++    private Control? _touchDownTarget;
++    private Vector2 _touchDownPos;
++    private Vector2 _touchLastPos;
++    private bool _isTouchScrolling;
++    private const float TouchScrollThreshold = 10f;
++
++    private static Control? FindScrollable(Control? control)
++    {
++        if (control is ScrollBar or Slider)
++            return null;
++
++        while (control != null)
++        {
++            if (control is ScrollContainer sc && (sc.VScrollEnabled || sc.HScrollEnabled))
++                return sc;
++            if (control is ItemList or OutputPanel)
++                return control;
++            control = control.Parent;
++        }
++        return null;
++    }
++
+     private WindowRoot? _focusedRoot;
+ 
+     private static (Control control, Vector2 rel)? MouseFindControlAtPos(Control control, Vector2 position)
+@@ -103,6 +126,15 @@ internal partial class UserInterfaceManager
+             return;
+         }
+ 
++        if (OperatingSystem.IsAndroid() && args.Function == EngineKeyFunctions.UIClick)
++        {
++            _touchDownPos = args.PointerLocation.Position;
++            _touchLastPos = args.PointerLocation.Position;
++            _isTouchScrolling = false;
++            _touchDownTarget = control;
++            _activeScrollTarget = FindScrollable(control);
++        }
++
+         var guiArgs = new GUIBoundKeyEventArgs(args.Function, args.State, args.PointerLocation, args.CanFocus,
+             args.PointerLocation.Position / control.UIScale - control.GlobalPosition,
+             args.PointerLocation.Position - control.GlobalPixelPosition);
+@@ -121,6 +153,21 @@ internal partial class UserInterfaceManager
+ 
+     public void KeyBindUp(BoundKeyEventArgs args)
+     {
++        if (OperatingSystem.IsAndroid() && args.Function == EngineKeyFunctions.UIClick)
++        {
++            var wasScrolling = _isTouchScrolling;
++            _activeScrollTarget = null;
++            _touchDownTarget = null;
++            _isTouchScrolling = false;
++
++            if (wasScrolling)
++            {
++                _focusedControls.Remove(args.Function);
++                args.Handle();
++                return;
++            }
++        }
++
+         // Only raise keybind-up for the control on which we previously raised keybind-down
+         if (!_focusedControls.Remove(args.Function, out var control) || !control.VisibleInTree)
+             return;
+@@ -140,6 +187,63 @@ internal partial class UserInterfaceManager
+     public void MouseMove(MouseMoveEventArgs mouseMoveEventArgs)
+     {
+         _resetTooltipTimer();
++
++        if (OperatingSystem.IsAndroid() && _activeScrollTarget != null && _activeScrollTarget.VisibleInTree)
++        {
++            var curPos = mouseMoveEventArgs.Position.Position;
++            var totalDelta = curPos - _touchDownPos;
++            var stepDelta = (curPos - _touchLastPos) / _activeScrollTarget.UIScale;
++            _touchLastPos = curPos;
++
++            if (!_isTouchScrolling)
++            {
++                if (MathF.Abs(totalDelta.Y) > TouchScrollThreshold || MathF.Abs(totalDelta.X) > TouchScrollThreshold)
++                {
++                    _isTouchScrolling = true;
++
++                    if (_touchDownTarget != null && _touchDownTarget != _activeScrollTarget)
++                    {
++                        if (ControlFocused == _touchDownTarget)
++                        {
++                            ControlFocused = null;
++                        }
++
++                        if (_focusedControls.TryGetValue(EngineKeyFunctions.UIClick, out var focused) && focused == _touchDownTarget)
++                        {
++                            _focusedControls[EngineKeyFunctions.UIClick] = _activeScrollTarget;
++                        }
++                    }
++                }
++            }
++
++            if (_isTouchScrolling)
++            {
++                if (_activeScrollTarget is ScrollContainer sc)
++                {
++                    if (sc.VScrollEnabled)
++                    {
++                        sc.VScroll -= stepDelta.Y;
++                        sc.VScrollTarget = sc.VScroll;
++                    }
++                    if (sc.HScrollEnabled)
++                    {
++                        sc.HScroll -= stepDelta.X;
++                        sc.HScrollTarget = sc.HScroll;
++                    }
++                }
++                else if (_activeScrollTarget is ItemList list)
++                {
++                    list.ScrollByDelta(stepDelta.Y);
++                }
++                else if (_activeScrollTarget is OutputPanel panel)
++                {
++                    panel.ScrollByDelta(stepDelta.Y);
++                }
++
++                return;
++            }
++        }
++
+         // Update which control is considered hovered.
+         var newHovered = MouseGetControl(mouseMoveEventArgs.Position);
+         SetHovered(newHovered);
+@@ -583,4 +687,12 @@ internal partial class UserInterfaceManager
  
          return pos - control.GlobalPosition;
      }

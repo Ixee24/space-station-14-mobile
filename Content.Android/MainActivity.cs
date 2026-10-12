@@ -657,6 +657,51 @@ namespace Content.Android
             catch {}
         }
 
+        private void ApplyDisplayResolution()
+        {
+            try
+            {
+                if (MSurface?.Holder == null) return;
+                var res = Intent?.GetStringExtra("display_resolution") ?? "native";
+                if (res == "native" || string.IsNullOrEmpty(res))
+                {
+                    MSurface.Holder.SetSizeFromLayout();
+                    return;
+                }
+
+                var metrics = Resources?.DisplayMetrics;
+                if (metrics == null) return;
+
+                var screenW = Math.Max(metrics.WidthPixels, metrics.HeightPixels);
+                var screenH = Math.Min(metrics.WidthPixels, metrics.HeightPixels);
+                if (screenH <= 0) return;
+                var aspect = (float)screenW / screenH;
+
+                int targetH = res switch
+                {
+                    "720p" => 720,
+                    "900p" => 900,
+                    "1080p" => 1080,
+                    _ => screenH
+                };
+
+                if (targetH < screenH)
+                {
+                    int targetW = (int)Math.Round(targetH * aspect);
+                    global::Android.Util.Log.Info("SS14Launch", $"[Resolution] Setting Surface size to {targetW}x{targetH} (native is {screenW}x{screenH})");
+                    MSurface.Holder.SetFixedSize(targetW, targetH);
+                }
+                else
+                {
+                    MSurface.Holder.SetSizeFromLayout();
+                }
+            }
+            catch (Exception ex)
+            {
+                global::Android.Util.Log.Warn("SS14Launch", $"ApplyDisplayResolution failed: {ex.Message}");
+            }
+        }
+
         public override void SetRequestedOrientation(global::Android.Content.PM.ScreenOrientation requestedOrientation)
         {
             // SDL runtime requests FULL_USER or PORTRAIT during window creation;
@@ -676,6 +721,7 @@ namespace Content.Android
             UpdateHardwareKeyboardState();
             ApplyImmersiveMode();
             EnsureSurfaceFocus();
+            ApplyDisplayResolution();
         }
 
         public override void OnWindowFocusChanged(bool hasFocus)
@@ -703,6 +749,7 @@ namespace Content.Android
                 catch { }
                 ApplyImmersiveMode();
                 EnsureSurfaceFocus();
+                ApplyDisplayResolution();
             }
         }
 

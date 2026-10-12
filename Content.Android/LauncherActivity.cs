@@ -1239,6 +1239,151 @@ public sealed class LauncherActivity : Activity
         }
         view.AddView(opacityBtnsLayout);
 
+        var stickLabel = new TextView(this)
+        {
+            Text = "Joystick Scale:",
+            TextSize = 13,
+            Typeface = global::Android.Graphics.Typeface.DefaultBold
+        };
+        stickLabel.SetTextColor(LauncherTheme.Foreground);
+        var stickLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent);
+        stickLp.SetMargins(0, (int)(8 * density), 0, 0);
+        stickLabel.LayoutParameters = stickLp;
+        view.AddView(stickLabel);
+
+        var currentStickScale = prefs?.GetFloat("mobile_stick_scale", 1.0f) ?? 1.0f;
+        var stickBtnsLayout = new LinearLayout(this) { Orientation = Orientation.Horizontal };
+        var stickScales = new (string text, float val)[]
+        {
+            ("70%", 0.7f),
+            ("85%", 0.85f),
+            ("100%", 1.0f),
+            ("120%", 1.2f)
+        };
+
+        var stickBtnList = new List<Button>();
+        foreach (var (text, val) in stickScales)
+        {
+            var btn = new Button(this)
+            {
+                Text = text,
+                TextSize = 11
+            };
+            btn.Background = Math.Abs(currentStickScale - val) < 0.05f 
+                ? LauncherTheme.CreateBox(LauncherTheme.ControlHigh, 3) 
+                : LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
+            btn.SetTextColor(LauncherTheme.Foreground);
+            var lp = new LinearLayout.LayoutParams(0, (int)(32 * density), 1f);
+            lp.SetMargins((int)(2 * density), (int)(4 * density), (int)(2 * density), (int)(10 * density));
+            btn.LayoutParameters = lp;
+            btn.Click += (_, _) =>
+            {
+                prefs?.Edit()?.PutFloat("mobile_stick_scale", val)?.Apply();
+                MainActivity.LaunchBuildCVars["mobile.thumbstick_scale"] = val.ToString("F2", CultureInfo.InvariantCulture);
+                foreach (var b in stickBtnList)
+                    b.Background = (b == btn) ? LauncherTheme.CreateBox(LauncherTheme.ControlHigh, 3) : LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
+            };
+            stickBtnList.Add(btn);
+            stickBtnsLayout.AddView(btn);
+        }
+        view.AddView(stickBtnsLayout);
+
+        var guiLabel = new TextView(this)
+        {
+            Text = "GUI Scale:",
+            TextSize = 13,
+            Typeface = global::Android.Graphics.Typeface.DefaultBold
+        };
+        guiLabel.SetTextColor(LauncherTheme.Foreground);
+        var guiLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent);
+        guiLp.SetMargins(0, (int)(8 * density), 0, 0);
+        guiLabel.LayoutParameters = guiLp;
+        view.AddView(guiLabel);
+
+        var currentGuiScale = prefs?.GetFloat("gui_scale", 1.0f) ?? 1.0f;
+        var guiBtnsLayout = new LinearLayout(this) { Orientation = Orientation.Horizontal };
+        var guiScales = new (string text, float val)[]
+        {
+            ("80%", 0.8f),
+            ("100%", 1.0f),
+            ("120%", 1.2f),
+            ("140%", 1.4f)
+        };
+
+        var guiBtnList = new List<Button>();
+        foreach (var (text, val) in guiScales)
+        {
+            var btn = new Button(this)
+            {
+                Text = text,
+                TextSize = 11
+            };
+            btn.Background = Math.Abs(currentGuiScale - val) < 0.05f 
+                ? LauncherTheme.CreateBox(LauncherTheme.ControlHigh, 3) 
+                : LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
+            btn.SetTextColor(LauncherTheme.Foreground);
+            var lp = new LinearLayout.LayoutParams(0, (int)(32 * density), 1f);
+            lp.SetMargins((int)(2 * density), (int)(4 * density), (int)(2 * density), (int)(10 * density));
+            btn.LayoutParameters = lp;
+            btn.Click += (_, _) =>
+            {
+                prefs?.Edit()?.PutFloat("gui_scale", val)?.Apply();
+                MainActivity.LaunchBuildCVars["display.uiScale"] = val.ToString("F2", CultureInfo.InvariantCulture);
+                foreach (var b in guiBtnList)
+                    b.Background = (b == btn) ? LauncherTheme.CreateBox(LauncherTheme.ControlHigh, 3) : LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
+            };
+            guiBtnList.Add(btn);
+            guiBtnsLayout.AddView(btn);
+        }
+        view.AddView(guiBtnsLayout);
+
+        var resLabel = new TextView(this)
+        {
+            Text = "Display Resolution:",
+            TextSize = 13,
+            Typeface = global::Android.Graphics.Typeface.DefaultBold
+        };
+        resLabel.SetTextColor(LauncherTheme.Foreground);
+        var resLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent);
+        resLp.SetMargins(0, (int)(8 * density), 0, 0);
+        resLabel.LayoutParameters = resLp;
+        view.AddView(resLabel);
+
+        var currentRes = prefs?.GetString("display_resolution", "native") ?? "native";
+        var resBtnsLayout = new LinearLayout(this) { Orientation = Orientation.Horizontal };
+        var resolutions = new (string text, string val)[]
+        {
+            ("Native", "native"),
+            ("900p", "900p"),
+            ("720p", "720p")
+        };
+
+        var resBtnList = new List<Button>();
+        foreach (var (text, val) in resolutions)
+        {
+            var btn = new Button(this)
+            {
+                Text = text,
+                TextSize = 11
+            };
+            btn.Background = currentRes == val 
+                ? LauncherTheme.CreateBox(LauncherTheme.ControlHigh, 3) 
+                : LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
+            btn.SetTextColor(LauncherTheme.Foreground);
+            var lp = new LinearLayout.LayoutParams(0, (int)(32 * density), 1f);
+            lp.SetMargins((int)(2 * density), (int)(4 * density), (int)(2 * density), (int)(10 * density));
+            btn.LayoutParameters = lp;
+            btn.Click += (_, _) =>
+            {
+                prefs?.Edit()?.PutString("display_resolution", val)?.Apply();
+                foreach (var b in resBtnList)
+                    b.Background = (b == btn) ? LauncherTheme.CreateBox(LauncherTheme.ControlHigh, 3) : LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
+            };
+            resBtnList.Add(btn);
+            resBtnsLayout.AddView(btn);
+        }
+        view.AddView(resBtnsLayout);
+
         var listHeader = new TextView(this)
         {
             Text = "Individual Button Settings:",
@@ -1747,6 +1892,12 @@ public sealed class LauncherActivity : Activity
             intent.PutExtra("cvar_build_mobile.controls_scale", s.ToString("F1", System.Globalization.CultureInfo.InvariantCulture));
             var o = prefs.GetFloat("mobile_opacity", 0.85f);
             intent.PutExtra("cvar_build_mobile.controls_opacity", o.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+            var stickScale = prefs.GetFloat("mobile_stick_scale", 1.0f);
+            intent.PutExtra("cvar_build_mobile.thumbstick_scale", stickScale.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+            var guiScale = prefs.GetFloat("gui_scale", 1.0f);
+            intent.PutExtra("cvar_build_display.uiScale", guiScale.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+            var dispRes = prefs.GetString("display_resolution", "native") ?? "native";
+            intent.PutExtra("display_resolution", dispRes);
         }
 
         if (!string.IsNullOrEmpty(serverInfo?.Auth?.PublicKey))
@@ -1960,6 +2111,20 @@ public sealed class LauncherActivity : Activity
     private void LaunchOfflineSandbox()
     {
         var intent = new Intent(this, typeof(MainActivity));
+        var prefs = GetSharedPreferences("ss14_mobile_config", FileCreationMode.Private);
+        if (prefs != null)
+        {
+            var s = prefs.GetFloat("mobile_scale", 1.0f);
+            intent.PutExtra("cvar_build_mobile.controls_scale", s.ToString("F1", System.Globalization.CultureInfo.InvariantCulture));
+            var o = prefs.GetFloat("mobile_opacity", 0.85f);
+            intent.PutExtra("cvar_build_mobile.controls_opacity", o.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+            var stickScale = prefs.GetFloat("mobile_stick_scale", 1.0f);
+            intent.PutExtra("cvar_build_mobile.thumbstick_scale", stickScale.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+            var guiScale = prefs.GetFloat("gui_scale", 1.0f);
+            intent.PutExtra("cvar_build_display.uiScale", guiScale.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+            var dispRes = prefs.GetString("display_resolution", "native") ?? "native";
+            intent.PutExtra("display_resolution", dispRes);
+        }
         StartActivity(intent);
     }
 
@@ -1973,7 +2138,7 @@ public sealed class LauncherActivity : Activity
         catch {}
     }
 
-    public const string CurrentAppVersion = "v1.0.19";
+    public const string CurrentAppVersion = "v1.0.20";
 
     public string GetCurrentAppVersion()
     {

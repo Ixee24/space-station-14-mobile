@@ -1,3 +1,54 @@
+diff --git a/Content.Client/Audio/AudioUIController.cs b/Content.Client/Audio/AudioUIController.cs
+index 779f56d619..550acb510f 100644
+--- a/Content.Client/Audio/AudioUIController.cs
++++ b/Content.Client/Audio/AudioUIController.cs
+@@ -55,6 +55,12 @@ private void SetClickSound(string value)
+         if (!string.IsNullOrEmpty(value))
+         {
+             var resource = GetSoundOrFallback(value, CCVars.UIClickSound.DefaultValue);
++            if (resource == null)
++            {
++                // Mobile: baked content pack may omit audio; run silent instead of crashing.
++                UIManager.SetClickSound(null);
++                return;
++            }
+             var source =
+                 _audioManager.CreateAudioSource(resource);
+ 
+@@ -78,6 +84,12 @@ private void SetHoverSound(string value)
+         if (!string.IsNullOrEmpty(value))
+         {
+             var hoverResource = GetSoundOrFallback(value, CCVars.UIHoverSound.DefaultValue);
++            if (hoverResource == null)
++            {
++                // Mobile: baked content pack may omit audio; run silent instead of crashing.
++                UIManager.SetHoverSound(null);
++                return;
++            }
+             var hoverSource =
+                 _audioManager.CreateAudioSource(hoverResource);
+ 
+@@ -96,11 +108,16 @@ private void SetHoverSound(string value)
+         }
+     }
+ 
+-    private AudioResource GetSoundOrFallback(string path, string fallback)
++    private AudioResource? GetSoundOrFallback(string path, string fallback)
+     {
+-        if (!_cache.TryGetResource(path, out AudioResource? resource))
+-            return _cache.GetResource<AudioResource>(fallback);
++        if (_cache.TryGetResource(path, out AudioResource? resource))
++            return resource;
++
++        // Mobile: neither the sound nor its fallback may exist in the
++        // baked pack (e.g. audio omitted for size); tolerate it.
++        if (_cache.TryGetResource(fallback, out resource))
++            return resource;
+ 
+-        return resource;
++        return null;
+     }
+ }
 diff --git a/Content.Client/Content.Client.csproj b/Content.Client/Content.Client.csproj
 index 1bb9d6f2e8..861bf97261 100644
 --- a/Content.Client/Content.Client.csproj
@@ -2303,11 +2354,27 @@ index 0404e825cf..74b4e6ed56 100644
          }
      }
  }
+diff --git a/Content.Client/UserInterface/Controls/MainViewport.cs b/Content.Client/UserInterface/Controls/MainViewport.cs
+index 2f138bb0bb..d67256ba1f 100644
+--- a/Content.Client/UserInterface/Controls/MainViewport.cs
++++ b/Content.Client/UserInterface/Controls/MainViewport.cs
+@@ -59,9 +59,9 @@ public void UpdateCfg()
+             if (stretch)
+             {
+                 var snapFactor = CalcSnappingFactor();
+-                if (snapFactor == null)
++                if (snapFactor == null || OperatingSystem.IsAndroid())
+                 {
+-                    // Did not find a snap, enable stretching.
++                    // Did not find a snap or on mobile: enable stretching to fill screen height.
+                     Viewport.FixedStretchSize = null;
+                     Viewport.StretchMode = filterMode switch
+                     {
 diff --git a/Content.Client/UserInterface/Systems/Chat/ChatUIController.cs b/Content.Client/UserInterface/Systems/Chat/ChatUIController.cs
-index ad9233c4ef..242ee8c102 100644
+index 8e99a97180..59e478745e 100644
 --- a/Content.Client/UserInterface/Systems/Chat/ChatUIController.cs
 +++ b/Content.Client/UserInterface/Systems/Chat/ChatUIController.cs
-@@ -230,11 +230,19 @@ public override void Initialize()
+@@ -235,11 +235,19 @@ public override void Initialize()
          gameplayStateLoad.OnScreenLoad += OnScreenLoad;
          gameplayStateLoad.OnScreenUnload += OnScreenUnload;
  
@@ -2433,54 +2500,9 @@ index 620187a74d..d218fe8104 100644
      }
  
      /// <summary>
-diff --git a/Content.Client/Audio/AudioUIController.cs b/Content.Client/Audio/AudioUIController.cs
-index 779f56d619..550acb510f 100644
---- a/Content.Client/Audio/AudioUIController.cs
-+++ b/Content.Client/Audio/AudioUIController.cs
-@@ -55,6 +55,12 @@ private void SetClickSound(string value)
-         if (!string.IsNullOrEmpty(value))
-         {
-             var resource = GetSoundOrFallback(value, CCVars.UIClickSound.DefaultValue);
-+            if (resource == null)
-+            {
-+                // Mobile: baked content pack may omit audio; run silent instead of crashing.
-+                UIManager.SetClickSound(null);
-+                return;
-+            }
-             var source =
-                 _audioManager.CreateAudioSource(resource);
- 
-@@ -78,6 +84,12 @@ private void SetHoverSound(string value)
-         if (!string.IsNullOrEmpty(value))
-         {
-             var hoverResource = GetSoundOrFallback(value, CCVars.UIHoverSound.DefaultValue);
-+            if (hoverResource == null)
-+            {
-+                // Mobile: baked content pack may omit audio; run silent instead of crashing.
-+                UIManager.SetHoverSound(null);
-+                return;
-+            }
-             var hoverSource =
-                 _audioManager.CreateAudioSource(hoverResource);
- 
-@@ -96,11 +108,16 @@ private void SetHoverSound(string value)
-         }
-     }
- 
--    private AudioResource GetSoundOrFallback(string path, string fallback)
-+    private AudioResource? GetSoundOrFallback(string path, string fallback)
-     {
--        if (!_cache.TryGetResource(path, out AudioResource? resource))
--            return _cache.GetResource<AudioResource>(fallback);
-+        if (_cache.TryGetResource(path, out AudioResource? resource))
-+            return resource;
-+
-+        // Mobile: neither the sound nor its fallback may exist in the
-+        // baked pack (e.g. audio omitted for size); tolerate it.
-+        if (_cache.TryGetResource(fallback, out resource))
-+            return resource;
- 
--        return resource;
-+        return null;
-     }
- }
+diff --git a/RobustToolbox b/RobustToolbox
+--- a/RobustToolbox
++++ b/RobustToolbox
+@@ -1 +1 @@
+-Subproject commit b8185556b610da84d3f93559bbd7778fdae58811
++Subproject commit b8185556b610da84d3f93559bbd7778fdae58811-dirty

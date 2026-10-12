@@ -10,6 +10,20 @@ public sealed record ServerListEntry(
     [property: JsonPropertyName("statusData")] ServerStatus? StatusData
 );
 
+public sealed class FavoriteDirectServer
+{
+    [JsonPropertyName("address")] public string Address { get; set; } = string.Empty;
+    [JsonPropertyName("name")] public string? Name { get; set; }
+
+    public FavoriteDirectServer() { }
+
+    public FavoriteDirectServer(string address, string? name = null)
+    {
+        Address = address;
+        Name = name;
+    }
+}
+
 public sealed record ServerStatus(
     [property: JsonPropertyName("name")] string? Name,
     [property: JsonPropertyName("players")] int Players,

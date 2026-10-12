@@ -62,6 +62,24 @@ public sealed class HubClient
         return new List<ServerListEntry>(result.Values);
     }
 
+    public async Task<ServerStatus?> FetchServerStatusAsync(string address, CancellationToken ct = default)
+    {
+        if (!UriHelper.TryParseSs14Uri(address, out var parsedAddress))
+            return null;
+
+        var statusAddr = UriHelper.GetServerStatusAddress(parsedAddress);
+        try
+        {
+            using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            cts.CancelAfter(TimeSpan.FromSeconds(5));
+            return await Http.GetFromJsonAsync<ServerStatus>(statusAddr, JsonOptions, cts.Token);
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
     public async Task<ServerInfo?> FetchServerInfoAsync(string address, string? fallbackHubUrl = null, CancellationToken ct = default)
     {
         if (!UriHelper.TryParseSs14Uri(address, out var parsedAddress))

@@ -59,6 +59,7 @@ public sealed class LauncherActivity : Activity
     private readonly AczClient _aczClient = new();
 
     private List<ServerListEntry> _servers = new();
+    private readonly Dictionary<string, ServerStatus> _directStatusCache = new(StringComparer.OrdinalIgnoreCase);
     private Tab _activeTab = Tab.Servers;
     private string _searchFilter = string.Empty;
 
@@ -619,10 +620,52 @@ public sealed class LauncherActivity : Activity
             return;
         }
 
-        IEnumerable<ServerListEntry> items = _servers;
+        IEnumerable<ServerListEntry> items;
         if (_activeTab == Tab.Favorites)
         {
-            items = items.Where(s => _storage.IsFavorite(s.Address));
+            var favList = new List<ServerListEntry>();
+            var seen = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            foreach (var s in _servers.Where(s => _storage.IsFavorite(s.Address)))
+            {
+                seen.Add(LauncherStorage.NormalizeAddress(s.Address));
+                favList.Add(s);
+            }
+
+            foreach (var d in _storage.GetDirectFavorites())
+            {
+                var norm = LauncherStorage.NormalizeAddress(d.Address);
+                if (seen.Add(norm))
+                {
+                    _directStatusCache.TryGetValue(norm, out var st);
+                    var entry = new ServerListEntry(
+                        d.Address,
+                        st ?? new ServerStatus(d.Name ?? d.Address, 0, 0, null, null, null)
+                    );
+                    favList.Add(entry);
+                }
+            }
+
+            foreach (var favAddr in _storage.Data.Favorites)
+            {
+                var norm = LauncherStorage.NormalizeAddress(favAddr);
+                if (seen.Add(norm))
+                {
+                    _directStatusCache.TryGetValue(norm, out var st);
+                    var entry = new ServerListEntry(
+                        favAddr,
+                        st ?? new ServerStatus(favAddr, 0, 0, null, null, null)
+                    );
+                    favList.Add(entry);
+                }
+            }
+
+            items = favList;
+            FetchDirectFavoriteStatuses();
+        }
+        else
+        {
+            items = _servers;
         }
 
         if (!string.IsNullOrWhiteSpace(_searchFilter))
@@ -636,7 +679,34 @@ public sealed class LauncherActivity : Activity
 
         var sorted = items.OrderByDescending(s => s.StatusData?.Players ?? 0).ToList();
         var totalPlayers = sorted.Sum(s => s.StatusData?.Players ?? 0);
-        _statusCountText.Text = $"{sorted.Count} servers online, {totalPlayers} players total";
+        if (_activeTab == Tab.Favorites)
+        {
+            _statusCountText.Text = $"{sorted.Count} favorite servers ({totalPlayers} players online)";
+        }
+        else
+        {
+            _statusCountText.Text = $"{sorted.Count} servers online, {totalPlayers} players total";
+        }
+
+        if (_activeTab == Tab.Favorites && sorted.Count == 0)
+        {
+            var emptyBox = new LinearLayout(this)
+            {
+                Orientation = Orientation.Vertical,
+            };
+            emptyBox.SetGravity(GravityFlags.Center);
+            emptyBox.SetPadding((int)(20 * density), (int)(40 * density), (int)(20 * density), (int)(40 * density));
+            var emptyText = new TextView(this)
+            {
+                Text = "No favorite servers yet.\nTap ☆ on any public or direct connect server to add it to your favorites!",
+                TextSize = 13,
+                Gravity = GravityFlags.Center
+            };
+            emptyText.SetTextColor(LauncherTheme.SubText);
+            emptyBox.AddView(emptyText);
+            _listLayout.AddView(emptyBox);
+            return;
+        }
 
         var idx = 0;
         foreach (var server in sorted)
@@ -702,9 +772,10 @@ public sealed class LauncherActivity : Activity
         nameCol.AddView(titleLayout);
         row.AddView(nameCol);
 
+        var isDirect = _storage.IsDirectFavorite(server.Address);
         var statusCol = new TextView(this)
         {
-            Text = FormatRunLevel(server.StatusData?.RunLevel),
+            Text = FormatRunLevel(server.StatusData?.RunLevel, isDirect),
             TextSize = 11
         };
         statusCol.SetTextColor(LauncherTheme.SubText);
@@ -715,7 +786,7 @@ public sealed class LauncherActivity : Activity
         var maxPlayers = server.StatusData?.SoftMaxPlayers ?? 0;
         var playersCol = new TextView(this)
         {
-            Text = $"{players} / {maxPlayers}",
+            Text = (isDirect && maxPlayers == 0 && players == 0) ? "Direct" : $"{players} / {maxPlayers}",
             TextSize = 12,
             Typeface = Typeface.DefaultBold
         };
@@ -747,9 +818,9 @@ public sealed class LauncherActivity : Activity
         };
         box.Background = LauncherTheme.CreateBox(LauncherTheme.PopupBackground, 6, LauncherTheme.Separator);
         box.SetPadding((int)(20 * density), (int)(16 * density), (int)(20 * density), (int)(16 * density));
-        box.LayoutParameters = new LinearLayout.LayoutParams((int)(400 * density), ViewGroup.LayoutParams.WrapContent)
+        box.LayoutParameters = new LinearLayout.LayoutParams((int)(440 * density), ViewGroup.LayoutParams.WrapContent)
         {
-            TopMargin = (int)(20 * density),
+            TopMargin = (int)(14 * density),
             Gravity = GravityFlags.CenterHorizontal
         };
 
@@ -761,6 +832,15 @@ public sealed class LauncherActivity : Activity
         label.SetTextColor(LauncherTheme.SubText);
         box.AddView(label);
 
+        var inputRow = new LinearLayout(this)
+        {
+            Orientation = Orientation.Horizontal
+        };
+        inputRow.LayoutParameters = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent)
+        {
+            TopMargin = (int)(4 * density)
+        };
+
         var directInput = new EditText(this)
         {
             Text = _storage.Data.LastServer ?? "central.spacestation14.io:1212",
@@ -771,7 +851,43 @@ public sealed class LauncherActivity : Activity
         directInput.SetTextColor(LauncherTheme.Foreground);
         directInput.Background = LauncherTheme.CreateBox(LauncherTheme.Background, 3, LauncherTheme.ControlMid);
         directInput.SetPadding((int)(10 * density), (int)(8 * density), (int)(10 * density), (int)(8 * density));
-        box.AddView(directInput);
+        directInput.LayoutParameters = new LinearLayout.LayoutParams(0, (int)(38 * density), 1f);
+        inputRow.AddView(directInput);
+
+        var favBtn = new Button(this)
+        {
+            TextSize = 12,
+            Typeface = Typeface.DefaultBold
+        };
+        favBtn.LayoutParameters = new LinearLayout.LayoutParams((int)(80 * density), (int)(38 * density))
+        {
+            LeftMargin = (int)(8 * density)
+        };
+        inputRow.AddView(favBtn);
+        box.AddView(inputRow);
+
+        void UpdateFavButton()
+        {
+            var curAddr = directInput.Text?.Trim() ?? string.Empty;
+            var isFav = !string.IsNullOrEmpty(curAddr) && _storage.IsFavorite(curAddr);
+            favBtn.Text = isFav ? "★ Fav" : "☆ Fav";
+            favBtn.SetTextColor(isFav ? LauncherTheme.NanoGold : LauncherTheme.SubText);
+            favBtn.Background = LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
+        }
+        UpdateFavButton();
+
+        directInput.TextChanged += (_, _) => UpdateFavButton();
+
+        favBtn.Click += (_, _) =>
+        {
+            var addr = directInput.Text?.Trim();
+            if (string.IsNullOrEmpty(addr)) return;
+
+            var nowFav = _storage.ToggleDirectFavorite(addr);
+            UpdateFavButton();
+            Toast.MakeText(this, nowFav ? "Added to favorites" : "Removed from favorites", ToastLength.Short)?.Show();
+            RenderServerList();
+        };
 
         var connectBtn = new Button(this)
         {
@@ -783,7 +899,7 @@ public sealed class LauncherActivity : Activity
         connectBtn.SetTextColor(Color.White);
         connectBtn.LayoutParameters = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, (int)(38 * density))
         {
-            TopMargin = (int)(12 * density)
+            TopMargin = (int)(10 * density)
         };
         connectBtn.Click += async (_, _) =>
         {
@@ -805,11 +921,222 @@ public sealed class LauncherActivity : Activity
         };
         box.AddView(connectBtn);
 
+        var directFavs = _storage.GetDirectFavorites();
+        if (directFavs.Count > 0)
+        {
+            var divider = new View(this);
+            divider.SetBackgroundColor(LauncherTheme.Separator);
+            divider.LayoutParameters = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, (int)(1 * density))
+            {
+                TopMargin = (int)(14 * density),
+                BottomMargin = (int)(10 * density)
+            };
+            box.AddView(divider);
+
+            var favListHeader = new TextView(this)
+            {
+                Text = "Favorite Direct Servers (tap to select, long-press to edit):",
+                TextSize = 11,
+                Typeface = Typeface.DefaultBold
+            };
+            favListHeader.SetTextColor(LauncherTheme.SubText);
+            favListHeader.LayoutParameters = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent)
+            {
+                BottomMargin = (int)(6 * density)
+            };
+            box.AddView(favListHeader);
+
+            foreach (var fav in directFavs)
+            {
+                var favRow = CreateDirectFavoriteRow(fav, density, directInput, UpdateFavButton);
+                box.AddView(favRow);
+            }
+        }
+
         _listLayout.AddView(box);
+        FetchDirectFavoriteStatuses();
     }
 
-    private string FormatRunLevel(int? runLevel)
+    private View CreateDirectFavoriteRow(FavoriteDirectServer fav, float density, EditText directInput, Action onUpdateFav)
     {
+        var row = new LinearLayout(this)
+        {
+            Orientation = Orientation.Horizontal
+        };
+        row.SetBackgroundColor(LauncherTheme.Background);
+        row.Background = LauncherTheme.CreateBox(LauncherTheme.Background, 3, LauncherTheme.ControlMid);
+        row.SetPadding((int)(8 * density), (int)(6 * density), (int)(8 * density), (int)(6 * density));
+        row.LayoutParameters = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent)
+        {
+            TopMargin = (int)(4 * density)
+        };
+
+        var starBtn = new TextView(this)
+        {
+            Text = "★ ",
+            TextSize = 14
+        };
+        starBtn.SetTextColor(LauncherTheme.NanoGold);
+        starBtn.Clickable = true;
+        starBtn.Click += (_, _) =>
+        {
+            _storage.RemoveDirectFavorite(fav.Address);
+            onUpdateFav();
+            RenderServerList();
+        };
+        row.AddView(starBtn);
+
+        var infoLayout = new LinearLayout(this)
+        {
+            Orientation = Orientation.Vertical
+        };
+        infoLayout.LayoutParameters = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1f);
+        infoLayout.Clickable = true;
+        infoLayout.Click += (_, _) =>
+        {
+            directInput.Text = fav.Address;
+            onUpdateFav();
+        };
+        infoLayout.LongClick += (_, _) =>
+        {
+            ShowEditDirectFavoriteDialog(fav);
+        };
+
+        var titleText = new TextView(this)
+        {
+            Text = !string.IsNullOrWhiteSpace(fav.Name) ? fav.Name : fav.Address,
+            TextSize = 12,
+            Typeface = Typeface.DefaultBold
+        };
+        titleText.SetTextColor(LauncherTheme.Foreground);
+        infoLayout.AddView(titleText);
+
+        var addrText = new TextView(this)
+        {
+            Text = fav.Address,
+            TextSize = 10
+        };
+        addrText.SetTextColor(LauncherTheme.SubText);
+        infoLayout.AddView(addrText);
+
+        row.AddView(infoLayout);
+
+        var norm = LauncherStorage.NormalizeAddress(fav.Address);
+        if (_directStatusCache.TryGetValue(norm, out var st) && st != null)
+        {
+            var playersText = new TextView(this)
+            {
+                Text = $"{st.Players}/{st.SoftMaxPlayers}",
+                TextSize = 11,
+                Typeface = Typeface.DefaultBold
+            };
+            playersText.SetTextColor(st.Players > 0 ? Color.ParseColor("#22c55e") : LauncherTheme.SubText);
+            playersText.LayoutParameters = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WrapContent, ViewGroup.LayoutParams.WrapContent)
+            {
+                RightMargin = (int)(8 * density)
+            };
+            row.AddView(playersText);
+        }
+
+        var connectBtn = new Button(this)
+        {
+            Text = "Connect",
+            TextSize = 11,
+            Typeface = Typeface.DefaultBold
+        };
+        connectBtn.Background = LauncherTheme.CreateBox(LauncherTheme.ControlHigh, 3);
+        connectBtn.SetTextColor(Color.White);
+        connectBtn.SetPadding((int)(8 * density), 0, (int)(8 * density), 0);
+        connectBtn.LayoutParameters = new LinearLayout.LayoutParams((int)(72 * density), (int)(30 * density));
+        connectBtn.Click += async (_, _) =>
+        {
+            HideKeyboard(directInput);
+            await StartConnectingAsync(fav.Address);
+        };
+        row.AddView(connectBtn);
+
+        return row;
+    }
+
+    private void ShowEditDirectFavoriteDialog(FavoriteDirectServer fav)
+    {
+        var density = Resources?.DisplayMetrics?.Density ?? 1f;
+        var builder = new AlertDialog.Builder(this);
+        builder.SetTitle("Edit Favorite Server");
+
+        var view = new LinearLayout(this)
+        {
+            Orientation = Orientation.Vertical
+        };
+        view.SetPadding((int)(16 * density), (int)(12 * density), (int)(16 * density), (int)(12 * density));
+
+        var nameLabel = new TextView(this)
+        {
+            Text = "Server Nickname:",
+            TextSize = 12
+        };
+        nameLabel.SetTextColor(LauncherTheme.SubText);
+        view.AddView(nameLabel);
+
+        var nameInput = new EditText(this)
+        {
+            Text = fav.Name ?? string.Empty,
+            Hint = fav.Address,
+            TextSize = 13
+        };
+        nameInput.SetTextColor(LauncherTheme.Foreground);
+        nameInput.Background = LauncherTheme.CreateBox(LauncherTheme.Background, 3, LauncherTheme.ControlMid);
+        nameInput.SetPadding((int)(8 * density), (int)(6 * density), (int)(8 * density), (int)(6 * density));
+        view.AddView(nameInput);
+
+        builder.SetView(view);
+        builder.SetPositiveButton("Save", (_, _) =>
+        {
+            fav.Name = nameInput.Text?.Trim();
+            _storage.AddDirectFavorite(fav.Address, fav.Name);
+            RenderServerList();
+        });
+        builder.SetNeutralButton("Remove", (_, _) =>
+        {
+            _storage.RemoveDirectFavorite(fav.Address);
+            RenderServerList();
+        });
+        builder.SetNegativeButton("Cancel", (IDialogInterfaceOnClickListener?)null);
+        builder.Show();
+    }
+
+    private void FetchDirectFavoriteStatuses()
+    {
+        var directs = _storage.GetDirectFavorites();
+        foreach (var d in directs)
+        {
+            var addr = d.Address;
+            var norm = LauncherStorage.NormalizeAddress(addr);
+            if (_directStatusCache.ContainsKey(norm)) continue;
+
+            _ = Task.Run(async () =>
+            {
+                var status = await _hubClient.FetchServerStatusAsync(addr);
+                if (status != null)
+                {
+                    _directStatusCache[norm] = status;
+                    RunOnUiThread(() =>
+                    {
+                        if (_activeTab == Tab.Favorites || _activeTab == Tab.DirectConnect)
+                        {
+                            RenderServerList();
+                        }
+                    });
+                }
+            });
+        }
+    }
+
+    private string FormatRunLevel(int? runLevel, bool isDirect = false)
+    {
+        if (runLevel == null)
+            return isDirect ? "Direct" : "Online";
+
         return runLevel switch
         {
             0 => "Lobby",
@@ -2248,7 +2575,7 @@ public sealed class LauncherActivity : Activity
         catch {}
     }
 
-    public const string CurrentAppVersion = "v1.1.3";
+    public const string CurrentAppVersion = "v1.1.4";
 
     public string GetCurrentAppVersion()
     {

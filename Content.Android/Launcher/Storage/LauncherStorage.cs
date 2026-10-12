@@ -22,6 +22,9 @@ public sealed class LauncherData
     [JsonPropertyName("favorites")]
     public HashSet<string> Favorites { get; set; } = new(StringComparer.OrdinalIgnoreCase);
 
+    [JsonPropertyName("directFavorites")]
+    public List<FavoriteDirectServer> DirectFavorites { get; set; } = new();
+
     [JsonPropertyName("lastServer")]
     public string? LastServer { get; set; }
 
@@ -199,11 +202,83 @@ public sealed class LauncherStorage
         }
     }
 
+    public static string NormalizeAddress(string address)
+    {
+        if (string.IsNullOrWhiteSpace(address)) return string.Empty;
+        var trimmed = address.Trim().ToLowerInvariant().TrimEnd('/');
+        if (trimmed.StartsWith("ss14://"))
+            trimmed = trimmed.Substring(7);
+        else if (trimmed.StartsWith("ss14s://"))
+            trimmed = trimmed.Substring(8);
+        return trimmed.TrimEnd('/');
+    }
+
     public bool IsFavorite(string address)
     {
         lock (_lock)
         {
-            return Data.Favorites.Contains(address);
+            var norm = NormalizeAddress(address);
+            return Data.Favorites.Contains(address) ||
+                   Data.Favorites.Any(f => NormalizeAddress(f) == norm) ||
+                   Data.DirectFavorites.Any(d => NormalizeAddress(d.Address) == norm);
+        }
+    }
+
+    public bool IsDirectFavorite(string address)
+    {
+        lock (_lock)
+        {
+            var norm = NormalizeAddress(address);
+            return Data.DirectFavorites.Any(d => NormalizeAddress(d.Address) == norm);
+        }
+    }
+
+    public void AddDirectFavorite(string address, string? name = null)
+    {
+        lock (_lock)
+        {
+            var trimmedAddr = address.Trim();
+            var norm = NormalizeAddress(trimmedAddr);
+            var existing = Data.DirectFavorites.FirstOrDefault(d => NormalizeAddress(d.Address) == norm);
+            if (existing != null)
+            {
+                if (!string.IsNullOrWhiteSpace(name))
+                    existing.Name = name.Trim();
+            }
+            else
+            {
+                Data.DirectFavorites.Add(new FavoriteDirectServer(trimmedAddr, string.IsNullOrWhiteSpace(name) ? null : name.Trim()));
+            }
+            Data.Favorites.Add(trimmedAddr);
+            Save();
+        }
+    }
+
+    public void RemoveDirectFavorite(string address)
+    {
+        lock (_lock)
+        {
+            var norm = NormalizeAddress(address);
+            Data.DirectFavorites.RemoveAll(d => NormalizeAddress(d.Address) == norm);
+            Data.Favorites.RemoveWhere(f => NormalizeAddress(f) == norm);
+            Save();
+        }
+    }
+
+    public bool ToggleDirectFavorite(string address, string? name = null)
+    {
+        lock (_lock)
+        {
+            if (IsDirectFavorite(address))
+            {
+                RemoveDirectFavorite(address);
+                return false;
+            }
+            else
+            {
+                AddDirectFavorite(address, name);
+                return true;
+            }
         }
     }
 
@@ -211,11 +286,25 @@ public sealed class LauncherStorage
     {
         lock (_lock)
         {
-            if (!Data.Favorites.Add(address))
+            var norm = NormalizeAddress(address);
+            var direct = Data.DirectFavorites.FirstOrDefault(d => NormalizeAddress(d.Address) == norm);
+            if (direct != null)
             {
-                Data.Favorites.Remove(address);
+                RemoveDirectFavorite(address);
+            }
+            else if (!Data.Favorites.Add(address))
+            {
+                Data.Favorites.RemoveWhere(f => NormalizeAddress(f) == norm);
             }
             Save();
+        }
+    }
+
+    public List<FavoriteDirectServer> GetDirectFavorites()
+    {
+        lock (_lock)
+        {
+            return new List<FavoriteDirectServer>(Data.DirectFavorites);
         }
     }
 

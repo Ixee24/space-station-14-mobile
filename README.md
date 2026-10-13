@@ -17,7 +17,8 @@ Android port of [Space Station 14](https://github.com/space-wizards/space-statio
 
 ### 🎮 Multi-Codebase & Fork Support (Universal Playability)
 * **Prototype Isolation:** Dynamic VFS filtering isolates the baked-in content pack when joining external servers via `--mount-zip`. Custom server prototypes (Frontier Station, Goob Station, Starlight, DeltaV, RUMC, Corvax, Wizard's Den, etc.) load cleanly without duplicate IDs, namespace pollution, or missing RSI collisions.
-* **Engine Core Compatibility:** Supports servers running modern RobustToolbox cores (v289–v292+).
+* **Engine Core & Legacy Compatibility:** Broad compatibility across modern and legacy engine cores (v267–v292+), featuring runtime API shims and defensive prototype fallbacks (e.g., UI color palettes) for custom community forks.
+* **Automatic Resource Sync:** Embedded base resources automatically refresh across app updates to guarantee fresh shader, font, and UI palette assets.
 * **Standalone / Offline Mode:** The baked-in content pack automatically mounts when playing offline sandbox.
 
 ### 🛡️ Subprocess Isolation (`:game`)

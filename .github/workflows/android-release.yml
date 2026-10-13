@@ -28,7 +28,8 @@ jobs:
 
       - name: Apply Mobile Patches
         run: |
-          rm -f space-station-14/nuget.config
+          find space-station-14 -name "nuget.config" -type f -delete
+          find RobustToolbox -name "nuget.config" -type f -delete 2>/dev/null || true
           cd space-station-14/RobustToolbox
           git apply --ignore-whitespace --whitespace=nowarn ../../patches/mobile.patch
           cd ../..

@@ -9,6 +9,7 @@ obj/
 *.apk
 *.log
 *.keystore
+!Content.Android/release.keystore
 
 # IDE & OS
 .vs/

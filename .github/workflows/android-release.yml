@@ -94,18 +94,20 @@ jobs:
         run: |
           if [ -n "$KEYSTORE_B64" ]; then
             echo "$KEYSTORE_B64" | base64 -d > Content.Android/release.keystore
-            echo "Keystore restored."
+            echo "Keystore restored from secret."
+          elif [ -f Content.Android/release.keystore ]; then
+            echo "Using repository permanent release.keystore."
           else
-            echo "No keystore secret configured; falling back to debug signing."
+            echo "No keystore available; falling back to debug signing."
           fi
 
       - name: Build Android Release APK
         run: dotnet build Content.Android/Content.Android.csproj -c Release
         env:
-          AndroidSigningKeyStore: ${{ secrets.ANDROID_KEYSTORE_BASE64 != '' && 'release.keystore' || '' }}
-          AndroidSigningKeyAlias: ${{ secrets.ANDROID_KEY_ALIAS }}
-          AndroidSigningKeyPass: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
-          AndroidSigningStorePass: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          AndroidSigningKeyStore: release.keystore
+          AndroidSigningKeyAlias: ${{ secrets.ANDROID_KEY_ALIAS != '' && secrets.ANDROID_KEY_ALIAS || 'ss14mobile' }}
+          AndroidSigningKeyPass: ${{ secrets.ANDROID_KEYSTORE_PASSWORD != '' && secrets.ANDROID_KEYSTORE_PASSWORD || 'ss14mobile' }}
+          AndroidSigningStorePass: ${{ secrets.ANDROID_KEYSTORE_PASSWORD != '' && secrets.ANDROID_KEYSTORE_PASSWORD || 'ss14mobile' }}
 
       - name: Find Built APK
         id: find_apk

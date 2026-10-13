@@ -5,60 +5,80 @@ Android port of [Space Station 14](https://github.com/space-wizards/space-statio
 > [!WARNING]
 > **Disclaimer / unofficial client**
 > 
-> This android port is NOT provided or supported by Space Wizards Federation, and at that moment more like proof of work.
+> This android port is NOT provided or supported by Space Wizards Federation, and is an independent community project.
 > 
-> * **Use at your own risk:** Stability, controls, and performance may vary depending on your device
-> * **Do not report mobile specific issues (crashes, low fps, ui bugs) via in game ahelp or to the official Wizard's Den staff**
-> * If you encounter bugs or performance problems related to the Android build, please report them directly in the section [issues](https://github.com/Ixee24/space-station-14-mobile/issues) of this repository
-> * NEVERTHELESS, the project will be supported and improved
+> * **Use at your own risk:** Stability, controls, and performance may vary depending on your device.
+> * **Do not report mobile-specific issues (crashes, low FPS, UI bugs) via in-game ahelp or to the official Wizard's Den staff.**
+> * If you encounter bugs or performance problems related to the Android build, please report them directly in the [Issues](https://github.com/Ixee24/space-station-14-mobile/issues) section of this repository.
 
-## Features
-- **True Multi-Touch:** Independent finger tracking for virtual controls and simultaneous button presses while moving.
-- **Swipe / Drag Scrolling:** Native swipe scrolling across all menus, crafting windows, storage containers, PDA, and lists.
-- **Customizable Layout:** Move, resize, and add custom key buttons via in-game **EDIT** mode.
-- **In-Game Window Dragging:** Movable windows and storage containers via touch headers.
-- **Server Cache Management:** Automatic purging on server updates and idle cache pruning to prevent storage bloat.
-- **In-App Logs & Crash Reporter:** View and share logs, dumps, and crash diagnostics directly from the launcher.
+---
 
-## Server Compatibility
-- Can only join servers running the exact same build version as this APK (Space Station 14 / RobustToolbox v291)
-- At that moment servers with different versions or custom forks are not supported (some is supported) ...because on pc the engines are download from a CDN, whereas on android none of the engines are pre compiled...
+## Major Features
 
-## Controls
-- **Virtual Thumbstick:** 8-way movement with independent touch tracking
-- **USE (E):** Primary interaction / activate object
-- **SEC (Z):** Secondary interaction / use in hand
-- **HAND (X):** Swap active hand
-- **DROP (Q):** Drop item
-- **ALT (Alt):** Alt-click interaction
-- **EXAM (Shift):** Examine entity
-- **PULL (Ctrl):** Toggle pulling
-- **BAG (V):** Open/close backpack and storage inventory
-- **THROW (Ctrl+Q):** Throw held item
-- **KBD:** Toggle soft keyboard
-- **HIDE:** Toggle on-screen touch controls visibility
-- **EDIT:** Drag and customize control layout in-game
-- **Gestures:**
-  - Swipe up/down to scroll menus and lists
-  - Drag window headers to reposition windows
-  - Pinch to zoom viewport
+### 🎮 Multi-Codebase & Fork Support (Universal Playability)
+* **Prototype Isolation:** Dynamic VFS filtering isolates the baked-in content pack when joining external servers via `--mount-zip`. Custom server prototypes (Frontier Station, Goob Station, Starlight, DeltaV, RUMC, Corvax, Wizard's Den, etc.) load cleanly without duplicate IDs, namespace pollution, or missing RSI collisions.
+* **Engine Core Compatibility:** Supports servers running modern RobustToolbox cores (v289–v292+).
+* **Standalone / Offline Mode:** The baked-in content pack automatically mounts when playing offline sandbox.
 
-## Settings (Launcher)
-- Controls Scale & Opacity
-- Joystick Size & GUI Scaling
-- Display Resolution & FPS Limit
-- Server Cache Management (Auto-purge on update, Clear Cache button)
+### 🛡️ Subprocess Isolation (`:game`)
+* **Process Separation:** The game engine runs inside an isolated Android Linux sub-process (`io.spacestation14.android:game`) completely separate from the launcher.
+* **Zero Memory Leaks:** Exiting or disconnecting from a server completely terminates the `:game` process, purging all static variables, dynamic assemblies, and GPU contexts. Every session starts with a 100% clean memory slate.
+* **Crash Resilience:** If an unhandled native or engine crash occurs during gameplay, the launcher process remains unaffected and instantly offers an in-app crash report.
+
+### ⭐ Server Hub, Direct Connect & Favorites
+* **Hub Browser:** Live server hub listing with player counts, round status, and real-time search & filter.
+* **Favorites System:** Star any server from the hub or direct connect list to pin it to your Favorites tab.
+* **Direct Connect:** Connect to any server IP, domain, or `ss14://` link with custom naming and persistent history.
+* **Content Cache Management:** Content-hash addressed download cache with automatic cleanup of outdated builds upon server updates.
+
+### 📱 Touch Controls & UI
+* **True Multi-Touch:** Independent finger tracking for virtual controls and simultaneous button presses while moving.
+* **Pojav-Style Virtual Buttons:** Fast, responsive on-screen buttons mapped to keybinds:
+  * **USE (E):** Primary interaction / activate object
+  * **SEC (Z):** Secondary interaction / use in hand
+  * **HAND (X):** Swap active hand
+  * **DROP (Q):** Drop held item
+  * **ALT (Alt):** Alt-click interaction
+  * **EXAM (Shift):** Examine entity
+  * **PULL (Ctrl):** Toggle pulling
+  * **BAG (V):** Open/close backpack and storage inventory
+  * **THROW (Ctrl+Q):** Throw held item
+  * **KBD:** Toggle virtual keyboard
+* **SHOW / HIDE Controls:** Clean toggle to show or hide the virtual overlay, automatically releasing any held actions upon hiding.
+* **In-Game EDIT Mode:** Drag, reposition, scale, and adjust opacity for every control button and thumbstick in real-time.
+* **Touch Gestures:** Native touch-scrolling across all menus, crafting trees, storage containers, PDA, and chatbox; touch header dragging for movable windows.
+* **Hardware Keyboard Detection:** Automatic detection of physical USB/Bluetooth keyboards to suppress the soft keyboard.
+
+### ⚡ Performance & Display Customization
+* **Resolution Scaling:** Choose between Native, 1080p, 900p, and 720p Surface scaling presets to balance crisp visual fidelity with battery life and thermal efficiency.
+* **Display UI Scaling:** Independent in-game HUD and UI scaling adjustments.
+* **Frame Rate Control:** Configurable 60 FPS cap, VSync toggles, and mobile lighting optimizations.
+
+### 📋 In-App Crash Reporter & Logs (No PC / Logcat Needed)
+* **Automatic Detection:** Automatically detects prior session crashes upon returning to the launcher.
+* **One-Tap Export:** View crash stack traces, logs, and touch layout dumps directly on-device with Copy to Clipboard or native Android Share Sheet integration.
+
+---
 
 ## Requirements
-- Android 8.0+ (API 26+)
-- ARM64 (`arm64-v8a`)
-- OpenGL ES 3.0+
+
+* **OS:** Android 8.0+ (API 26+)
+* **Architecture:** ARM64 (`arm64-v8a`)
+* **Graphics:** OpenGL ES 3.0+ / Vulkan
+* **Storage:** ~120 MB for installation + space for server content caches
+
+---
 
 ## Architecture
-- `Content.Android/` - Android app & launcher
-- `space-station-14/` - Upstream Space Station 14 (Git submodule)
-- `RobustToolbox/` - RobustToolbox engine (Git submodule)
-- `patches/` - Mobile & client fixes
 
-## Building
-Built via GitHub Actions (`.github/workflows/android-release.yml`).
+* `Content.Android/` - Android native application, launcher UI, touch overlay, and download services.
+* `space-station-14/` - Upstream Space Station 14 content (Git submodule).
+* `RobustToolbox/` - RobustToolbox engine (Git submodule).
+* `patches/` - Mobile adaptations, SDL3 EGL display surfaces, touch dispatchers, and prototype filtering.
+
+---
+
+## Building & Releases
+
+Continuous Integration builds and publishes signed release APKs on every push to `master` via GitHub Actions:
+[Build Android Release Workflow](https://github.com/Ixee24/space-station-14-mobile/actions)

@@ -49,6 +49,58 @@ index 779f56d619..550acb510f 100644
 +        return null;
      }
  }
+diff --git a/Content.Client/Changelog/ChangelogManager.cs b/Content.Client/Changelog/ChangelogManager.cs
+index c233873ee3..743929f229 100644
+--- a/Content.Client/Changelog/ChangelogManager.cs
++++ b/Content.Client/Changelog/ChangelogManager.cs
+@@ -49,10 +49,17 @@ public void SaveNewReadId()
+ 
+         public async void Initialize()
+         {
+-            // Open changelog purely to compare to the last viewed date.
+-            var changelogs = await LoadChangelog();
+-            UpdateChangelogs(changelogs);
+-            _configManager.OnValueChanged(CCVars.ServerId, OnServerIdCVarChanged);
++            try
++            {
++                // Open changelog purely to compare to the last viewed date.
++                var changelogs = await LoadChangelog();
++                UpdateChangelogs(changelogs);
++                _configManager.OnValueChanged(CCVars.ServerId, OnServerIdCVarChanged);
++            }
++            catch (Exception ex)
++            {
++                _sawmill?.Warning($"Failed to initialize changelogs: {ex.Message}");
++            }
+         }
+ 
+         private void UpdateChangelogs(List<Changelog> changelogs)
+@@ -119,12 +126,19 @@ public Task<List<Changelog>> LoadChangelog()
+                     if (yamlData.Documents.Count == 0)
+                         continue;
+ 
+-                    var node = yamlData.Documents[0].RootNode.ToDataNodeCast<MappingDataNode>();
+-                    var changelog = _serialization.Read<Changelog>(node, notNullableOverride: true);
+-                    if (string.IsNullOrWhiteSpace(changelog.Name))
+-                        changelog.Name = file.FilenameWithoutExtension;
+-
+-                    changelogs.Add(changelog);
++                    try
++                    {
++                        var node = yamlData.Documents[0].RootNode.ToDataNodeCast<MappingDataNode>();
++                        var changelog = _serialization.Read<Changelog>(node, notNullableOverride: true);
++                        if (string.IsNullOrWhiteSpace(changelog.Name))
++                            changelog.Name = file.FilenameWithoutExtension;
++
++                        changelogs.Add(changelog);
++                    }
++                    catch (Exception ex)
++                    {
++                        _sawmill?.Warning($"Failed reading changelog file {file}: {ex.Message}");
++                    }
+                 }
+ 
+                 changelogs.Sort((a, b) => a.Order.CompareTo(b.Order));
 diff --git a/Content.Client/Content.Client.csproj b/Content.Client/Content.Client.csproj
 index 1bb9d6f2e8..861bf97261 100644
 --- a/Content.Client/Content.Client.csproj

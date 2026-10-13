@@ -4336,6 +4336,118 @@ index 2524f0606..416ccbdf5 100644
  
                  // GetFiles returns full paths, we want them relative to root
                  foreach (var filePath in paths)
+diff --git a/Robust.Shared/ContentPack/IResourceManagerInternal.cs b/Robust.Shared/ContentPack/IResourceManagerInternal.cs
+index 3ccce3e53..3aa3a8395 100644
+--- a/Robust.Shared/ContentPack/IResourceManagerInternal.cs
++++ b/Robust.Shared/ContentPack/IResourceManagerInternal.cs
+@@ -1,4 +1,4 @@
+-﻿using System;
++using System;
+ using System.Collections.Generic;
+ using System.Diagnostics.CodeAnalysis;
+ using System.IO;
+@@ -42,9 +42,9 @@ namespace Robust.Shared.ContentPack
+         /// <exception cref="FileNotFoundException">Thrown if <paramref name="pack"/> does not exist on disk.</exception>
+         /// <exception cref="ArgumentException">Thrown if <paramref name="prefix"/> is not rooted.</exception>
+         /// <exception cref="ArgumentNullException">Thrown if <paramref name="pack"/> is null.</exception>
+-        void MountContentPack(string pack, ResPath? prefix = null);
++        void MountContentPack(string pack, ResPath? prefix = null, Func<string, bool>? filter = null);
+ 
+-        void MountContentPack(Stream zipStream, ResPath? prefix = null);
++        void MountContentPack(Stream zipStream, ResPath? prefix = null, Func<string, bool>? filter = null);
+ 
+         /// <summary>
+         ///     Adds a directory to search inside of to the VFS. The directory is relative to
+diff --git a/Robust.Shared/ContentPack/PackLoader.cs b/Robust.Shared/ContentPack/PackLoader.cs
+index 2c3244b1d..dc82baba3 100644
+--- a/Robust.Shared/ContentPack/PackLoader.cs
++++ b/Robust.Shared/ContentPack/PackLoader.cs
+@@ -1,4 +1,5 @@
+-﻿using System.Collections.Generic;
++using System;
++using System.Collections.Generic;
+ using System.Diagnostics.CodeAnalysis;
+ using System.IO;
+ using System.IO.Compression;
+@@ -17,6 +18,7 @@ namespace Robust.Shared.ContentPack
+             private readonly FileInfo? _pack;
+             private readonly ISawmill _sawmill;
+             private readonly Stream? _stream;
++            private readonly Func<string, bool>? _filter;
+             private ZipArchive _zip = default!;
+ 
+             /// <summary>
+@@ -24,16 +26,19 @@ namespace Robust.Shared.ContentPack
+             /// </summary>
+             /// <param name="pack">The zip file to mount in the VFS.</param>
+             /// <param name="sawmill">Sawmill to use for logging.</param>
+-            public PackLoader(FileInfo pack, ISawmill sawmill)
++            /// <param name="filter">Optional predicate to filter which files can be accessed.</param>
++            public PackLoader(FileInfo pack, ISawmill sawmill, Func<string, bool>? filter = null)
+             {
+                 _pack = pack;
+                 _sawmill = sawmill;
++                _filter = filter;
+             }
+ 
+-            public PackLoader(Stream stream, ISawmill sawmill)
++            public PackLoader(Stream stream, ISawmill sawmill, Func<string, bool>? filter = null)
+             {
+                 _stream = stream;
+                 _sawmill = sawmill;
++                _filter = filter;
+             }
+ 
+             /// <inheritdoc />
+@@ -57,7 +62,14 @@ namespace Robust.Shared.ContentPack
+             /// <inheritdoc />
+             public bool TryGetFile(ResPath relPath, [NotNullWhen(true)] out Stream? stream)
+             {
+-                var entry = _zip.GetEntry(relPath.ToString());
++                var pathStr = relPath.ToString();
++                if (_filter != null && !_filter(pathStr))
++                {
++                    stream = null;
++                    return false;
++                }
++
++                var entry = _zip.GetEntry(pathStr);
+ 
+                 if (entry == null)
+                 {
+@@ -81,7 +93,11 @@ namespace Robust.Shared.ContentPack
+ 
+             public bool FileExists(ResPath relPath)
+             {
+-                return _zip.GetEntry(relPath.ToString()) != null;
++                var pathStr = relPath.ToString();
++                if (_filter != null && !_filter(pathStr))
++                    return false;
++
++                return _zip.GetEntry(pathStr) != null;
+             }
+ 
+             /// <inheritdoc />
+@@ -96,6 +112,9 @@ namespace Robust.Shared.ContentPack
+                         continue;
+                     }
+ 
++                    if (_filter != null && !_filter(entry.FullName))
++                        continue;
++
+                     if (entry.FullName.StartsWith(rootPath))
+                     {
+                         yield return new ResPath(entry.FullName).ToRelativePath();
+@@ -113,6 +132,9 @@ namespace Robust.Shared.ContentPack
+                         continue;
+                     }
+ 
++                    if (_filter != null && !_filter(entry.FullName))
++                        continue;
++
+                     yield return new ResPath(entry.FullName).ToRootedPath().ToString();
+                 }
+             }
 diff --git a/Robust.Shared/ContentPack/PathHelpers.cs b/Robust.Shared/ContentPack/PathHelpers.cs
 index 64ffaee3c..0cabecba4 100644
 --- a/Robust.Shared/ContentPack/PathHelpers.cs
@@ -4373,6 +4485,44 @@ index 64ffaee3c..0cabecba4 100644
              }
              return Path.GetDirectoryName(location)!;
          }
+diff --git a/Robust.Shared/ContentPack/ResourceManager.cs b/Robust.Shared/ContentPack/ResourceManager.cs
+index b58f22eb1..a32d9b75f 100644
+--- a/Robust.Shared/ContentPack/ResourceManager.cs
++++ b/Robust.Shared/ContentPack/ResourceManager.cs
+@@ -1,4 +1,4 @@
+-﻿using System;
++using System;
+ using System.Collections.Generic;
+ using System.Diagnostics.CodeAnalysis;
+ using System.IO;
+@@ -75,7 +75,7 @@ namespace Robust.Shared.ContentPack
+         }
+ 
+         /// <inheritdoc />
+-        public void MountContentPack(string pack, ResPath? prefix = null)
++        public void MountContentPack(string pack, ResPath? prefix = null, Func<string, bool>? filter = null)
+         {
+             prefix = SanitizePrefix(prefix);
+ 
+@@ -91,15 +91,15 @@ namespace Robust.Shared.ContentPack
+ 
+             //create new PackLoader
+ 
+-            var loader = new PackLoader(packInfo, Sawmill);
++            var loader = new PackLoader(packInfo, Sawmill, filter);
+             AddRoot(prefix.Value, loader);
+         }
+ 
+-        public void MountContentPack(Stream zipStream, ResPath? prefix = null)
++        public void MountContentPack(Stream zipStream, ResPath? prefix = null, Func<string, bool>? filter = null)
+         {
+             prefix = SanitizePrefix(prefix);
+ 
+-            var loader = new PackLoader(zipStream, Sawmill);
++            var loader = new PackLoader(zipStream, Sawmill, filter);
+             AddRoot(prefix.Value, loader);
+         }
+ 
 diff --git a/Robust.Shared/GameObjects/Component.cs b/Robust.Shared/GameObjects/Component.cs
 index e2679c779..84421b983 100644
 --- a/Robust.Shared/GameObjects/Component.cs
@@ -5008,7 +5158,7 @@ index b79a8d0ef..c12b5a316 100644
                  return true;
              }
 diff --git a/Robust.Shared/ProgramShared.cs b/Robust.Shared/ProgramShared.cs
-index a75bfa08b..2c8479afc 100644
+index a75bfa08b..2ad3b3a9d 100644
 --- a/Robust.Shared/ProgramShared.cs
 +++ b/Robust.Shared/ProgramShared.cs
 @@ -29,27 +29,33 @@ internal static class ProgramShared
@@ -5053,7 +5203,7 @@ index a75bfa08b..2c8479afc 100644
              _ => throw new ArgumentOutOfRangeException(nameof(startType), startType, null)
          };
          return PathOffset + relative;
-@@ -78,7 +84,15 @@ internal static class ProgramShared
+@@ -78,7 +84,32 @@ internal static class ProgramShared
  #else
          var engineRoot = FindEngineRootDir(startType);
          // System.Console.WriteLine($"ENGINE DIR IS {engineRoot}");
@@ -5061,7 +5211,24 @@ index a75bfa08b..2c8479afc 100644
 +        var engineZip = Path.Combine(engineRoot, "resources.zip");
 +        if (File.Exists(engineZip))
 +        {
-+            res.MountContentPack(engineZip);
++            var hasExternalZip = options != null && options.ZipMounts.Count > 0;
++            if (hasExternalZip)
++            {
++                // External server content pack mounted: filter out content prototypes from baked-in resources.zip
++                // so they do not collide with or pollute custom servers (e.g. Frontier, Goob, RMC, etc.).
++                res.MountContentPack(engineZip, filter: p =>
++                {
++                    var clean = p.TrimStart('/');
++                    return !clean.StartsWith("Prototypes/", StringComparison.OrdinalIgnoreCase) &&
++                           !clean.StartsWith("Prototypes\\", StringComparison.OrdinalIgnoreCase) &&
++                           !clean.StartsWith("IgnoredPrototypes/", StringComparison.OrdinalIgnoreCase) &&
++                           !clean.StartsWith("IgnoredPrototypes\\", StringComparison.OrdinalIgnoreCase);
++                });
++            }
++            else
++            {
++                res.MountContentPack(engineZip);
++            }
 +        }
 +        else
 +        {
@@ -5070,7 +5237,7 @@ index a75bfa08b..2c8479afc 100644
  
          if (loadContentResources)
          {
-@@ -88,12 +102,25 @@ internal static class ProgramShared
+@@ -88,12 +119,25 @@ internal static class ProgramShared
              {
                  res.MountContentDirectory("./", assembliesPath);
              }

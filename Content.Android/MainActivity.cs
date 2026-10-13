@@ -15,6 +15,7 @@ namespace Content.Android
 {
     [Activity(
         Label = "Space Station 14",
+        Process = ":game",
         MainLauncher = false,
         Exported = true,
         Icon = "@mipmap/ic_launcher",
@@ -602,6 +603,12 @@ namespace Content.Android
             if (Instance == this)
                 Instance = null;
             base.OnDestroy();
+
+            try
+            {
+                global::Android.OS.Process.KillProcess(global::Android.OS.Process.MyPid());
+            }
+            catch {}
         }
 
         private void ApplyImmersiveMode()
@@ -970,6 +977,11 @@ namespace Content.Android
                 global::Android.Util.Log.Info("SS14Launch", $"[Main] Starting GameController: contentStart={contentStart}, hasZip={hasZip}, mountZip={mountZip}, connectAddr={connectAddr}, user={username}");
 
                 startMethod.Invoke(null, new object?[] { args.ToArray(), options, contentStart, null });
+                global::Android.Util.Log.Info("SS14Launch", "[Main] GameController finished, finishing activity.");
+                Instance?.RunOnUiThread(() =>
+                {
+                    try { Instance?.Finish(); } catch {}
+                });
             }
             catch (Exception ex)
             {

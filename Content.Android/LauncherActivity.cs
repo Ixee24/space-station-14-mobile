@@ -2237,7 +2237,8 @@ public sealed class LauncherActivity : Activity
             {
                 ContentCacheManager.PurgeOldBuildForServer(this, _storage, parsedAddress.ToString(), targetZip);
                 Window?.ClearFlags(WindowManagerFlags.KeepScreenOn);
-                _overlayText.Text = "Launching game...";
+                var engLabel = !string.IsNullOrEmpty(build.EngineVersion) ? $" (Engine {build.EngineVersion})" : "";
+                _overlayText.Text = $"Launching game{engLabel}...";
                 LaunchGameWithZip(targetZip, serverInfo, parsedAddress.ToString());
                 return;
             }
@@ -2575,7 +2576,7 @@ public sealed class LauncherActivity : Activity
         catch {}
     }
 
-    public const string CurrentAppVersion = "v1.1.4";
+    public const string CurrentAppVersion = "v1.1.5";
 
     public string GetCurrentAppVersion()
     {

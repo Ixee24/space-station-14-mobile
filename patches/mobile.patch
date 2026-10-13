@@ -5158,7 +5158,7 @@ index b79a8d0ef..c12b5a316 100644
                  return true;
              }
 diff --git a/Robust.Shared/ProgramShared.cs b/Robust.Shared/ProgramShared.cs
-index a75bfa08b..2ad3b3a9d 100644
+index a75bfa08b..2c8479afc 100644
 --- a/Robust.Shared/ProgramShared.cs
 +++ b/Robust.Shared/ProgramShared.cs
 @@ -29,27 +29,33 @@ internal static class ProgramShared
@@ -5203,7 +5203,7 @@ index a75bfa08b..2ad3b3a9d 100644
              _ => throw new ArgumentOutOfRangeException(nameof(startType), startType, null)
          };
          return PathOffset + relative;
-@@ -78,7 +84,32 @@ internal static class ProgramShared
+@@ -78,7 +84,15 @@ internal static class ProgramShared
  #else
          var engineRoot = FindEngineRootDir(startType);
          // System.Console.WriteLine($"ENGINE DIR IS {engineRoot}");
@@ -5211,24 +5211,7 @@ index a75bfa08b..2ad3b3a9d 100644
 +        var engineZip = Path.Combine(engineRoot, "resources.zip");
 +        if (File.Exists(engineZip))
 +        {
-+            var hasExternalZip = options != null && options.ZipMounts.Count > 0;
-+            if (hasExternalZip)
-+            {
-+                // External server content pack mounted: filter out content prototypes from baked-in resources.zip
-+                // so they do not collide with or pollute custom servers (e.g. Frontier, Goob, RMC, etc.).
-+                res.MountContentPack(engineZip, filter: p =>
-+                {
-+                    var clean = p.TrimStart('/');
-+                    return !clean.StartsWith("Prototypes/", StringComparison.OrdinalIgnoreCase) &&
-+                           !clean.StartsWith("Prototypes\\", StringComparison.OrdinalIgnoreCase) &&
-+                           !clean.StartsWith("IgnoredPrototypes/", StringComparison.OrdinalIgnoreCase) &&
-+                           !clean.StartsWith("IgnoredPrototypes\\", StringComparison.OrdinalIgnoreCase);
-+                });
-+            }
-+            else
-+            {
-+                res.MountContentPack(engineZip);
-+            }
++            res.MountContentPack(engineZip);
 +        }
 +        else
 +        {
@@ -5237,7 +5220,7 @@ index a75bfa08b..2ad3b3a9d 100644
  
          if (loadContentResources)
          {
-@@ -88,12 +119,25 @@ internal static class ProgramShared
+@@ -88,12 +102,25 @@ internal static class ProgramShared
              {
                  res.MountContentDirectory("./", assembliesPath);
              }
@@ -5265,10 +5248,114 @@ index a75bfa08b..2ad3b3a9d 100644
  #endif
  
 diff --git a/Robust.Shared/Prototypes/PrototypeManager.cs b/Robust.Shared/Prototypes/PrototypeManager.cs
-index 64d2669e7..70d7004bb 100644
+index 64d2669e7..c3482f7b4 100644
 --- a/Robust.Shared/Prototypes/PrototypeManager.cs
 +++ b/Robust.Shared/Prototypes/PrototypeManager.cs
-@@ -702,34 +702,58 @@ namespace Robust.Shared.Prototypes
+@@ -251,14 +251,26 @@ namespace Robust.Shared.Prototypes
+                 throw new InvalidOperationException("No prototypes have been loaded yet.");
+             }
+ 
+-            try
++            if (_kinds.TryGetValue(typeof(T), out var kindData) && kindData.Instances.TryGetValue(id, out var inst))
+             {
+-                return (T)_kinds[typeof(T)].Instances[id];
++                return (T)inst;
+             }
+-            catch (KeyNotFoundException)
++
++            if (typeof(T).Name == "ColorPalettePrototype")
+             {
+-                throw new UnknownPrototypeException(id, typeof(T));
++                var fallback = CreateFallbackColorPalette(typeof(T), id) as T;
++                if (fallback != null)
++                {
++                    if (kindData != null)
++                    {
++                        kindData.UnfrozenInstances ??= kindData.Instances.ToDictionary();
++                        kindData.UnfrozenInstances[id] = fallback;
++                    }
++                    return fallback;
++                }
+             }
++
++            throw new UnknownPrototypeException(id, typeof(T));
+         }
+ 
+         /// <inheritdoc />
+@@ -281,13 +293,69 @@ namespace Robust.Shared.Prototypes
+                 throw new InvalidOperationException("No prototypes have been loaded yet.");
+             }
+ 
++            if (_kinds.TryGetValue(kind, out var kindData) && kindData.Instances.TryGetValue(id, out var inst))
++            {
++                return inst;
++            }
++
++            if (kind.Name == "ColorPalettePrototype")
++            {
++                var fallback = CreateFallbackColorPalette(kind, id);
++                if (fallback != null)
++                {
++                    if (kindData != null)
++                    {
++                        kindData.UnfrozenInstances ??= kindData.Instances.ToDictionary();
++                        kindData.UnfrozenInstances[id] = fallback;
++                    }
++                    return fallback;
++                }
++            }
++
++            throw new UnknownPrototypeException(id, kind);
++        }
++
++        private IPrototype? CreateFallbackColorPalette(Type kind, string id)
++        {
+             try
+             {
+-                return _kinds[kind].Instances[id];
++                var instance = Activator.CreateInstance(kind);
++                if (instance == null) return null;
++
++                var idProp = kind.GetProperty("ID", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
++                idProp?.SetValue(instance, id);
++
++                var nameProp = kind.GetProperty("Name", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
++                nameProp?.SetValue(instance, id);
++
++                var colorsProp = kind.GetProperty("Colors", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
++                if (colorsProp != null)
++                {
++                    var fallbackColors = new Dictionary<string, Robust.Shared.Maths.Color>
++                    {
++                        ["ploink"] = Robust.Shared.Maths.Color.FromHex("#da8bc9"),
++                        ["ourple"] = Robust.Shared.Maths.Color.FromHex("#b18bda"),
++                        ["us-navy"] = Robust.Shared.Maths.Color.FromHex("#96a4eb"),
++                        ["yet-another-blue"] = Robust.Shared.Maths.Color.FromHex("#8cb7e8"),
++                        ["cyan"] = Robust.Shared.Maths.Color.FromHex("#8bc9da"),
++                        ["fake-color"] = Robust.Shared.Maths.Color.FromHex("#8bdaba"),
++                        ["green"] = Robust.Shared.Maths.Color.FromHex("#8bda8e"),
++                        ["you-wish-you-were-green"] = Robust.Shared.Maths.Color.FromHex("#a9da8b"),
++                        ["piss"] = Robust.Shared.Maths.Color.FromHex("#ceda8b"),
++                        ["orange"] = Robust.Shared.Maths.Color.FromHex("#dabc8b"),
++                        ["the-orange-she-tells-you-not-to-worry-about"] = Robust.Shared.Maths.Color.FromHex("#daa58b"),
++                        ["red"] = Robust.Shared.Maths.Color.FromHex("#da8b8b")
++                    };
++                    colorsProp.SetValue(instance, fallbackColors);
++                }
++
++                Sawmill.Warning($"Created emergency fallback ColorPalettePrototype for '{id}' to prevent startup crash.");
++                return (IPrototype)instance;
+             }
+-            catch (KeyNotFoundException)
++            catch (Exception ex)
+             {
+-                throw new UnknownPrototypeException(id, kind);
++                Sawmill.Error($"Failed to create emergency fallback ColorPalettePrototype for '{id}': {ex}");
++                return null;
+             }
+         }
+ 
+@@ -702,34 +770,58 @@ namespace Robust.Shared.Prototypes
  
              foreach (var root in tree.RootNodes)
              {
@@ -5340,7 +5427,7 @@ index 64d2669e7..70d7004bb 100644
                          }
                      }
  
-@@ -737,21 +761,35 @@ namespace Robust.Shared.Prototypes
+@@ -737,21 +829,35 @@ namespace Robust.Shared.Prototypes
                      {
                          foreach (var child in children)
                          {
@@ -5348,7 +5435,8 @@ index 64d2669e7..70d7004bb 100644
 -                            var val = Interlocked.Decrement(ref childDatum.CountParentsRemaining);
 -                            if (val == 0)
 +                            if (results.TryGetValue(child, out var childDatum))
-+                            {
+                             {
+-                                ThreadPool.QueueUserWorkItem(_ => { ProcessItem(child, childDatum); });
 +                                var val = Interlocked.Decrement(ref childDatum.CountParentsRemaining);
 +                                if (val == 0)
 +                                {
@@ -5356,8 +5444,7 @@ index 64d2669e7..70d7004bb 100644
 +                                }
 +                            }
 +                            else
-                             {
--                                ThreadPool.QueueUserWorkItem(_ => { ProcessItem(child, childDatum); });
++                            {
 +                                ThreadPool.QueueUserWorkItem(_ => { ProcessItem(child, null); });
                              }
                          }
@@ -5382,25 +5469,50 @@ index 64d2669e7..70d7004bb 100644
                      throw;
                  }
              }
-@@ -798,7 +836,7 @@ namespace Robust.Shared.Prototypes
+@@ -798,10 +904,10 @@ namespace Robust.Shared.Prototypes
          {
              if (!_kinds.TryGetValue(typeof(T), out var index))
              {
 -                throw new UnknownPrototypeException(id, typeof(T));
-+                return false;
++                return typeof(T).Name == "ColorPalettePrototype";
              }
  
-             return index.Instances.ContainsKey(id);
-@@ -847,7 +885,8 @@ namespace Robust.Shared.Prototypes
+-            return index.Instances.ContainsKey(id);
++            return index.Instances.ContainsKey(id) || typeof(T).Name == "ColorPalettePrototype";
+         }
+ 
+         /// <inheritdoc />
+@@ -845,12 +951,27 @@ namespace Robust.Shared.Prototypes
+         /// <inheritdoc />
+         public bool TryIndex(Type kind, string id, [NotNullWhen(true)] out IPrototype? prototype)
          {
-             if (!_kinds.TryGetValue(kind, out var index))
+-            if (!_kinds.TryGetValue(kind, out var index))
++            if (_kinds.TryGetValue(kind, out var index) && index.Instances.TryGetValue(id, out prototype))
++            {
++                return true;
++            }
++
++            if (kind.Name == "ColorPalettePrototype")
              {
 -                throw new UnknownPrototypeException(id, kind);
-+                prototype = null;
-+                return false;
++                prototype = CreateFallbackColorPalette(kind, id);
++                if (prototype != null)
++                {
++                    if (index != null)
++                    {
++                        index.UnfrozenInstances ??= index.Instances.ToDictionary();
++                        index.UnfrozenInstances[id] = prototype;
++                    }
++                    return true;
++                }
              }
  
-             return index.Instances.TryGetValue(id, out prototype);
+-            return index.Instances.TryGetValue(id, out prototype);
++            prototype = null;
++            return false;
+         }
+ 
+ 
 diff --git a/Robust.Shared/Reflection/ReflectionManager.cs b/Robust.Shared/Reflection/ReflectionManager.cs
 index 0d7fedf56..6652f93aa 100644
 --- a/Robust.Shared/Reflection/ReflectionManager.cs

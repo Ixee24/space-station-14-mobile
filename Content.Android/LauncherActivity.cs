@@ -111,6 +111,7 @@ public sealed class LauncherActivity : Activity
 
         CheckForCrashAndPrompt();
         _ = Task.Run(() => ContentCacheManager.PruneStaleCache(this, _storage));
+        _ = Task.Run(() => MainActivity.EnsureResourcesExtracted(FilesDir?.AbsolutePath));
     }
 
     protected override void OnResume()
@@ -2576,7 +2577,7 @@ public sealed class LauncherActivity : Activity
         catch {}
     }
 
-    public const string CurrentAppVersion = "v1.1.5";
+    public const string CurrentAppVersion = "v1.1.6";
 
     public string GetCurrentAppVersion()
     {

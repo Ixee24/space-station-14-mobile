@@ -493,6 +493,50 @@ namespace Content.Android
         public static string? LaunchPubKey;
         public static readonly System.Collections.Generic.Dictionary<string, string> LaunchBuildCVars = new();
 
+        public static void EnsureResourcesExtracted(string? filesDir = null)
+        {
+            try
+            {
+                filesDir ??= "/data/data/io.spacestation14.android/files";
+                var zipFile = Path.Combine(filesDir, "resources.zip");
+                var verFile = Path.Combine(filesDir, "resources.version");
+                var currentVer = LauncherActivity.CurrentAppVersion;
+
+                if (!File.Exists(zipFile) || new FileInfo(zipFile).Length == 0 ||
+                    !File.Exists(verFile) || File.ReadAllText(verFile) != currentVer)
+                {
+                    var assembly = typeof(MainActivity).Assembly;
+                    var resourceName = "Content.Android.resources.zip";
+                    var names = assembly.GetManifestResourceNames();
+                    foreach (var name in names)
+                    {
+                        if (name.EndsWith("resources.zip"))
+                        {
+                            resourceName = name;
+                            break;
+                        }
+                    }
+                    using var inStream = assembly.GetManifestResourceStream(resourceName);
+                    if (inStream != null)
+                    {
+                        Directory.CreateDirectory(filesDir);
+                        var tempFile = zipFile + ".tmp";
+                        using (var outStream = File.Create(tempFile))
+                        {
+                            inStream.CopyTo(outStream);
+                        }
+                        File.Move(tempFile, zipFile, true);
+                        File.WriteAllText(verFile, currentVer);
+                        global::Android.Util.Log.Info("SS14_LOG", $"Extracted fresh resources.zip ({new FileInfo(zipFile).Length} bytes) for version {currentVer}");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                global::Android.Util.Log.Error("SS14_LOG", $"Failed to ensure resources extracted: {ex}");
+            }
+        }
+
         protected override void OnCreate(Bundle? savedInstanceState)
         {
             InstallJavaCrashHandler();
@@ -544,29 +588,7 @@ namespace Content.Android
 
             try
             {
-                var filesDir = "/data/data/io.spacestation14.android/files";
-                var zipFile = Path.Combine(filesDir, "resources.zip");
-
-                if (!File.Exists(zipFile) || new FileInfo(zipFile).Length == 0)
-                {
-                    var assembly = typeof(MainActivity).Assembly;
-                    var resourceName = "Content.Android.resources.zip";
-                    var names = assembly.GetManifestResourceNames();
-                    foreach (var name in names)
-                    {
-                        if (name.EndsWith("resources.zip"))
-                        {
-                            resourceName = name;
-                            break;
-                        }
-                    }
-                    using var inStream = assembly.GetManifestResourceStream(resourceName);
-                    if (inStream != null)
-                    {
-                        using var outStream = File.Create(zipFile);
-                        inStream.CopyTo(outStream);
-                    }
-                }
+                EnsureResourcesExtracted(FilesDir?.AbsolutePath);
             }
             catch (Exception ex)
             {

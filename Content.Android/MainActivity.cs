@@ -944,7 +944,10 @@ namespace Content.Android
                     "--cvar", "display.max_fps=60",
                     "--cvar", "audio.max_ambient_sources=16",
                     "--cvar", "audio.max_channels=24",
-                    "--cvar", "net.logging=false",
+                    "--cvar", "net.logging=true",
+                    "--cvar", "net.lidgren_log_debug=true",
+                    "--cvar", "net.lidgren_log_warning=true",
+                    "--cvar", "net.verbose=true",
                     "--cvar", "mobile.touch_controls=true",
                     "--cvar", "hud.fps_counter_visible=true",
 #if DEBUG
@@ -952,7 +955,7 @@ namespace Content.Android
                     "--cvar", "log.level=Debug",
 #else
                     "--cvar", "hud.version_watermark=false",
-                    "--cvar", "log.level=Info",
+                    "--cvar", "log.level=Debug",
 #endif
                 };
 

@@ -21,7 +21,7 @@ Android port of [Space Station 14](https://github.com/space-wizards/space-statio
 - **In-App Logs & Crash Reporter:** View and share logs, dumps, and crash diagnostics directly from the launcher.
 
 ## Server Compatibility
-- Can only join servers running the exact same build version as this APK (Space Station 14 / RobustToolbox v291)
+- Can only join servers running the exact same build version as this APK (Space Station 14 / RobustToolbox v292)
 - At that moment servers with different versions or custom forks are not supported (some is supported) ...because on pc the engines are download from a CDN, whereas on android none of the engines are pre compiled...
 
 ## Controls

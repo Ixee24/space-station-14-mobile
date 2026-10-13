@@ -2481,6 +2481,16 @@ public sealed class LauncherActivity : Activity
         };
         btnRow.AddView(clearBtn);
 
+        var exportGameLogBtn = new Button(this) { Text = "Export game.log", TextSize = 11 };
+        exportGameLogBtn.Background = LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
+        exportGameLogBtn.SetTextColor(LauncherTheme.Foreground);
+        exportGameLogBtn.LayoutParameters = new LinearLayout.LayoutParams(0, (int)(34 * density), 1.2f)
+        {
+            RightMargin = (int)(6 * density)
+        };
+        exportGameLogBtn.Click += (_, _) => ShareGameLog();
+        btnRow.AddView(exportGameLogBtn);
+
         var issuesBtn = new Button(this) { Text = "GitHub Issues", TextSize = 11 };
         issuesBtn.Background = LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
         issuesBtn.SetTextColor(LauncherTheme.Foreground);
@@ -2500,6 +2510,32 @@ public sealed class LauncherActivity : Activity
 
         dialog.Show();
         CrashReporter.MarkSeen();
+    }
+
+    private void ShareGameLog()
+    {
+        try
+        {
+            var logPath = CrashReporter.GameLogPath;
+            if (!File.Exists(logPath) || new FileInfo(logPath).Length == 0)
+            {
+                Toast.MakeText(this, "game.log is empty or not created yet.", ToastLength.Short)?.Show();
+                return;
+            }
+            var text = File.ReadAllText(logPath);
+            if (text.Length > 50_000)
+                text = "[... truncated tail ...]\n" + text.Substring(text.Length - 50_000);
+
+            var intent = new Intent(Intent.ActionSend);
+            intent.SetType("text/plain");
+            intent.PutExtra(Intent.ExtraSubject, $"SS14 Android game.log {GetCurrentAppVersion()}");
+            intent.PutExtra(Intent.ExtraText, text);
+            StartActivity(Intent.CreateChooser(intent, "Share game.log"));
+        }
+        catch (Exception ex)
+        {
+            Toast.MakeText(this, $"Export failed: {ex.Message}", ToastLength.Short)?.Show();
+        }
     }
 
     private void ShareCrashReport()
@@ -2577,7 +2613,7 @@ public sealed class LauncherActivity : Activity
         catch {}
     }
 
-    public const string CurrentAppVersion = "v1.1.6";
+    public const string CurrentAppVersion = "v1.1.7";
 
     public string GetCurrentAppVersion()
     {

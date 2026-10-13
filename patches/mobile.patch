@@ -4858,6 +4858,38 @@ index 69e28e861..c6c10962a 100644
          public void AddLoadedToStringSerializer(IRobustMappedStringSerializer serializer)
          {
              /*
+diff --git a/Robust.Shared/Log/ConsoleLogHandler.cs b/Robust.Shared/Log/ConsoleLogHandler.cs
+index 2633b8ec5..aca421a6f 100644
+--- a/Robust.Shared/Log/ConsoleLogHandler.cs
++++ b/Robust.Shared/Log/ConsoleLogHandler.cs
+@@ -1,4 +1,4 @@
+-﻿using System;
++using System;
+ using System.Diagnostics;
+ using System.IO;
+ using System.Text;
+@@ -113,6 +113,21 @@ namespace Robust.Shared.Log
+                     _line.AppendLine(message.Exception.ToString());
+                 }
+ 
++                if (OperatingSystem.IsAndroid())
++                {
++                    try
++                    {
++                        var logPath = "/data/data/io.spacestation14.android/files/game.log";
++                        var fi = new System.IO.FileInfo(logPath);
++                        if (fi.Exists && fi.Length > 512 * 1024)
++                        {
++                            System.IO.File.Delete(logPath);
++                        }
++                        System.IO.File.AppendAllText(logPath, _line.ToString());
++                    }
++                    catch { }
++                }
++
+                 if (System.Console.OutputEncoding.CodePage == WindowsConsole.NativeMethods.CodePageUtf8)
+                 {
+                     // Fast path: if we can output as UTF-8, do it.
 diff --git a/Robust.Shared/Map/CoordinatesExtensions.cs b/Robust.Shared/Map/CoordinatesExtensions.cs
 index 38c8560ef..eb2975c89 100644
 --- a/Robust.Shared/Map/CoordinatesExtensions.cs
@@ -5248,10 +5280,10 @@ index a75bfa08b..2c8479afc 100644
  #endif
  
 diff --git a/Robust.Shared/Prototypes/PrototypeManager.cs b/Robust.Shared/Prototypes/PrototypeManager.cs
-index 64d2669e7..c3482f7b4 100644
+index 64d2669e7..005222ffe 100644
 --- a/Robust.Shared/Prototypes/PrototypeManager.cs
 +++ b/Robust.Shared/Prototypes/PrototypeManager.cs
-@@ -251,14 +251,26 @@ namespace Robust.Shared.Prototypes
+@@ -251,14 +251,24 @@ namespace Robust.Shared.Prototypes
                  throw new InvalidOperationException("No prototypes have been loaded yet.");
              }
  
@@ -5263,26 +5295,24 @@ index 64d2669e7..c3482f7b4 100644
              }
 -            catch (KeyNotFoundException)
 +
-+            if (typeof(T).Name == "ColorPalettePrototype")
++            var fallback = CreateFallbackPrototype(typeof(T), id) as T;
++            if (fallback != null)
              {
 -                throw new UnknownPrototypeException(id, typeof(T));
-+                var fallback = CreateFallbackColorPalette(typeof(T), id) as T;
-+                if (fallback != null)
++                if (kindData != null)
 +                {
-+                    if (kindData != null)
-+                    {
-+                        kindData.UnfrozenInstances ??= kindData.Instances.ToDictionary();
-+                        kindData.UnfrozenInstances[id] = fallback;
-+                    }
-+                    return fallback;
++                    kindData.UnfrozenInstances ??= kindData.Instances.ToDictionary();
++                    kindData.UnfrozenInstances[id] = fallback;
++                    kindData.Instances = kindData.UnfrozenInstances.ToFrozenDictionary();
 +                }
++                return fallback;
              }
 +
 +            throw new UnknownPrototypeException(id, typeof(T));
          }
  
          /// <inheritdoc />
-@@ -281,13 +293,69 @@ namespace Robust.Shared.Prototypes
+@@ -281,13 +291,106 @@ namespace Robust.Shared.Prototypes
                  throw new InvalidOperationException("No prototypes have been loaded yet.");
              }
  
@@ -5291,28 +5321,67 @@ index 64d2669e7..c3482f7b4 100644
 +                return inst;
 +            }
 +
-+            if (kind.Name == "ColorPalettePrototype")
++            var fallback = CreateFallbackPrototype(kind, id);
++            if (fallback != null)
 +            {
-+                var fallback = CreateFallbackColorPalette(kind, id);
-+                if (fallback != null)
++                if (kindData != null)
 +                {
-+                    if (kindData != null)
-+                    {
-+                        kindData.UnfrozenInstances ??= kindData.Instances.ToDictionary();
-+                        kindData.UnfrozenInstances[id] = fallback;
-+                    }
-+                    return fallback;
++                    kindData.UnfrozenInstances ??= kindData.Instances.ToDictionary();
++                    kindData.UnfrozenInstances[id] = fallback;
++                    kindData.Instances = kindData.UnfrozenInstances.ToFrozenDictionary();
 +                }
++                return fallback;
 +            }
 +
 +            throw new UnknownPrototypeException(id, kind);
 +        }
 +
-+        private IPrototype? CreateFallbackColorPalette(Type kind, string id)
++        private IPrototype? CreateFallbackPrototype(Type kind, string id)
 +        {
++            if (kind.Name == "ColorPalettePrototype")
++                return CreateFallbackColorPalette(kind, id);
++
              try
              {
 -                return _kinds[kind].Instances[id];
++                var instance = Activator.CreateInstance(kind);
++                if (instance == null) return null;
++
++                const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
++                var idProp = kind.GetProperty("ID", flags);
++                idProp?.SetValue(instance, id);
++                var idField = kind.GetField("ID", flags) ?? kind.GetField("_id", flags);
++                idField?.SetValue(instance, id);
++
++                var nameProp = kind.GetProperty("Name", flags);
++                nameProp?.SetValue(instance, id);
++                var nameField = kind.GetField("Name", flags) ?? kind.GetField("_name", flags);
++                nameField?.SetValue(instance, id);
++
++                if (kind.Name == "ContentTileDefinition" && id == "Space")
++                {
++                    var isSubFloorProp = kind.GetProperty("IsSubFloor", flags);
++                    isSubFloorProp?.SetValue(instance, true);
++                    var isSpaceProp = kind.GetProperty("IsSpace", flags);
++                    isSpaceProp?.SetValue(instance, true);
++                }
++
++                Sawmill.Warning($"Created emergency fallback prototype {kind.Name} for '{id}'.");
++                return (IPrototype)instance;
+             }
+-            catch (KeyNotFoundException)
++            catch (Exception ex)
+             {
+-                throw new UnknownPrototypeException(id, kind);
++                Sawmill.Error($"Failed to create fallback prototype {kind.Name} for '{id}': {ex}");
++                return null;
++            }
++        }
++
++        private IPrototype? CreateFallbackColorPalette(Type kind, string id)
++        {
++            try
++            {
 +                var instance = Activator.CreateInstance(kind);
 +                if (instance == null) return null;
 +
@@ -5345,17 +5414,107 @@ index 64d2669e7..c3482f7b4 100644
 +
 +                Sawmill.Warning($"Created emergency fallback ColorPalettePrototype for '{id}' to prevent startup crash.");
 +                return (IPrototype)instance;
-             }
--            catch (KeyNotFoundException)
++            }
 +            catch (Exception ex)
-             {
--                throw new UnknownPrototypeException(id, kind);
++            {
 +                Sawmill.Error($"Failed to create emergency fallback ColorPalettePrototype for '{id}': {ex}");
 +                return null;
              }
          }
  
-@@ -702,34 +770,58 @@ namespace Robust.Shared.Prototypes
+@@ -679,6 +782,14 @@ namespace Robust.Shared.Prototypes
+             }
+             catch (Exception e)
+             {
++                try
++                {
++                    var legacy = ReadLegacyPrototype(kind, id, mapping);
++                    if (legacy != null)
++                        return legacy;
++                }
++                catch { }
++
+                 if (throwOnReadFailure)
+                     throw new PrototypeLoadException($"Failed reading {kind}({id})", e);
+ 
+@@ -687,6 +798,76 @@ namespace Robust.Shared.Prototypes
+             }
+         }
+ 
++        private IPrototype? ReadLegacyPrototype(Type kind, string id, MappingDataNode mapping)
++        {
++            try
++            {
++                var instance = Activator.CreateInstance(kind);
++                if (instance == null) return null;
++
++                const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
++                var idProp = kind.GetProperty("ID", flags);
++                idProp?.SetValue(instance, id);
++                var idField = kind.GetField("ID", flags) ?? kind.GetField("_id", flags);
++                idField?.SetValue(instance, id);
++
++                var props = kind.GetProperties(flags);
++                var fields = kind.GetFields(flags);
++
++                foreach (var (key, node) in mapping.Children)
++                {
++                    if (node is ValueDataNode valNode)
++                    {
++                        var valStr = valNode.Value;
++                        var prop = props.FirstOrDefault(p => string.Equals(p.Name, key, StringComparison.OrdinalIgnoreCase));
++                        if (prop != null && prop.CanWrite)
++                        {
++                            SetLegacyMemberValue(prop.PropertyType, val => prop.SetValue(instance, val), valStr);
++                            continue;
++                        }
++                        var field = fields.FirstOrDefault(f => string.Equals(f.Name, key, StringComparison.OrdinalIgnoreCase) ||
++                                                               string.Equals(f.Name, "_" + key, StringComparison.OrdinalIgnoreCase));
++                        if (field != null)
++                        {
++                            SetLegacyMemberValue(field.FieldType, val => field.SetValue(instance, val), valStr);
++                        }
++                    }
++                }
++
++                return (IPrototype)instance;
++            }
++            catch
++            {
++                return null;
++            }
++        }
++
++        private static void SetLegacyMemberValue(Type targetType, Action<object?> setter, string valStr)
++        {
++            try
++            {
++                if (targetType == typeof(string))
++                    setter(valStr);
++                else if (targetType == typeof(bool) && bool.TryParse(valStr, out var b))
++                    setter(b);
++                else if (targetType == typeof(int) && int.TryParse(valStr, out var i))
++                    setter(i);
++                else if (targetType == typeof(ushort) && ushort.TryParse(valStr, out var u))
++                    setter(u);
++                else if (targetType == typeof(short) && short.TryParse(valStr, out var s))
++                    setter(s);
++                else if (targetType == typeof(byte) && byte.TryParse(valStr, out var by))
++                    setter(by);
++                else if (targetType == typeof(float) && float.TryParse(valStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var f))
++                    setter(f);
++                else if (targetType == typeof(double) && double.TryParse(valStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var d))
++                    setter(d);
++                else if (targetType.IsEnum && Enum.TryParse(targetType, valStr, true, out var enumVal))
++                    setter(enumVal);
++            }
++            catch {}
++        }
++
+         private async Task PushKindInheritance(Type kind, KindData data)
+         {
+             if (data.Inheritance is not { } tree)
+@@ -702,34 +883,58 @@ namespace Robust.Shared.Prototypes
  
              foreach (var root in tree.RootNodes)
              {
@@ -5427,7 +5586,7 @@ index 64d2669e7..c3482f7b4 100644
                          }
                      }
  
-@@ -737,21 +829,35 @@ namespace Robust.Shared.Prototypes
+@@ -737,21 +942,35 @@ namespace Robust.Shared.Prototypes
                      {
                          foreach (var child in children)
                          {
@@ -5435,8 +5594,7 @@ index 64d2669e7..c3482f7b4 100644
 -                            var val = Interlocked.Decrement(ref childDatum.CountParentsRemaining);
 -                            if (val == 0)
 +                            if (results.TryGetValue(child, out var childDatum))
-                             {
--                                ThreadPool.QueueUserWorkItem(_ => { ProcessItem(child, childDatum); });
++                            {
 +                                var val = Interlocked.Decrement(ref childDatum.CountParentsRemaining);
 +                                if (val == 0)
 +                                {
@@ -5444,7 +5602,8 @@ index 64d2669e7..c3482f7b4 100644
 +                                }
 +                            }
 +                            else
-+                            {
+                             {
+-                                ThreadPool.QueueUserWorkItem(_ => { ProcessItem(child, childDatum); });
 +                                ThreadPool.QueueUserWorkItem(_ => { ProcessItem(child, null); });
                              }
                          }
@@ -5469,45 +5628,43 @@ index 64d2669e7..c3482f7b4 100644
                      throw;
                  }
              }
-@@ -798,10 +904,10 @@ namespace Robust.Shared.Prototypes
+@@ -798,10 +1017,10 @@ namespace Robust.Shared.Prototypes
          {
              if (!_kinds.TryGetValue(typeof(T), out var index))
              {
 -                throw new UnknownPrototypeException(id, typeof(T));
-+                return typeof(T).Name == "ColorPalettePrototype";
++                return typeof(T).Name == "ColorPalettePrototype" || typeof(T).Name == "ContentTileDefinition";
              }
  
 -            return index.Instances.ContainsKey(id);
-+            return index.Instances.ContainsKey(id) || typeof(T).Name == "ColorPalettePrototype";
++            return index.Instances.ContainsKey(id) || typeof(T).Name == "ColorPalettePrototype" || typeof(T).Name == "ContentTileDefinition";
          }
  
          /// <inheritdoc />
-@@ -845,12 +951,27 @@ namespace Robust.Shared.Prototypes
+@@ -845,12 +1064,25 @@ namespace Robust.Shared.Prototypes
          /// <inheritdoc />
          public bool TryIndex(Type kind, string id, [NotNullWhen(true)] out IPrototype? prototype)
          {
 -            if (!_kinds.TryGetValue(kind, out var index))
 +            if (_kinds.TryGetValue(kind, out var index) && index.Instances.TryGetValue(id, out prototype))
-+            {
-+                return true;
-+            }
-+
-+            if (kind.Name == "ColorPalettePrototype")
              {
 -                throw new UnknownPrototypeException(id, kind);
-+                prototype = CreateFallbackColorPalette(kind, id);
-+                if (prototype != null)
-+                {
-+                    if (index != null)
-+                    {
-+                        index.UnfrozenInstances ??= index.Instances.ToDictionary();
-+                        index.UnfrozenInstances[id] = prototype;
-+                    }
-+                    return true;
-+                }
++                return true;
              }
  
 -            return index.Instances.TryGetValue(id, out prototype);
++            prototype = CreateFallbackPrototype(kind, id);
++            if (prototype != null)
++            {
++                if (index != null)
++                {
++                    index.UnfrozenInstances ??= index.Instances.ToDictionary();
++                    index.UnfrozenInstances[id] = prototype;
++                    index.Instances = index.UnfrozenInstances.ToFrozenDictionary();
++                }
++                return true;
++            }
++
 +            prototype = null;
 +            return false;
          }

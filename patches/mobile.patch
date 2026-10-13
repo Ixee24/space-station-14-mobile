@@ -4062,7 +4062,7 @@ index 18703ca0c..43496a381 100644
  
  /// <summary>
 diff --git a/Robust.Shared/CVars.cs b/Robust.Shared/CVars.cs
-index d4c004f4a..c8722da73 100644
+index d4c004f4a..609e1a6c4 100644
 --- a/Robust.Shared/CVars.cs
 +++ b/Robust.Shared/CVars.cs
 @@ -448,6 +448,12 @@ namespace Robust.Shared
@@ -4073,7 +4073,7 @@ index d4c004f4a..c8722da73 100644
 +        /// Controls whether the networking library will log debug messages.
 +        /// </summary>
 +        public static readonly CVarDef<bool> NetLidgrenLogDebug =
-+            CVarDef.Create("net.lidgren_log_debug", false);
++            CVarDef.Create("net.lidgren_log_debug", true);
 +
          /// <summary>
          /// Controls whether the networking library will log warning messages.
@@ -7116,3 +7116,36 @@ index 8831e60fa..2b328737c 100644
          }
  
          internal static bool HasParameterlessConstructor(this Type type, BindingFlags flags = BindingFlags.Instance | BindingFlags.Public)
+diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs
+index ec31cda..f260205 100644
+--- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs
++++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs
+@@ -70,7 +70,6 @@ private sealed class LogRateLimitState
+ 		public int Suppressed;
+ 	}
+ 
+-	[Conditional("DEBUG")]
+ 	internal void LogVerbose(string message)
+ 	{
+ #if __ANDROID__
+@@ -79,7 +78,6 @@ internal void LogVerbose(string message)
+ 		SendLogBase(NetIncomingMessageType.VerboseDebugMessage, message);
+ 	}
+ 
+-	[Conditional("DEBUG")]
+ 	internal void LogDebug(string message)
+ 	{
+ #if __ANDROID__
+diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetNativeSocket.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetNativeSocket.cs
+index 4961b81..c728992 100644
+--- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetNativeSocket.cs
++++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetNativeSocket.cs
+@@ -9,7 +9,7 @@ namespace Lidgren.Network
+ 	internal static unsafe class NetNativeSocket
+ 	{
+ 		internal static readonly bool IsWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+-		internal static readonly bool IsLinux = RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
++		internal static readonly bool IsLinux = RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && !OperatingSystem.IsAndroid();
+ 
+ #pragma warning disable 649
+ 		// ReSharper disable InconsistentNaming

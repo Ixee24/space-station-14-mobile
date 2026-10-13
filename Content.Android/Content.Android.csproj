@@ -7,8 +7,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationId>io.spacestation14.android</ApplicationId>
-    <ApplicationVersion>3</ApplicationVersion>
-    <ApplicationDisplayVersion>1.0.2</ApplicationDisplayVersion>
+    <ApplicationVersion>27</ApplicationVersion>
+    <ApplicationDisplayVersion>1.1.3</ApplicationDisplayVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <NoWarn>NU1701;CA1416</NoWarn>
     <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
@@ -60,6 +60,15 @@
 
   <PropertyGroup>
     <UseSystemSqlite>True</UseSystemSqlite>
+  </PropertyGroup>
+
+  <!-- Release signing: one permanent key for all builds so APKs update
+       over each other. Passwords/alias come from env (CI secrets). -->
+  <PropertyGroup Condition="'$(Configuration)' == 'Release' and '$(AndroidSigningKeyStore)' != ''">
+    <AndroidKeyStore>True</AndroidKeyStore>
+    <AndroidSigningKeyAlias>$(AndroidSigningKeyAlias)</AndroidSigningKeyAlias>
+    <AndroidSigningKeyPass>$(AndroidSigningKeyPass)</AndroidSigningKeyPass>
+    <AndroidSigningStorePass>$(AndroidSigningStorePass)</AndroidSigningStorePass>
   </PropertyGroup>
 
   <ItemGroup>

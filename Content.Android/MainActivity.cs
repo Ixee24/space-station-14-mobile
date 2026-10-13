@@ -154,6 +154,11 @@ namespace Content.Android
 
             if (e != null)
             {
+                if (e.KeyCode is Keycode.VolumeUp or Keycode.VolumeDown or Keycode.VolumeMute)
+                {
+                    return base.DispatchKeyEvent(e);
+                }
+
                 if (e.KeyCode == Keycode.Back)
                 {
                     if (e.Action == KeyEventActions.Down)
@@ -380,26 +385,63 @@ namespace Content.Android
         {
             try
             {
-                var cur = ex;
-                var sb = new System.Text.StringBuilder();
-                sb.AppendLine($"[{DateTime.UtcNow}] CRASH AT STAGE: {stage}");
-                while (cur != null)
-                {
-                    sb.AppendLine($"Exception ({cur.GetType().FullName}): {cur.Message}");
-                    sb.AppendLine($"StackTrace: {cur.StackTrace}");
-                    cur = cur.InnerException;
-                }
-                var text = sb.ToString();
-                global::Android.Util.Log.Error("SS14_CRASH", text);
-                System.Console.WriteLine(text);
-                try
-                {
-                    var path = "/data/data/io.spacestation14.android/files/crash.txt";
-                    File.AppendAllText(path, text);
-                }
-                catch {}
+                CrashReporter.WriteCrash(stage, ex);
             }
             catch {}
+        }
+
+        /// <summary>
+        /// Catches Java-side (non-.NET) crashes and routes them to crash.txt.
+        /// </summary>
+        private sealed class JavaCrashHandler : Java.Lang.Object, Java.Lang.Thread.IUncaughtExceptionHandler
+        {
+            private readonly Java.Lang.Thread.IUncaughtExceptionHandler? _default;
+
+            public JavaCrashHandler(Java.Lang.Thread.IUncaughtExceptionHandler? def)
+            {
+                _default = def;
+            }
+
+            public void UncaughtException(Java.Lang.Thread t, Java.Lang.Throwable e)
+            {
+                try
+                {
+                    CrashReporter.WriteJavaCrash($"JavaThread:{t?.Name ?? "?"}",
+                        e?.ToString() ?? "<no throwable>");
+                }
+                catch { }
+                try
+                {
+                    // Give the file write a moment before the process dies.
+                    System.Threading.Thread.Sleep(300);
+                }
+                catch { }
+                if (_default != null)
+                {
+                    try { _default.UncaughtException(t, e); } catch { }
+                }
+            }
+        }
+
+        private static bool _javaHandlerInstalled;
+
+        // [SolomonNumb1] hook JVM uncaught exception handler to capture OS level android crashes before app termination
+        private static void InstallJavaCrashHandler()
+        {
+            if (_javaHandlerInstalled)
+                return;
+            _javaHandlerInstalled = true;
+            try
+            {
+                var def = Java.Lang.Thread.DefaultUncaughtExceptionHandler;
+                if (def is JavaCrashHandler)
+                    return;
+                Java.Lang.Thread.DefaultUncaughtExceptionHandler = new JavaCrashHandler(def);
+            }
+            catch (Exception ex)
+            {
+                try { CrashReporter.WriteCrash("InstallJavaCrashHandler", ex); } catch { }
+            }
         }
 
         static MainActivity()
@@ -414,6 +456,14 @@ namespace Content.Android
                 {
                     LogCrash("UnobservedTaskException", args.Exception);
                 };
+                try
+                {
+                    global::Android.Runtime.AndroidEnvironment.UnhandledExceptionRaiser += (sender, args) =>
+                    {
+                        LogCrash("AndroidEnvironment.Unhandled", args.Exception);
+                    };
+                }
+                catch { }
 
                 AppDomain.CurrentDomain.AssemblyResolve += (sender, args) =>
                 {
@@ -445,6 +495,16 @@ namespace Content.Android
 
         protected override void OnCreate(Bundle? savedInstanceState)
         {
+            InstallJavaCrashHandler();
+            // The SDL runtime can reset orientation at startup; enforce
+            // landscape in code (manifest attribute alone doesn't stick).
+            try
+            {
+                RequestedOrientation = global::Android.Content.PM.ScreenOrientation.SensorLandscape;
+                // [SolomonNumb1] routes hardware volume keys directly to media stream for in game sound control
+                VolumeControlStream = global::Android.Media.Stream.Music;
+            }
+            catch { }
             try
             {
                 LaunchMountZip = Intent?.GetStringExtra("mount_zip") ?? LaunchMountZip;
@@ -488,22 +548,25 @@ namespace Content.Android
                 var filesDir = "/data/data/io.spacestation14.android/files";
                 var zipFile = Path.Combine(filesDir, "resources.zip");
 
-                var assembly = typeof(MainActivity).Assembly;
-                var resourceName = "Content.Android.resources.zip";
-                var names = assembly.GetManifestResourceNames();
-                foreach (var name in names)
+                if (!File.Exists(zipFile) || new FileInfo(zipFile).Length == 0)
                 {
-                    if (name.EndsWith("resources.zip"))
+                    var assembly = typeof(MainActivity).Assembly;
+                    var resourceName = "Content.Android.resources.zip";
+                    var names = assembly.GetManifestResourceNames();
+                    foreach (var name in names)
                     {
-                        resourceName = name;
-                        break;
+                        if (name.EndsWith("resources.zip"))
+                        {
+                            resourceName = name;
+                            break;
+                        }
                     }
-                }
-                using var inStream = assembly.GetManifestResourceStream(resourceName);
-                if (inStream != null)
-                {
-                    using var outStream = File.Create(zipFile);
-                    inStream.CopyTo(outStream);
+                    using var inStream = assembly.GetManifestResourceStream(resourceName);
+                    if (inStream != null)
+                    {
+                        using var outStream = File.Create(zipFile);
+                        inStream.CopyTo(outStream);
+                    }
                 }
             }
             catch (Exception ex)
@@ -602,12 +665,77 @@ namespace Content.Android
             catch {}
         }
 
+        // [SolomonNumb1] downscales render surface to 720p/900p/1080p, drastically improving framerates on L GPUs(telling this with my mali g57 mc2,lmao)
+        private void ApplyDisplayResolution()
+        {
+            try
+            {
+                if (MSurface?.Holder == null) return;
+                var res = Intent?.GetStringExtra("display_resolution") ?? "native";
+                if (res == "native" || string.IsNullOrEmpty(res))
+                {
+                    MSurface.Holder.SetSizeFromLayout();
+                    return;
+                }
+
+                var metrics = Resources?.DisplayMetrics;
+                if (metrics == null) return;
+
+                var screenW = Math.Max(metrics.WidthPixels, metrics.HeightPixels);
+                var screenH = Math.Min(metrics.WidthPixels, metrics.HeightPixels);
+                if (screenH <= 0) return;
+                var aspect = (float)screenW / screenH;
+
+                int targetH = res switch
+                {
+                    "720p" => 720,
+                    "900p" => 900,
+                    "1080p" => 1080,
+                    _ => screenH
+                };
+
+                if (targetH < screenH)
+                {
+                    int targetW = (int)Math.Round(targetH * aspect);
+                    global::Android.Util.Log.Info("SS14Launch", $"[Resolution] Setting Surface size to {targetW}x{targetH} (native is {screenW}x{screenH})");
+                    MSurface.Holder.SetFixedSize(targetW, targetH);
+                }
+                else
+                {
+                    MSurface.Holder.SetSizeFromLayout();
+                }
+            }
+            catch (Exception ex)
+            {
+                global::Android.Util.Log.Warn("SS14Launch", $"ApplyDisplayResolution failed: {ex.Message}");
+            }
+        }
+
+        // [SolomonNumb1] enforces SensorLandscape orientation, preventing SDL runtime from resetting display mode
+        public override global::Android.Content.PM.ScreenOrientation RequestedOrientation
+        {
+            get => base.RequestedOrientation;
+            set
+            {
+                // SDL runtime requests FULL_USER or PORTRAIT during window creation;
+                // unconditionally enforce SensorLandscape so orientation never flips.
+                base.RequestedOrientation = global::Android.Content.PM.ScreenOrientation.SensorLandscape;
+            }
+        }
+
         protected override void OnResume()
         {
             base.OnResume();
+            try
+            {
+                if (RequestedOrientation != global::Android.Content.PM.ScreenOrientation.SensorLandscape)
+                    RequestedOrientation = global::Android.Content.PM.ScreenOrientation.SensorLandscape;
+            }
+            catch { }
             UpdateHardwareKeyboardState();
             ApplyImmersiveMode();
             EnsureSurfaceFocus();
+            ApplyDisplayResolution();
         }
 
         public override void OnWindowFocusChanged(bool hasFocus)
@@ -615,8 +743,27 @@ namespace Content.Android
             base.OnWindowFocusChanged(hasFocus);
             if (hasFocus)
             {
+                try
+                {
+                    // SDL sets its own orientation at runtime, stomping the
+                    // manifest; re-assert after focus lands (and again shortly
+                    // after, to win any late SDL reset).
+                    RequestedOrientation = global::Android.Content.PM.ScreenOrientation.SensorLandscape;
+                    var view = Window?.DecorView;
+                    view?.PostDelayed(() =>
+                    {
+                        try
+                        {
+                            if (RequestedOrientation != global::Android.Content.PM.ScreenOrientation.SensorLandscape)
+                                RequestedOrientation = global::Android.Content.PM.ScreenOrientation.SensorLandscape;
+                        }
+                        catch { }
+                    }, 500);
+                }
+                catch { }
                 ApplyImmersiveMode();
                 EnsureSurfaceFocus();
+                ApplyDisplayResolution();
             }
         }
 

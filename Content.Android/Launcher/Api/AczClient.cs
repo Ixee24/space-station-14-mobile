@@ -66,8 +66,10 @@ public sealed class AczClient
             if (UriHelper.TryParseSs14Uri(serverAddress, out var uri))
             {
                 var api = UriHelper.GetServerApiAddress(uri);
-                manifestUrl ??= new Uri(api, "manifest.txt").ToString();
-                downloadUrl ??= new Uri(api, "download").ToString();
+                if (string.IsNullOrEmpty(manifestUrl))
+                    manifestUrl = new Uri(api, "manifest.txt").ToString();
+                if (string.IsNullOrEmpty(downloadUrl))
+                    downloadUrl = new Uri(api, "download").ToString();
             }
         }
 
@@ -224,7 +226,8 @@ public sealed class AczClient
                         entryData = readBuffer.AsMemory(0, uncompressedLength);
                     }
 
-                    var zipEntry = zip.CreateEntry(entry.Path, CompressionLevel.NoCompression);
+                    // [SolomonNumb1] compresses server ACZ packages with fastest level to reduce storage consumption on device
+                    var zipEntry = zip.CreateEntry(entry.Path, CompressionLevel.Fastest);
                     using (var entryStream = zipEntry.Open())
                     {
                         entryStream.Write(entryData.Span);

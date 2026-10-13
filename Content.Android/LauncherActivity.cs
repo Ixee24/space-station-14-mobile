@@ -107,6 +107,9 @@ public sealed class LauncherActivity : Activity
         {
             _ = CheckForUpdatesAsync();
         }
+
+        CheckForCrashAndPrompt();
+        _ = Task.Run(() => ContentCacheManager.PruneStaleCache(this, _storage));
     }
 
     protected override void OnResume()
@@ -248,7 +251,9 @@ public sealed class LauncherActivity : Activity
         _searchInput = new EditText(this)
         {
             Hint = "Search servers...",
-            TextSize = 12
+            TextSize = 12,
+            InputType = global::Android.Text.InputTypes.ClassText,
+            ImeOptions = (global::Android.Views.InputMethods.ImeAction)global::Android.Views.InputMethods.ImeFlags.NoExtractUi | global::Android.Views.InputMethods.ImeAction.Search
         };
         _searchInput.SetHintTextColor(LauncherTheme.ForegroundMuted);
         _searchInput.SetTextColor(LauncherTheme.Foreground);
@@ -259,6 +264,15 @@ public sealed class LauncherActivity : Activity
         {
             _searchFilter = e?.Text?.ToString() ?? string.Empty;
             RenderServerList();
+        };
+        _searchInput.EditorAction += (_, e) =>
+        {
+            if (e.ActionId == global::Android.Views.InputMethods.ImeAction.Search ||
+                e.ActionId == global::Android.Views.InputMethods.ImeAction.Done ||
+                (e.Event?.KeyCode == global::Android.Views.Keycode.Enter && e.Event.Action == global::Android.Views.KeyEventActions.Down))
+            {
+                HideKeyboard(_searchInput);
+            }
         };
         controlsRow.AddView(_searchInput);
 
@@ -328,19 +342,19 @@ public sealed class LauncherActivity : Activity
         _statusCountText.LayoutParameters = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1f);
         bottomBar.AddView(_statusCountText);
 
-        var controlsBtn = new Button(this)
+        var settingsBtn = new Button(this)
         {
-            Text = "Controls",
+            Text = "Settings",
             TextSize = 11
         };
-        controlsBtn.Background = LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
-        controlsBtn.SetTextColor(LauncherTheme.Foreground);
-        controlsBtn.SetPadding((int)(10 * density), 0, (int)(10 * density), 0);
-        var controlsLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WrapContent, ViewGroup.LayoutParams.WrapContent);
-        controlsLp.SetMargins(0, 0, (int)(8 * density), 0);
-        controlsBtn.LayoutParameters = controlsLp;
-        controlsBtn.Click += (_, _) => ShowControlsSettingsDialog();
-        bottomBar.AddView(controlsBtn);
+        settingsBtn.Background = LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
+        settingsBtn.SetTextColor(LauncherTheme.Foreground);
+        settingsBtn.SetPadding((int)(10 * density), 0, (int)(10 * density), 0);
+        var settingsLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WrapContent, ViewGroup.LayoutParams.WrapContent);
+        settingsLp.SetMargins(0, 0, (int)(8 * density), 0);
+        settingsBtn.LayoutParameters = settingsLp;
+        settingsBtn.Click += (_, _) => ShowSettingsDialog();
+        bottomBar.AddView(settingsBtn);
 
         var sandboxBtn = new Button(this)
         {
@@ -355,6 +369,33 @@ public sealed class LauncherActivity : Activity
         sandboxBtn.LayoutParameters = sandboxLp;
         sandboxBtn.Click += (_, _) => LaunchOfflineSandbox();
         bottomBar.AddView(sandboxBtn);
+
+        var logsBtn = new Button(this)
+        {
+            Text = "Logs",
+            TextSize = 11
+        };
+        logsBtn.Background = LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
+        logsBtn.SetTextColor(LauncherTheme.Foreground);
+        logsBtn.SetPadding((int)(10 * density), 0, (int)(10 * density), 0);
+        var logsLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WrapContent, ViewGroup.LayoutParams.WrapContent);
+        logsLp.SetMargins(0, 0, (int)(8 * density), 0);
+        logsBtn.LayoutParameters = logsLp;
+        logsBtn.Click += (_, _) => ShowCrashReporterDialog();
+        // Long-press writes a test entry so you can verify the reporter
+        // without waiting for a real crash.
+        logsBtn.LongClick += (s, e) =>
+        {
+            try
+            {
+                CrashReporter.WriteCrash("ManualTest",
+                    new Exception("Test crash entry (long-pressed Logs button). If you can read this, the reporter works."));
+            }
+            catch { }
+            e.Handled = true;
+            ShowCrashReporterDialog();
+        };
+        bottomBar.AddView(logsBtn);
 
         var versionBtn = new Button(this)
         {
@@ -723,7 +764,9 @@ public sealed class LauncherActivity : Activity
         var directInput = new EditText(this)
         {
             Text = _storage.Data.LastServer ?? "central.spacestation14.io:1212",
-            TextSize = 13
+            TextSize = 13,
+            InputType = global::Android.Text.InputTypes.ClassText | global::Android.Text.InputTypes.TextVariationUri,
+            ImeOptions = (global::Android.Views.InputMethods.ImeAction)global::Android.Views.InputMethods.ImeFlags.NoExtractUi | global::Android.Views.InputMethods.ImeAction.Go
         };
         directInput.SetTextColor(LauncherTheme.Foreground);
         directInput.Background = LauncherTheme.CreateBox(LauncherTheme.Background, 3, LauncherTheme.ControlMid);
@@ -744,10 +787,20 @@ public sealed class LauncherActivity : Activity
         };
         connectBtn.Click += async (_, _) =>
         {
+            HideKeyboard(directInput);
             var addr = directInput.Text?.Trim();
             if (!string.IsNullOrEmpty(addr))
             {
                 await StartConnectingAsync(addr);
+            }
+        };
+        directInput.EditorAction += (_, e) =>
+        {
+            if (e.ActionId == global::Android.Views.InputMethods.ImeAction.Go ||
+                e.ActionId == global::Android.Views.InputMethods.ImeAction.Done ||
+                (e.Event?.KeyCode == global::Android.Views.Keycode.Enter && e.Event.Action == global::Android.Views.KeyEventActions.Down))
+            {
+                connectBtn.PerformClick();
             }
         };
         box.AddView(connectBtn);
@@ -764,6 +817,21 @@ public sealed class LauncherActivity : Activity
             2 => "Post-Round",
             _ => "Online"
         };
+    }
+
+    // [SolomonNumb1] hides on screen IME keyboard when closing login or search dialogs to prevent UI overlap
+    private void HideKeyboard(View? view)
+    {
+        try
+        {
+            var imm = (global::Android.Views.InputMethods.InputMethodManager?)GetSystemService(global::Android.Content.Context.InputMethodService);
+            var token = view?.WindowToken ?? Window?.DecorView?.WindowToken;
+            if (imm != null && token != null)
+            {
+                imm.HideSoftInputFromWindow(token, 0);
+            }
+        }
+        catch {}
     }
 
     private void ShowAccountDialog()
@@ -840,7 +908,13 @@ public sealed class LauncherActivity : Activity
         }
         else
         {
-            var uInput = new EditText(this) { Hint = "Username or Email", TextSize = 13 };
+            var uInput = new EditText(this)
+            {
+                Hint = "Username or Email",
+                TextSize = 13,
+                InputType = global::Android.Text.InputTypes.ClassText | global::Android.Text.InputTypes.TextVariationEmailAddress,
+                ImeOptions = (global::Android.Views.InputMethods.ImeAction)global::Android.Views.InputMethods.ImeFlags.NoExtractUi | global::Android.Views.InputMethods.ImeAction.Next
+            };
             uInput.SetHintTextColor(LauncherTheme.ForegroundMuted);
             uInput.SetTextColor(LauncherTheme.Foreground);
             uInput.Background = LauncherTheme.CreateBox(LauncherTheme.Background, 3, LauncherTheme.ControlMid);
@@ -851,7 +925,8 @@ public sealed class LauncherActivity : Activity
             {
                 Hint = "Password",
                 TextSize = 13,
-                InputType = global::Android.Text.InputTypes.ClassText | global::Android.Text.InputTypes.TextVariationPassword
+                InputType = global::Android.Text.InputTypes.ClassText | global::Android.Text.InputTypes.TextVariationPassword,
+                ImeOptions = (global::Android.Views.InputMethods.ImeAction)global::Android.Views.InputMethods.ImeFlags.NoExtractUi | global::Android.Views.InputMethods.ImeAction.Done
             };
             pInput.SetHintTextColor(LauncherTheme.ForegroundMuted);
             pInput.SetTextColor(LauncherTheme.Foreground);
@@ -862,6 +937,15 @@ public sealed class LauncherActivity : Activity
                 TopMargin = (int)(6 * density)
             };
             view.AddView(pInput);
+
+            uInput.EditorAction += (_, e) =>
+            {
+                if (e.ActionId == global::Android.Views.InputMethods.ImeAction.Next ||
+                    (e.Event?.KeyCode == global::Android.Views.Keycode.Enter && e.Event.Action == global::Android.Views.KeyEventActions.Down))
+                {
+                    pInput.RequestFocus();
+                }
+            };
 
             var loginBtn = new Button(this)
             {
@@ -877,6 +961,7 @@ public sealed class LauncherActivity : Activity
             };
             loginBtn.Click += async (_, _) =>
             {
+                HideKeyboard(pInput);
                 var res = await _authClient.AuthenticateAsync(uInput.Text ?? "", pInput.Text ?? "");
                 if (res.Success && res.Account != null)
                 {
@@ -897,6 +982,16 @@ public sealed class LauncherActivity : Activity
                 }
             };
             view.AddView(loginBtn);
+
+            pInput.EditorAction += (_, e) =>
+            {
+                if (e.ActionId == global::Android.Views.InputMethods.ImeAction.Done ||
+                    e.ActionId == global::Android.Views.InputMethods.ImeAction.Go ||
+                    (e.Event?.KeyCode == global::Android.Views.Keycode.Enter && e.Event.Action == global::Android.Views.KeyEventActions.Down))
+                {
+                    loginBtn.PerformClick();
+                }
+            };
 
             var regBtn = new Button(this)
             {
@@ -924,7 +1019,9 @@ public sealed class LauncherActivity : Activity
             {
                 Text = _storage.Data.GuestUsername,
                 Hint = "Guest Player Name",
-                TextSize = 13
+                TextSize = 13,
+                InputType = global::Android.Text.InputTypes.ClassText,
+                ImeOptions = (global::Android.Views.InputMethods.ImeAction)global::Android.Views.InputMethods.ImeFlags.NoExtractUi | global::Android.Views.InputMethods.ImeAction.Done
             };
             guestInput.SetTextColor(LauncherTheme.Foreground);
             guestInput.Background = LauncherTheme.CreateBox(LauncherTheme.Background, 3, LauncherTheme.ControlMid);
@@ -943,9 +1040,19 @@ public sealed class LauncherActivity : Activity
             };
             guestSaveBtn.Click += (_, _) =>
             {
+                HideKeyboard(guestInput);
                 _storage.SetGuestUsername(guestInput.Text ?? "AndroidPlayer");
                 UpdateAccountButton();
                 Toast.MakeText(this, "Guest name saved", ToastLength.Short)?.Show();
+            };
+            guestInput.EditorAction += (_, e) =>
+            {
+                if (e.ActionId == global::Android.Views.InputMethods.ImeAction.Done ||
+                    e.ActionId == global::Android.Views.InputMethods.ImeAction.Go ||
+                    (e.Event?.KeyCode == global::Android.Views.Keycode.Enter && e.Event.Action == global::Android.Views.KeyEventActions.Down))
+                {
+                    guestSaveBtn.PerformClick();
+                }
             };
             view.AddView(guestSaveBtn);
         }
@@ -1102,13 +1209,14 @@ public sealed class LauncherActivity : Activity
         MainActivity.LaunchBuildCVars["mobile.controls_layout"] = serialized;
     }
 
-    private void ShowControlsSettingsDialog()
+    // [SolomonNumb1] settings dialog: controls scale, opacity, joystick size, FPS limits, and cache management
+    private void ShowSettingsDialog()
     {
         var prefs = GetSharedPreferences("ss14_mobile_config", FileCreationMode.Private);
         var density = Resources!.DisplayMetrics!.Density;
 
         var builder = new AlertDialog.Builder(this);
-        builder.SetTitle("Touch Controls Settings");
+        builder.SetTitle("Settings");
 
         var scrollView = new ScrollView(this);
         var view = new LinearLayout(this)
@@ -1209,6 +1317,151 @@ public sealed class LauncherActivity : Activity
             opacityBtnsLayout.AddView(btn);
         }
         view.AddView(opacityBtnsLayout);
+
+        var stickLabel = new TextView(this)
+        {
+            Text = "Joystick Scale:",
+            TextSize = 13,
+            Typeface = global::Android.Graphics.Typeface.DefaultBold
+        };
+        stickLabel.SetTextColor(LauncherTheme.Foreground);
+        var stickLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent);
+        stickLp.SetMargins(0, (int)(8 * density), 0, 0);
+        stickLabel.LayoutParameters = stickLp;
+        view.AddView(stickLabel);
+
+        var currentStickScale = prefs?.GetFloat("mobile_stick_scale", 1.0f) ?? 1.0f;
+        var stickBtnsLayout = new LinearLayout(this) { Orientation = Orientation.Horizontal };
+        var stickScales = new (string text, float val)[]
+        {
+            ("70%", 0.7f),
+            ("85%", 0.85f),
+            ("100%", 1.0f),
+            ("120%", 1.2f)
+        };
+
+        var stickBtnList = new List<Button>();
+        foreach (var (text, val) in stickScales)
+        {
+            var btn = new Button(this)
+            {
+                Text = text,
+                TextSize = 11
+            };
+            btn.Background = Math.Abs(currentStickScale - val) < 0.05f 
+                ? LauncherTheme.CreateBox(LauncherTheme.ControlHigh, 3) 
+                : LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
+            btn.SetTextColor(LauncherTheme.Foreground);
+            var lp = new LinearLayout.LayoutParams(0, (int)(32 * density), 1f);
+            lp.SetMargins((int)(2 * density), (int)(4 * density), (int)(2 * density), (int)(10 * density));
+            btn.LayoutParameters = lp;
+            btn.Click += (_, _) =>
+            {
+                prefs?.Edit()?.PutFloat("mobile_stick_scale", val)?.Apply();
+                MainActivity.LaunchBuildCVars["mobile.thumbstick_scale"] = val.ToString("F2", CultureInfo.InvariantCulture);
+                foreach (var b in stickBtnList)
+                    b.Background = (b == btn) ? LauncherTheme.CreateBox(LauncherTheme.ControlHigh, 3) : LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
+            };
+            stickBtnList.Add(btn);
+            stickBtnsLayout.AddView(btn);
+        }
+        view.AddView(stickBtnsLayout);
+
+        var guiLabel = new TextView(this)
+        {
+            Text = "GUI Scale:",
+            TextSize = 13,
+            Typeface = global::Android.Graphics.Typeface.DefaultBold
+        };
+        guiLabel.SetTextColor(LauncherTheme.Foreground);
+        var guiLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent);
+        guiLp.SetMargins(0, (int)(8 * density), 0, 0);
+        guiLabel.LayoutParameters = guiLp;
+        view.AddView(guiLabel);
+
+        var currentGuiScale = prefs?.GetFloat("gui_scale", 1.0f) ?? 1.0f;
+        var guiBtnsLayout = new LinearLayout(this) { Orientation = Orientation.Horizontal };
+        var guiScales = new (string text, float val)[]
+        {
+            ("80%", 0.8f),
+            ("100%", 1.0f),
+            ("120%", 1.2f),
+            ("140%", 1.4f)
+        };
+
+        var guiBtnList = new List<Button>();
+        foreach (var (text, val) in guiScales)
+        {
+            var btn = new Button(this)
+            {
+                Text = text,
+                TextSize = 11
+            };
+            btn.Background = Math.Abs(currentGuiScale - val) < 0.05f 
+                ? LauncherTheme.CreateBox(LauncherTheme.ControlHigh, 3) 
+                : LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
+            btn.SetTextColor(LauncherTheme.Foreground);
+            var lp = new LinearLayout.LayoutParams(0, (int)(32 * density), 1f);
+            lp.SetMargins((int)(2 * density), (int)(4 * density), (int)(2 * density), (int)(10 * density));
+            btn.LayoutParameters = lp;
+            btn.Click += (_, _) =>
+            {
+                prefs?.Edit()?.PutFloat("gui_scale", val)?.Apply();
+                MainActivity.LaunchBuildCVars["display.uiScale"] = val.ToString("F2", CultureInfo.InvariantCulture);
+                foreach (var b in guiBtnList)
+                    b.Background = (b == btn) ? LauncherTheme.CreateBox(LauncherTheme.ControlHigh, 3) : LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
+            };
+            guiBtnList.Add(btn);
+            guiBtnsLayout.AddView(btn);
+        }
+        view.AddView(guiBtnsLayout);
+
+        var resLabel = new TextView(this)
+        {
+            Text = "Display Resolution:",
+            TextSize = 13,
+            Typeface = global::Android.Graphics.Typeface.DefaultBold
+        };
+        resLabel.SetTextColor(LauncherTheme.Foreground);
+        var resLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent);
+        resLp.SetMargins(0, (int)(8 * density), 0, 0);
+        resLabel.LayoutParameters = resLp;
+        view.AddView(resLabel);
+
+        var currentRes = prefs?.GetString("display_resolution", "native") ?? "native";
+        var resBtnsLayout = new LinearLayout(this) { Orientation = Orientation.Horizontal };
+        var resolutions = new (string text, string val)[]
+        {
+            ("Native", "native"),
+            ("900p", "900p"),
+            ("720p", "720p")
+        };
+
+        var resBtnList = new List<Button>();
+        foreach (var (text, val) in resolutions)
+        {
+            var btn = new Button(this)
+            {
+                Text = text,
+                TextSize = 11
+            };
+            btn.Background = currentRes == val 
+                ? LauncherTheme.CreateBox(LauncherTheme.ControlHigh, 3) 
+                : LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
+            btn.SetTextColor(LauncherTheme.Foreground);
+            var lp = new LinearLayout.LayoutParams(0, (int)(32 * density), 1f);
+            lp.SetMargins((int)(2 * density), (int)(4 * density), (int)(2 * density), (int)(10 * density));
+            btn.LayoutParameters = lp;
+            btn.Click += (_, _) =>
+            {
+                prefs?.Edit()?.PutString("display_resolution", val)?.Apply();
+                foreach (var b in resBtnList)
+                    b.Background = (b == btn) ? LauncherTheme.CreateBox(LauncherTheme.ControlHigh, 3) : LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
+            };
+            resBtnList.Add(btn);
+            resBtnsLayout.AddView(btn);
+        }
+        view.AddView(resBtnsLayout);
 
         var listHeader = new TextView(this)
         {
@@ -1356,6 +1609,37 @@ public sealed class LauncherActivity : Activity
             Toast.MakeText(this, "Controls layout reset to default", ToastLength.Short)?.Show();
         };
         view.AddView(resetBtn);
+
+        var cacheHeader = new TextView(this)
+        {
+            Text = "Server Assets Cache:",
+            TextSize = 13,
+            Typeface = global::Android.Graphics.Typeface.DefaultBold
+        };
+        cacheHeader.SetTextColor(LauncherTheme.Foreground);
+        var clp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent);
+        clp.SetMargins(0, (int)(12 * density), 0, (int)(4 * density));
+        cacheHeader.LayoutParameters = clp;
+        view.AddView(cacheHeader);
+
+        var cacheSizeBytes = ContentCacheManager.GetTotalCacheSizeBytes(this);
+        var clearCacheBtn = new Button(this)
+        {
+            Text = $"Clear Server Cache ({ContentCacheManager.FormatBytes(cacheSizeBytes)})",
+            TextSize = 11
+        };
+        clearCacheBtn.Background = LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
+        clearCacheBtn.SetTextColor(Color.ParseColor("#ef4444"));
+        var cblp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, (int)(34 * density));
+        cblp.SetMargins(0, (int)(4 * density), 0, 0);
+        clearCacheBtn.LayoutParameters = cblp;
+        clearCacheBtn.Click += (_, _) =>
+        {
+            var freed = ContentCacheManager.ClearAllCache(this, _storage);
+            clearCacheBtn.Text = "Clear Server Cache (0 MB)";
+            Toast.MakeText(this, $"Cleared {ContentCacheManager.FormatBytes(freed)} of server assets", ToastLength.Short)?.Show();
+        };
+        view.AddView(clearCacheBtn);
 
         var infoText = new TextView(this)
         {
@@ -1579,17 +1863,41 @@ public sealed class LauncherActivity : Activity
                 throw new FormatException($"Invalid server address: {address}");
             }
 
-            var serverInfo = await _hubClient.FetchServerInfoAsync(address);
+            ServerInfo? serverInfo = null;
+            for (var attempt = 1; attempt <= 2; attempt++)
+            {
+                if (attempt > 1)
+                {
+                    _overlayText.Text = "Server preparing content, retrying...";
+                    await Task.Delay(2000);
+                }
+                serverInfo = await _hubClient.FetchServerInfoAsync(address);
+                if (serverInfo?.Build != null)
+                    break;
+            }
+
             var build = serverInfo?.Build;
 
             global::Android.Util.Log.Info("SS14Launcher", $"Server info: connectAddr={serverInfo?.ConnectAddress}, hasBuild={build != null}, acz={build?.Acz}, engineVer={build?.EngineVersion}, manifestHash={build?.ManifestHash}");
+
+            if (build == null)
+            {
+                Window?.ClearFlags(WindowManagerFlags.KeepScreenOn);
+                _overlayBox.Visibility = ViewStates.Gone;
+                var errMsg = serverInfo == null
+                    ? "Failed to reach server. Please ensure the server is online and try again."
+                    : "Server did not provide build or content information.";
+                global::Android.Util.Log.Warn("SS14Launcher", errMsg);
+                Toast.MakeText(this, errMsg, ToastLength.Long)?.Show();
+                return;
+            }
 
             var cacheDir = Path.Combine(FilesDir?.AbsolutePath ?? AppContext.BaseDirectory, "content_cache");
             Directory.CreateDirectory(cacheDir);
 
             string? targetZip = null;
 
-            var expectedHash = build?.ManifestHash?.ToUpperInvariant() ?? build?.Hash?.ToUpperInvariant();
+            var expectedHash = build.ManifestHash?.ToUpperInvariant() ?? build.Hash?.ToUpperInvariant();
             if (!string.IsNullOrEmpty(expectedHash))
             {
                 var cachedZip = Path.Combine(cacheDir, $"{expectedHash}.zip");
@@ -1602,17 +1910,10 @@ public sealed class LauncherActivity : Activity
 
             if (targetZip != null && File.Exists(targetZip))
             {
+                ContentCacheManager.PurgeOldBuildForServer(this, _storage, parsedAddress.ToString(), targetZip);
                 Window?.ClearFlags(WindowManagerFlags.KeepScreenOn);
                 _overlayText.Text = "Launching game...";
                 LaunchGameWithZip(targetZip, serverInfo, parsedAddress.ToString());
-                return;
-            }
-
-            if (build == null)
-            {
-                Window?.ClearFlags(WindowManagerFlags.KeepScreenOn);
-                _overlayText.Text = "Launching game...";
-                LaunchGameWithZip(null, serverInfo, parsedAddress.ToString());
                 return;
             }
 
@@ -1660,6 +1961,7 @@ public sealed class LauncherActivity : Activity
     {
         RunOnUiThread(() =>
         {
+            ContentCacheManager.PurgeOldBuildForServer(this, _storage, _pendingServerAddress ?? "", targetZip);
             Window?.ClearFlags(WindowManagerFlags.KeepScreenOn);
             _overlayText.Text = "Launching game...";
             LaunchGameWithZip(targetZip, _pendingServerInfo, _pendingServerAddress ?? "");
@@ -1702,6 +2004,12 @@ public sealed class LauncherActivity : Activity
             intent.PutExtra("cvar_build_mobile.controls_scale", s.ToString("F1", System.Globalization.CultureInfo.InvariantCulture));
             var o = prefs.GetFloat("mobile_opacity", 0.85f);
             intent.PutExtra("cvar_build_mobile.controls_opacity", o.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+            var stickScale = prefs.GetFloat("mobile_stick_scale", 1.0f);
+            intent.PutExtra("cvar_build_mobile.thumbstick_scale", stickScale.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+            var guiScale = prefs.GetFloat("gui_scale", 1.0f);
+            intent.PutExtra("cvar_build_display.uiScale", guiScale.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+            var dispRes = prefs.GetString("display_resolution", "native") ?? "native";
+            intent.PutExtra("display_resolution", dispRes);
         }
 
         if (!string.IsNullOrEmpty(serverInfo?.Auth?.PublicKey))
@@ -1774,9 +2082,162 @@ public sealed class LauncherActivity : Activity
         StartActivity(intent);
     }
 
+    #region Crash Reporter (no logcat required)
+
+    // [SolomonNumb1] prompts user with crash diagnostics if previous game session terminated unexpectedly
+    private void CheckForCrashAndPrompt()
+    {
+        try
+        {
+            if (!CrashReporter.HasNewCrash())
+                return;
+            var builder = new AlertDialog.Builder(this);
+            builder.SetTitle("Last session crashed");
+            builder.SetMessage("The game crashed last time. You can view the crash report " +
+                "and share it (no logcat / PC needed).\n\n" + CrashReporter.GetStatusLine());
+            builder.SetPositiveButton("View Report", (_, _) => ShowCrashReporterDialog());
+            builder.SetNegativeButton("Dismiss", (_, _) => CrashReporter.MarkSeen());
+            builder.SetCancelable(true);
+            RunOnUiThread(() =>
+            {
+                try { builder.Show(); } catch { }
+            });
+        }
+        catch { }
+    }
+
+    private void ShowCrashReporterDialog()
+    {
+        var density = Resources?.DisplayMetrics?.Density ?? 1f;
+        string report;
+        try { report = CrashReporter.GetFullReport(); }
+        catch (Exception ex) { report = $"Failed to load report: {ex.Message}"; }
+        // Keep the on-screen preview short; Share sends the fuller text.
+        var preview = report.Length > 15000
+            ? "[... showing tail ...]\n" + report.Substring(report.Length - 15000)
+            : report;
+
+        var builder = new AlertDialog.Builder(this);
+        builder.SetTitle("Crash Report (no logcat needed)");
+
+        var scroll = new ScrollView(this);
+        var view = new LinearLayout(this) { Orientation = Orientation.Vertical };
+        view.SetPadding((int)(16 * density), (int)(12 * density), (int)(16 * density), (int)(12 * density));
+
+        var status = new TextView(this) { Text = CrashReporter.GetStatusLine(), TextSize = 11 };
+        status.SetTextColor(LauncherTheme.SubText);
+        status.SetPadding(0, 0, 0, (int)(8 * density));
+        view.AddView(status);
+
+        var btnRow = new LinearLayout(this) { Orientation = Orientation.Horizontal };
+        btnRow.SetPadding(0, 0, 0, (int)(8 * density));
+
+        var logView = new TextView(this)
+        {
+            Text = string.IsNullOrWhiteSpace(preview) ? "(empty)" : preview,
+            TextSize = 10
+        };
+        logView.SetTextColor(LauncherTheme.Foreground);
+        logView.SetTextIsSelectable(true);
+
+        var clearBtn = new Button(this) { Text = "Clear Logs", TextSize = 11 };
+        clearBtn.Background = LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
+        clearBtn.SetTextColor(Color.ParseColor("#ef4444"));
+        clearBtn.LayoutParameters = new LinearLayout.LayoutParams(0, (int)(34 * density), 1f)
+        {
+            RightMargin = (int)(6 * density)
+        };
+        clearBtn.Click += (_, _) =>
+        {
+            ClearCrashReports();
+            status.Text = CrashReporter.GetStatusLine();
+            logView.Text = "(cleared)";
+        };
+        btnRow.AddView(clearBtn);
+
+        var issuesBtn = new Button(this) { Text = "GitHub Issues", TextSize = 11 };
+        issuesBtn.Background = LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
+        issuesBtn.SetTextColor(LauncherTheme.Foreground);
+        issuesBtn.LayoutParameters = new LinearLayout.LayoutParams(0, (int)(34 * density), 1f);
+        issuesBtn.Click += (_, _) => OpenUrl("https://github.com/SolomonNumb1/space-station-14-mobile/issues");
+        btnRow.AddView(issuesBtn);
+        view.AddView(btnRow);
+
+        view.AddView(logView);
+        scroll.AddView(view);
+        builder.SetView(scroll);
+
+        builder.SetPositiveButton("Share", (_, _) => ShareCrashReport());
+        builder.SetNeutralButton("Copy", (_, _) => CopyCrashReport());
+        builder.SetNegativeButton("Close", (_, _) => CrashReporter.MarkSeen());
+        var dialog = builder.Create();
+
+        dialog.Show();
+        CrashReporter.MarkSeen();
+    }
+
+    private void ShareCrashReport()
+    {
+        try
+        {
+            var report = CrashReporter.GetFullReport();
+            var intent = new Intent(Intent.ActionSend);
+            intent.SetType("text/plain");
+            intent.PutExtra(Intent.ExtraSubject, $"SS14 Android crash report {GetCurrentAppVersion()}");
+            intent.PutExtra(Intent.ExtraText, report);
+            StartActivity(Intent.CreateChooser(intent, "Share crash report"));
+        }
+        catch (Exception ex)
+        {
+            Toast.MakeText(this, $"Share failed: {ex.Message}", ToastLength.Short)?.Show();
+        }
+    }
+
+    private void CopyCrashReport()
+    {
+        try
+        {
+            var report = CrashReporter.GetFullReport();
+            var clipboard = GetSystemService(ClipboardService) as ClipboardManager;
+            if (clipboard != null)
+                clipboard.PrimaryClip = ClipData.NewPlainText("SS14 crash report", report);
+            Toast.MakeText(this, "Crash report copied to clipboard", ToastLength.Short)?.Show();
+        }
+        catch (Exception ex)
+        {
+            Toast.MakeText(this, $"Copy failed: {ex.Message}", ToastLength.Short)?.Show();
+        }
+    }
+
+    private void ClearCrashReports()
+    {
+        try
+        {
+            CrashReporter.Clear();
+            Toast.MakeText(this, "Crash reports cleared", ToastLength.Short)?.Show();
+        }
+        catch { }
+    }
+
+    #endregion
+
     private void LaunchOfflineSandbox()
     {
         var intent = new Intent(this, typeof(MainActivity));
+        var prefs = GetSharedPreferences("ss14_mobile_config", FileCreationMode.Private);
+        if (prefs != null)
+        {
+            var s = prefs.GetFloat("mobile_scale", 1.0f);
+            intent.PutExtra("cvar_build_mobile.controls_scale", s.ToString("F1", System.Globalization.CultureInfo.InvariantCulture));
+            var o = prefs.GetFloat("mobile_opacity", 0.85f);
+            intent.PutExtra("cvar_build_mobile.controls_opacity", o.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+            var stickScale = prefs.GetFloat("mobile_stick_scale", 1.0f);
+            intent.PutExtra("cvar_build_mobile.thumbstick_scale", stickScale.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+            var guiScale = prefs.GetFloat("gui_scale", 1.0f);
+            intent.PutExtra("cvar_build_display.uiScale", guiScale.ToString("F2", System.Globalization.CultureInfo.InvariantCulture));
+            var dispRes = prefs.GetString("display_resolution", "native") ?? "native";
+            intent.PutExtra("display_resolution", dispRes);
+        }
         StartActivity(intent);
     }
 
@@ -1790,7 +2251,7 @@ public sealed class LauncherActivity : Activity
         catch {}
     }
 
-    public const string CurrentAppVersion = "v1.0.2";
+    public const string CurrentAppVersion = "v1.1.3";
 
     public string GetCurrentAppVersion()
     {

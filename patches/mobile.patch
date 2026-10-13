@@ -5941,54 +5941,6 @@ index eeefefe85..d8d584c92 100644
 +        return () => (T)invokeMethod.Invoke(rawDelegate, null)!;
      }
  }
-diff --git a/Robust.Shared/Serialization/Manager/SerializationManager.Reading.cs b/Robust.Shared/Serialization/Manager/SerializationManager.Reading.cs
-index b2b5d27b9..fece0b804 100644
---- a/Robust.Shared/Serialization/Manager/SerializationManager.Reading.cs
-+++ b/Robust.Shared/Serialization/Manager/SerializationManager.Reading.cs
-@@ -1,4 +1,4 @@
--﻿using System;
-+using System;
- using System.Collections.Concurrent;
- using System.Diagnostics;
- using System.Linq;
-@@ -752,7 +752,23 @@ namespace Robust.Shared.Serialization.Manager
-                             {
-                                 var definition = GetDefinition(typeof(T));
-                                 if (definition == null)
-+                                {
-+                                    _sawmill.Warning($"No data definition found for type {baseType} with node type {node.GetType()} when reading, attempting fallback instantiation");
-+                                    if (instanceProvider != null)
-+                                    {
-+                                        val = instanceProvider.Invoke()!;
-+                                        break;
-+                                    }
-+
-+                                    var ctor = typeof(T).GetConstructor(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, Type.EmptyTypes);
-+                                    if (ctor != null)
-+                                    {
-+                                        val = (T) ctor.Invoke(null);
-+                                        break;
-+                                    }
-+
-                                     throw new ArgumentException($"No data definition found for type {baseType} with node type {node.GetType()} when reading");
-+                                }
- 
-                                 var valObj = instanceProvider == null ? definition.InstantiateObj() : instanceProvider.Invoke()!;
-                                 definition.PopulateObj(ref valObj, mapping, this, hookCtx, context);
-@@ -1443,7 +1459,12 @@ namespace Robust.Shared.Serialization.Manager
-             where TValue : ISerializationGenerated<TValue>
-         {
-             if (definition == null)
--                throw new ArgumentException($"No data definition found for type {typeof(TValue)} with node type {node.GetType()} when reading");
-+            {
-+                _sawmill.Warning($"No data definition found for type {typeof(TValue)} with node type {node.GetType()} when reading, attempting fallback instantiation");
-+                var instanceFallback = instanceProvider();
-+                TryRunAfterHook(instanceFallback, hookCtx);
-+                return instanceFallback;
-+            }
- 
-             var instance = instanceProvider();
- 
 diff --git a/Robust.Shared/Serialization/Manager/SerializationManager.cs b/Robust.Shared/Serialization/Manager/SerializationManager.cs
 index 151805d55..21989961c 100644
 --- a/Robust.Shared/Serialization/Manager/SerializationManager.cs

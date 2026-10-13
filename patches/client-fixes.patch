@@ -50,10 +50,18 @@ index 779f56d619..550acb510f 100644
      }
  }
 diff --git a/Content.Client/Changelog/ChangelogManager.cs b/Content.Client/Changelog/ChangelogManager.cs
-index c233873ee3..743929f229 100644
+index c233873ee3..144699b1aa 100644
 --- a/Content.Client/Changelog/ChangelogManager.cs
 +++ b/Content.Client/Changelog/ChangelogManager.cs
-@@ -49,10 +49,17 @@ public void SaveNewReadId()
+@@ -7,6 +7,7 @@
+ using Robust.Shared.Serialization.Manager;
+ using Robust.Shared.Serialization.Markdown;
+ using Robust.Shared.Serialization.Markdown.Mapping;
++using Robust.Shared.Serialization.Markdown.Value;
+ using Robust.Shared.Utility;
+ 
+ namespace Content.Client.Changelog
+@@ -49,10 +50,17 @@ public void SaveNewReadId()
  
          public async void Initialize()
          {
@@ -75,7 +83,7 @@ index c233873ee3..743929f229 100644
          }
  
          private void UpdateChangelogs(List<Changelog> changelogs)
-@@ -119,12 +126,19 @@ public Task<List<Changelog>> LoadChangelog()
+@@ -119,12 +127,32 @@ public Task<List<Changelog>> LoadChangelog()
                      if (yamlData.Documents.Count == 0)
                          continue;
  
@@ -88,7 +96,20 @@ index c233873ee3..743929f229 100644
 +                    try
 +                    {
 +                        var node = yamlData.Documents[0].RootNode.ToDataNodeCast<MappingDataNode>();
-+                        var changelog = _serialization.Read<Changelog>(node, notNullableOverride: true);
++                        Changelog changelog;
++                        try
++                        {
++                            changelog = _serialization.Read<Changelog>(node, notNullableOverride: true);
++                        }
++                        catch
++                        {
++                            changelog = new Changelog();
++                            if (node.TryGet<ValueDataNode>("Name", out var nameNode))
++                                changelog.Name = nameNode.Value;
++                            if (node.TryGet<ValueDataNode>("Order", out var orderNode) && int.TryParse(orderNode.Value, out var order))
++                                changelog.Order = order;
++                        }
++
 +                        if (string.IsNullOrWhiteSpace(changelog.Name))
 +                            changelog.Name = file.FilenameWithoutExtension;
 +

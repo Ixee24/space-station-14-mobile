@@ -672,7 +672,7 @@ index 60fabdcacd..67dde9a42f 100644
              {
                  if (args.Window == _clyde.MainWindow)
 diff --git a/Robust.Client/GameObjects/Components/Renderable/SpriteComponent.cs b/Robust.Client/GameObjects/Components/Renderable/SpriteComponent.cs
-index a183d75729..06c796db5a 100644
+index a183d75729..dafdf9ac92 100644
 --- a/Robust.Client/GameObjects/Components/Renderable/SpriteComponent.cs
 +++ b/Robust.Client/GameObjects/Components/Renderable/SpriteComponent.cs
 @@ -658,7 +658,7 @@ namespace Robust.Client.GameObjects
@@ -684,11 +684,51 @@ index a183d75729..06c796db5a 100644
                  return @enum;
  
              return keyString;
+@@ -1621,6 +1621,7 @@ namespace Robust.Client.GameObjects
+                 if (!State.IsValid)
+                 {
+                     _actualState = null;
++                    AnimationFrame = 0;
+                     return;
+                 }
+ 
+@@ -1630,6 +1631,12 @@ namespace Robust.Client.GameObjects
+                 {
+                     _actualState = _parent.Sys?.GetFallbackState();
+                 }
++
++                if (_actualState == null || AnimationFrame >= _actualState.DelayCount || AnimationFrame < 0)
++                {
++                    AnimationFrame = 0;
++                    AnimationTime = 0;
++                }
+             }
+ 
+             public void GetLayerDrawMatrix(RsiDirection dir, out Matrix3x2 layerDrawMatrix)
+@@ -1648,10 +1655,11 @@ namespace Robust.Client.GameObjects
+                 // unnecessary matrix transformation. This transform is completely unnecessary for 4- and
+                 // 1-directional sprites. Its only really required for 8-directional sprites.
+ 
+-                if (dir == RsiDirection.South || noRot)
++                var dirIdx = (int) dir;
++                if (dir == RsiDirection.South || noRot || (uint) dirIdx >= (uint) _rsiDirectionMatrices.Length)
+                     layerDrawMatrix = LocalMatrix;
+                 else
+-                    layerDrawMatrix = Matrix3x2.Multiply(_rsiDirectionMatrices[(int) dir], LocalMatrix);
++                    layerDrawMatrix = Matrix3x2.Multiply(_rsiDirectionMatrices[dirIdx], LocalMatrix);
+             }
+ 
+             private static Matrix3x2[] _rsiDirectionMatrices = new Matrix3x2[]
 diff --git a/Robust.Client/GameObjects/EntitySystems/SpriteSystem.Render.cs b/Robust.Client/GameObjects/EntitySystems/SpriteSystem.Render.cs
-index c3ca7a2403..2879fe1c73 100644
+index c3ca7a2403..dd1e34d2ca 100644
 --- a/Robust.Client/GameObjects/EntitySystems/SpriteSystem.Render.cs
 +++ b/Robust.Client/GameObjects/EntitySystems/SpriteSystem.Render.cs
-@@ -14,6 +14,16 @@ namespace Robust.Client.GameObjects;
+@@ -1,3 +1,4 @@
++using System;
+ using System.Collections.Generic;
+ using System.Numerics;
+ using Robust.Client.Graphics;
+@@ -14,6 +15,16 @@ namespace Robust.Client.GameObjects;
  // This partial class contains code related to actually rendering sprites.
  public sealed partial class SpriteSystem
  {
@@ -705,6 +745,151 @@ index c3ca7a2403..2879fe1c73 100644
      public void RenderSprite(
          Entity<SpriteComponent> sprite,
          DrawingHandleWorld drawingHandle,
+@@ -126,71 +137,91 @@ public sealed partial class SpriteSystem
+     /// </summary>
+     private void RenderLayer(Layer layer, DrawingHandleWorld drawingHandle, ref Matrix3x2 spriteMatrix, Angle angle, Direction? overrideDirection)
+     {
+-        if (!layer.Visible || layer.Blank)
+-            return;
++        try
++        {
++            if (!layer.Visible || layer.Blank)
++                return;
+ 
+-        var state = layer._actualState;
+-        var dir = state == null ? RsiDirection.South : Layer.GetDirection(state.RsiDirections, angle);
++            var state = layer._actualState;
++            var dir = state == null ? RsiDirection.South : Layer.GetDirection(state.RsiDirections, angle);
+ 
+-        // Set the drawing transform for this layer
+-        layer.GetLayerDrawMatrix(dir, out var layerMatrix, layer.Owner.Comp.NoRotation);
++            // Set the drawing transform for this layer
++            layer.GetLayerDrawMatrix(dir, out var layerMatrix, layer.Owner.Comp.NoRotation);
+ 
+-        // The direction used to draw the sprite can differ from the one that the angle would naively suggest,
+-        // due to direction overrides or offsets.
+-        if (overrideDirection != null && state != null)
+-            dir = overrideDirection.Value.Convert(state.RsiDirections);
+-        dir = dir.OffsetRsiDir(layer.DirOffset);
++            // The direction used to draw the sprite can differ from the one that the angle would naively suggest,
++            // due to direction overrides or offsets.
++            if (state != null)
++            {
++                if (state.RsiDirections == RsiDirectionType.Dir1)
++                {
++                    dir = RsiDirection.South;
++                }
++                else
++                {
++                    if (overrideDirection != null)
++                        dir = overrideDirection.Value.Convert(state.RsiDirections);
++                    dir = dir.OffsetRsiDir(layer.DirOffset);
++                }
++            }
+ 
+-        AtlasTexture? atlasTexture = null;
+-        Texture texture;
+-        if (state != null)
+-        {
+-            atlasTexture = state.GetAtlasFrame(dir, layer.AnimationFrame);
+-            texture = atlasTexture;
+-        }
+-        else
+-        {
+-            texture = layer.Texture ?? GetFallbackTexture();
+-        }
++            AtlasTexture? atlasTexture = null;
++            Texture texture;
++            if (state != null)
++            {
++                var frame = layer.AnimationFrame;
++                if ((uint) frame >= (uint) state.DelayCount)
++                    frame = 0;
++                atlasTexture = state.GetAtlasFrame(dir, frame);
++                texture = atlasTexture ?? GetFallbackTexture();
++            }
++            else
++            {
++                texture = layer.Texture ?? GetFallbackTexture();
++            }
+ 
+-        // TODO SPRITE
+-        // Refactor shader-param-layers to a separate layer type after layers are split into types & collections.
+-        // I.e., separate Layer -> RsiLayer, TextureLayer, LayerCollection, SpriteLayer, and ShaderLayer
+-        if (layer.CopyToShaderParameters != null)
+-        {
+-            HandleShaderLayer(layer, texture, layer.CopyToShaderParameters);
+-            return;
+-        }
++            // TODO SPRITE
++            // Refactor shader-param-layers to a separate layer type after layers are split into types & collections.
++            // I.e., separate Layer -> RsiLayer, TextureLayer, LayerCollection, SpriteLayer, and ShaderLayer
++            if (layer.CopyToShaderParameters != null)
++            {
++                HandleShaderLayer(layer, texture, layer.CopyToShaderParameters);
++                return;
++            }
+ 
+-        // Set the drawing transform for this layer
+-        var transformMatrix = Matrix3x2.Multiply(layerMatrix, spriteMatrix);
+-        drawingHandle.SetTransform(in transformMatrix);
++            // Set the drawing transform for this layer
++            var transformMatrix = Matrix3x2.Multiply(layerMatrix, spriteMatrix);
++            drawingHandle.SetTransform(in transformMatrix);
+ 
+-        if (layer.Shader != null)
+-            drawingHandle.UseShader(layer.Shader);
++            if (layer.Shader != null)
++                drawingHandle.UseShader(layer.Shader);
+ 
+-        var layerColor = layer.Owner.Comp.color * layer.Color;
+-        var textureSize = texture.Size / (float) EyeManager.PixelsPerMeter;
+-        var quad = Box2.FromDimensions(textureSize / -2, textureSize);
++            var layerColor = layer.Owner.Comp.color * layer.Color;
++            var textureSize = texture.Size / (float) EyeManager.PixelsPerMeter;
++            var quad = Box2.FromDimensions(textureSize / -2, textureSize);
+ 
+-        if (layer.UnShaded)
+-        {
+-            DebugTools.AssertNull(layer.Shader);
+-            DebugTools.Assert(layerColor is {R: >= 0, G: >= 0, B: >= 0, A: >= 0}, "Default shader should not be used with negative color modulation.");
++            if (layer.UnShaded)
++            {
++                DebugTools.AssertNull(layer.Shader);
++                DebugTools.Assert(layerColor is {R: >= 0, G: >= 0, B: >= 0, A: >= 0}, "Default shader should not be used with negative color modulation.");
+ 
+-            // Negative color modulation values are by the default shader to disable light shading.
+-            // Specifically we set colour = - 1 - colour
+-            // This is good enough to ensure that non-negative values become negative & is trivially invertible.
+-            layerColor = new(new Vector4(-1) - layerColor.RGBA);
+-        }
++                // Negative color modulation values are by the default shader to disable light shading.
++                // Specifically we set colour = - 1 - colour
++                // This is good enough to ensure that non-negative values become negative & is trivially invertible.
++                layerColor = new(new Vector4(-1) - layerColor.RGBA);
++            }
+ 
+-        if (atlasTexture != null)
+-            drawingHandle.DrawTextureRect(atlasTexture, quad, layerColor);
+-        else
+-            drawingHandle.DrawTextureRectRegion(texture, quad, layerColor);
++            if (atlasTexture != null)
++                drawingHandle.DrawTextureRect(atlasTexture, quad, layerColor);
++            else
++                drawingHandle.DrawTextureRectRegion(texture, quad, layerColor);
+ 
+-        if (layer.Shader != null)
+-            drawingHandle.UseShader(null);
++            if (layer.Shader != null)
++                drawingHandle.UseShader(null);
++        }
++        catch (Exception)
++        {
++            // Safeguard: Never allow a broken layer/sprite asset to abort frame rendering
++        }
+     }
+ 
+     /// <summary>
 diff --git a/Robust.Client/GameObjects/EntitySystems/SpriteSystem.cs b/Robust.Client/GameObjects/EntitySystems/SpriteSystem.cs
 index 0e52fc49d5..16b4b56ed0 100644
 --- a/Robust.Client/GameObjects/EntitySystems/SpriteSystem.cs
@@ -1560,6 +1745,42 @@ index 388522f315..6d889cfb5e 100644
          event Action<WindowRequestClosedEventArgs> CloseWindow;
          event Action<WindowDestroyedEventArgs> DestroyWindow;
  
+diff --git a/Robust.Client/Graphics/RSI/RSI.State.cs b/Robust.Client/Graphics/RSI/RSI.State.cs
+index 87b3f7db39..8f6f9f528b 100644
+--- a/Robust.Client/Graphics/RSI/RSI.State.cs
++++ b/Robust.Client/Graphics/RSI/RSI.State.cs
+@@ -95,17 +95,28 @@ namespace Robust.Client.Graphics
+ 
+             public Texture GetFrame(RsiDirection rsiDirection, int frame)
+             {
+-                return Icons[(int) rsiDirection][frame];
++                return GetAtlasFrame(rsiDirection, frame);
+             }
+ 
+             internal AtlasTexture GetAtlasFrame(RsiDirection rsiDirection, int frame)
+             {
+-                return Icons[(int) rsiDirection][frame];
++                var dirIndex = (int) rsiDirection;
++                if ((uint) dirIndex >= (uint) Icons.Length)
++                    dirIndex = 0;
++                var frames = Icons[dirIndex];
++                if (frames.Length == 0)
++                    return default!;
++                if ((uint) frame >= (uint) frames.Length)
++                    frame = 0;
++                return frames[frame];
+             }
+ 
+             public Texture[] GetFrames(RsiDirection rsiDirection)
+             {
+-                return Icons[(int) rsiDirection];
++                var dirIndex = (int) rsiDirection;
++                if ((uint) dirIndex >= (uint) Icons.Length)
++                    dirIndex = 0;
++                return Icons[dirIndex];
+             }
+ 
+             /// <summary>
 diff --git a/Robust.Client/Input/InputManager.cs b/Robust.Client/Input/InputManager.cs
 index e4aeda9a19..8c7134099a 100644
 --- a/Robust.Client/Input/InputManager.cs

@@ -2664,7 +2664,7 @@ index 3651b0d893..f08f0d695e 100644
      }
  
 diff --git a/Content.Client/Viewport/ScalingViewport.cs b/Content.Client/Viewport/ScalingViewport.cs
-index 23498ead99..d0460a5c13 100644
+index 23498ead99..13f56856bb 100644
 --- a/Content.Client/Viewport/ScalingViewport.cs
 +++ b/Content.Client/Viewport/ScalingViewport.cs
 @@ -1,9 +1,13 @@
@@ -2689,7 +2689,7 @@ index 23498ead99..d0460a5c13 100644
          [Dependency] private IPrototypeManager _prototypeManager = default!;
          [Dependency] private IConfigurationManager _cfg = default!;
  
-@@ -160,6 +165,26 @@ protected override void KeyBindUp(GUIBoundKeyEventArgs args)
+@@ -160,13 +165,40 @@ protected override void KeyBindUp(GUIBoundKeyEventArgs args)
              _inputManager.ViewportKeyEvent(this, args);
          }
  
@@ -2716,6 +2716,21 @@ index 23498ead99..d0460a5c13 100644
          protected override void Draw(IRenderHandle handle)
          {
              EnsureViewportCreated();
+ 
+             DebugTools.AssertNotNull(_viewport);
+ 
+-            _viewport!.Render();
++            try
++            {
++                _viewport!.Render();
++            }
++            catch (Exception e)
++            {
++                Logger.ErrorS("viewport", $"Exception while rendering ScalingViewport:\n{e}");
++            }
+ 
+             if (_queuedScreenshots.Count != 0)
+             {
 diff --git a/Content.Shared/Maps/TurfSystem.cs b/Content.Shared/Maps/TurfSystem.cs
 index 620187a74d..d218fe8104 100644
 --- a/Content.Shared/Maps/TurfSystem.cs

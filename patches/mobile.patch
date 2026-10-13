@@ -5158,6 +5158,51 @@ index ea2250e89..a86a98eb1 100644
      {
          NetUserId? UserId { get; set; }
          string? Server { get; set; }
+diff --git a/Robust.Shared/Network/Messages/MsgPlacement.cs b/Robust.Shared/Network/Messages/MsgPlacement.cs
+index 093d2852f..74286d554 100644
+--- a/Robust.Shared/Network/Messages/MsgPlacement.cs
++++ b/Robust.Shared/Network/Messages/MsgPlacement.cs
+@@ -1,4 +1,4 @@
+-﻿using System;
++using System;
+ using System.Numerics;
+ using Lidgren.Network;
+ using Robust.Shared.Enums;
+@@ -72,7 +72,8 @@ namespace Robust.Shared.Network.Messages
+                 case PlacementManagerMessage.RequestRectRemove:
+                     NetCoordinates = buffer.ReadNetCoordinates();
+                     RectSize = buffer.ReadVector2();
+-                    RectRotation = buffer.ReadFloat();
++                    if (buffer.LengthBits - buffer.Position >= 32)
++                        RectRotation = buffer.ReadFloat();
+                     break;
+             }
+         }
+diff --git a/Robust.Shared/Network/Messages/MsgStateLeavePvs.cs b/Robust.Shared/Network/Messages/MsgStateLeavePvs.cs
+index 8e86a951f..9d9868bfe 100644
+--- a/Robust.Shared/Network/Messages/MsgStateLeavePvs.cs
++++ b/Robust.Shared/Network/Messages/MsgStateLeavePvs.cs
+@@ -34,12 +34,15 @@ public sealed class MsgStateLeavePvs : NetMessage
+             Entities.Add(buffer.ReadNetEntity());
+         }
+ 
+-        length = buffer.ReadInt32();
+-        ChunkEntities = new(length);
+-
+-        for (int i = 0; i < length; i++)
++        if (buffer.LengthBits - buffer.Position >= 32)
+         {
+-            ChunkEntities.Add(buffer.ReadNetEntity());
++            length = buffer.ReadInt32();
++            ChunkEntities = new(length);
++
++            for (int i = 0; i < length; i++)
++            {
++                ChunkEntities.Add(buffer.ReadNetEntity());
++            }
+         }
+     }
+ 
 diff --git a/Robust.Shared/Network/NetManager.ClientConnect.cs b/Robust.Shared/Network/NetManager.ClientConnect.cs
 index 509322be6..c1614abbb 100644
 --- a/Robust.Shared/Network/NetManager.ClientConnect.cs
@@ -5203,10 +5248,18 @@ index 509322be6..c1614abbb 100644
                  request.Headers.Authorization = new AuthenticationHeaderValue("SS14Auth", authToken);
                  var joinResp = await _http.Client.SendAsync(request, cancel);
 diff --git a/Robust.Shared/Network/NetManager.cs b/Robust.Shared/Network/NetManager.cs
-index b79a8d0ef..1fb47391a 100644
+index b79a8d0ef..fead03157 100644
 --- a/Robust.Shared/Network/NetManager.cs
 +++ b/Robust.Shared/Network/NetManager.cs
-@@ -267,6 +267,7 @@ namespace Robust.Shared.Network
+@@ -149,6 +149,7 @@ namespace Robust.Shared.Network
+ 
+         private bool _clientSerializerComplete;
+         private bool _clientTransferComplete;
++        private bool _clientStringsComplete;
+         private bool _clientResetPending;
+ 
+         /// <inheritdoc />
+@@ -267,6 +268,7 @@ namespace Robust.Shared.Network
  
              IsServer = isServer;
  
@@ -5214,7 +5267,22 @@ index b79a8d0ef..1fb47391a 100644
              _config.OnValueChanged(CVars.NetLidgrenLogWarning, LidgrenLogWarningChanged);
              _config.OnValueChanged(CVars.NetLidgrenLogError, LidgrenLogErrorChanged);
              _config.OnValueChanged(CVars.NetLidgrenLogRateLimit, LidgrenLogRateLimitChanged);
-@@ -312,6 +313,14 @@ namespace Robust.Shared.Network
+@@ -294,8 +296,12 @@ namespace Robust.Shared.Network
+             _config.OnValueChanged(CVars.NetFakeLagRand, _fakeLagRandomChanged);
+             _config.OnValueChanged(CVars.NetFakeDuplicates, FakeDuplicatesChanged);
+ 
+-            _strings.Initialize(() => { _logger.Info("Message string table loaded."); },
+-                UpdateNetMessageFunctions);
++            _strings.Initialize(() =>
++            {
++                _logger.Info("Message string table loaded.");
++                _clientStringsComplete = true;
++                ClientCheckSwitchToConnected();
++            }, UpdateNetMessageFunctions);
+             _serializer.ClientHandshakeComplete += OnSerializerOnClientHandshakeComplete;
+             _transfer.ClientHandshakeComplete += OnTransferOnClientHandshakeComplete;
+ 
+@@ -312,6 +318,14 @@ namespace Robust.Shared.Network
              _logPacketIssues = obj;
          }
  
@@ -5229,7 +5297,28 @@ index b79a8d0ef..1fb47391a 100644
          private void LidgrenLogWarningChanged(bool newValue)
          {
              foreach (var netPeer in _netPeers)
-@@ -595,6 +604,7 @@ namespace Robust.Shared.Network
+@@ -445,7 +459,11 @@ namespace Robust.Shared.Network
+ 
+         private void ClientCheckSwitchToConnected()
+         {
+-            if (_clientSerializerComplete && _clientTransferComplete)
++            if (!_clientStringsComplete)
++                return;
++
++            var transferSupported = _strings.TryFindStringId("MsgTransferInit", out _);
++            if (_clientSerializerComplete && (_clientTransferComplete || !transferSupported))
+                 OnConnected(ServerChannelImpl!);
+         }
+ 
+@@ -574,6 +592,7 @@ namespace Robust.Shared.Network
+             _cancelConnectTokenSource?.Cancel();
+             ClientConnectState = ClientConnectionState.NotConnecting;
+ 
++            _clientStringsComplete = false;
+             _clientSerializerComplete = false;
+             _clientTransferComplete = false;
+         }
+@@ -595,6 +614,7 @@ namespace Robust.Shared.Network
              _config.UnsubValueChanged(CVars.NetFakeLagMin, _fakeLagMinChanged);
              _config.UnsubValueChanged(CVars.NetFakeLagRand, _fakeLagRandomChanged);
              _config.UnsubValueChanged(CVars.NetFakeDuplicates, FakeDuplicatesChanged);
@@ -5237,7 +5326,7 @@ index b79a8d0ef..1fb47391a 100644
              _config.UnsubValueChanged(CVars.NetLidgrenLogWarning, LidgrenLogWarningChanged);
              _config.UnsubValueChanged(CVars.NetLidgrenLogError, LidgrenLogErrorChanged);
              _config.UnsubValueChanged(CVars.NetLidgrenLogRateLimit, LidgrenLogRateLimitChanged);
-@@ -774,6 +784,10 @@ namespace Robust.Shared.Network
+@@ -774,6 +794,10 @@ namespace Robust.Shared.Network
              // ping the client once per second.
              netConfig.PingInterval = 1f;
  
@@ -5248,7 +5337,7 @@ index b79a8d0ef..1fb47391a 100644
              netConfig.SetMessageTypeEnabled(
                  NetIncomingMessageType.WarningMessage,
                  _config.GetCVar(CVars.NetLidgrenLogWarning));
-@@ -1140,15 +1154,17 @@ namespace Robust.Shared.Network
+@@ -1140,15 +1164,17 @@ namespace Robust.Shared.Network
              }
              catch (InvalidCastException ice)
              {
@@ -5997,7 +6086,7 @@ index eeefefe85..d8d584c92 100644
      }
  }
 diff --git a/Robust.Shared/Serialization/Manager/SerializationManager.Reading.cs b/Robust.Shared/Serialization/Manager/SerializationManager.Reading.cs
-index b2b5d27b9..78b2a957e 100644
+index b2b5d27b9..c040042ff 100644
 --- a/Robust.Shared/Serialization/Manager/SerializationManager.Reading.cs
 +++ b/Robust.Shared/Serialization/Manager/SerializationManager.Reading.cs
 @@ -1,5 +1,6 @@
@@ -6008,7 +6097,15 @@ index b2b5d27b9..78b2a957e 100644
  using System.Diagnostics;
  using System.Linq;
  using System.Linq.Expressions;
-@@ -752,7 +753,15 @@ namespace Robust.Shared.Serialization.Manager
+@@ -7,6 +8,7 @@ using System.Reflection;
+ using System.Runtime.CompilerServices;
+ using Robust.Shared.GameObjects;
+ using Robust.Shared.Prototypes;
++using Robust.Shared.Serialization.Manager.Attributes;
+ using Robust.Shared.Serialization.Manager.Definition;
+ using Robust.Shared.Serialization.Manager.Exceptions;
+ using Robust.Shared.Serialization.Markdown;
+@@ -752,7 +754,15 @@ namespace Robust.Shared.Serialization.Manager
                              {
                                  var definition = GetDefinition(typeof(T));
                                  if (definition == null)
@@ -6025,7 +6122,7 @@ index b2b5d27b9..78b2a957e 100644
  
                                  var valObj = instanceProvider == null ? definition.InstantiateObj() : instanceProvider.Invoke()!;
                                  definition.PopulateObj(ref valObj, mapping, this, hookCtx, context);
-@@ -1456,9 +1465,220 @@ namespace Robust.Shared.Serialization.Manager
+@@ -1456,9 +1466,233 @@ namespace Robust.Shared.Serialization.Manager
  
          private TValue ReadNoSerializer<TValue>(DataNode node)
          {
@@ -6082,15 +6179,14 @@ index b2b5d27b9..78b2a957e 100644
 +                    if (node is ValueDataNode valNode)
 +                    {
 +                        var valStr = valNode.Value;
-+                        var prop = props.FirstOrDefault(p => string.Equals(p.Name, key, StringComparison.OrdinalIgnoreCase));
++                        var prop = props.FirstOrDefault(p => LegacyMatchesKey(p, key));
 +                        if (prop != null && prop.CanWrite)
 +                        {
 +                            SetLegacyMemberValue(prop.PropertyType, v => prop.SetValue(instance, v), valStr);
 +                            continue;
 +                        }
 +
-+                        var field = fields.FirstOrDefault(f => string.Equals(f.Name, key, StringComparison.OrdinalIgnoreCase) ||
-+                                                               string.Equals(f.Name, "_" + key, StringComparison.OrdinalIgnoreCase));
++                        var field = fields.FirstOrDefault(f => LegacyMatchesKey(f, key));
 +                        if (field != null)
 +                        {
 +                            SetLegacyMemberValue(field.FieldType, v => field.SetValue(instance, v), valStr);
@@ -6098,15 +6194,14 @@ index b2b5d27b9..78b2a957e 100644
 +                    }
 +                    else if (node is MappingDataNode mapNode)
 +                    {
-+                        var prop = props.FirstOrDefault(p => string.Equals(p.Name, key, StringComparison.OrdinalIgnoreCase));
++                        var prop = props.FirstOrDefault(p => LegacyMatchesKey(p, key));
 +                        if (prop != null && prop.CanWrite)
 +                        {
 +                            SetLegacyMappingMemberValue(prop.PropertyType, v => prop.SetValue(instance, v), mapNode);
 +                            continue;
 +                        }
 +
-+                        var field = fields.FirstOrDefault(f => string.Equals(f.Name, key, StringComparison.OrdinalIgnoreCase) ||
-+                                                               string.Equals(f.Name, "_" + key, StringComparison.OrdinalIgnoreCase));
++                        var field = fields.FirstOrDefault(f => LegacyMatchesKey(f, key));
 +                        if (field != null)
 +                        {
 +                            SetLegacyMappingMemberValue(field.FieldType, v => field.SetValue(instance, v), mapNode);
@@ -6114,15 +6209,14 @@ index b2b5d27b9..78b2a957e 100644
 +                    }
 +                    else if (node is SequenceDataNode seqNode)
 +                    {
-+                        var prop = props.FirstOrDefault(p => string.Equals(p.Name, key, StringComparison.OrdinalIgnoreCase));
++                        var prop = props.FirstOrDefault(p => LegacyMatchesKey(p, key));
 +                        if (prop != null && prop.CanRead)
 +                        {
 +                            SetLegacySequenceMemberValue(prop.PropertyType, prop.GetValue(instance), v => { if (prop.CanWrite) prop.SetValue(instance, v); }, seqNode);
 +                            continue;
 +                        }
 +
-+                        var field = fields.FirstOrDefault(f => string.Equals(f.Name, key, StringComparison.OrdinalIgnoreCase) ||
-+                                                               string.Equals(f.Name, "_" + key, StringComparison.OrdinalIgnoreCase));
++                        var field = fields.FirstOrDefault(f => LegacyMatchesKey(f, key));
 +                        if (field != null)
 +                        {
 +                            SetLegacySequenceMemberValue(field.FieldType, field.GetValue(instance), v => field.SetValue(instance, v), seqNode);
@@ -6137,6 +6231,22 @@ index b2b5d27b9..78b2a957e 100644
 +                _sawmill?.Warning($"Failed during legacy data definition read for {type}: {ex.Message}");
 +                return null;
 +            }
++
++            return null;
++        }
++
++        private static bool LegacyMatchesKey(MemberInfo member, string key)
++        {
++            if (string.Equals(member.Name, key, StringComparison.OrdinalIgnoreCase))
++                return true;
++            if (string.Equals(member.Name, "_" + key, StringComparison.OrdinalIgnoreCase))
++                return true;
++            foreach (var attr in member.GetCustomAttributes())
++            {
++                if (attr is DataFieldAttribute dfa && !string.IsNullOrEmpty(dfa.Tag) && string.Equals(dfa.Tag, key, StringComparison.OrdinalIgnoreCase))
++                    return true;
++            }
++            return false;
 +        }
 +
 +        private static void SetLegacyMemberValue(Type targetType, Action<object?> setter, string valStr)
@@ -7116,7 +7226,7 @@ index 8831e60fa..2b328737c 100644
          }
  
          internal static bool HasParameterlessConstructor(this Type type, BindingFlags flags = BindingFlags.Instance | BindingFlags.Public)
-diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs
+diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs b/Lidgren.Network/NetPeer.Logging.cs
 index ec31cda..f260205 100644
 --- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs
 +++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs
@@ -7136,7 +7246,7 @@ index ec31cda..f260205 100644
  	internal void LogDebug(string message)
  	{
  #if __ANDROID__
-diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetNativeSocket.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetNativeSocket.cs
+diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetNativeSocket.cs b/Lidgren.Network/Sockets/NetNativeSocket.cs
 index 4961b81..c728992 100644
 --- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetNativeSocket.cs
 +++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetNativeSocket.cs

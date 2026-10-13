@@ -1,5 +1,5 @@
 diff --git a/MSBuild/Robust.DefineConstants.targets b/MSBuild/Robust.DefineConstants.targets
-index f67e982e5..46cb74941 100644
+index f67e982e56..46cb749415 100644
 --- a/MSBuild/Robust.DefineConstants.targets
 +++ b/MSBuild/Robust.DefineConstants.targets
 @@ -11,6 +11,11 @@
@@ -15,7 +15,7 @@ index f67e982e5..46cb74941 100644
        <PropertyGroup>
          <DefineConstants>$(DefineConstants);LINUX;UNIX;FREEDESKTOP</DefineConstants>
 diff --git a/Resources/Shaders/Internal/fov-lighting.swsl b/Resources/Shaders/Internal/fov-lighting.swsl
-index 91bd98079..f42e010dd 100644
+index 91bd98079a..f42e010ddd 100644
 --- a/Resources/Shaders/Internal/fov-lighting.swsl
 +++ b/Resources/Shaders/Internal/fov-lighting.swsl
 @@ -4,21 +4,24 @@ preset raw;
@@ -48,7 +48,7 @@ index 91bd98079..f42e010dd 100644
 +    COLOR = vec4(occludeColor.rgb, clamp(1.0 - occlusion, 0.0, 1.0));
  }
 diff --git a/Resources/Shaders/Internal/fov.swsl b/Resources/Shaders/Internal/fov.swsl
-index 2790536ff..de469d432 100644
+index 2790536ff6..de469d4324 100644
 --- a/Resources/Shaders/Internal/fov.swsl
 +++ b/Resources/Shaders/Internal/fov.swsl
 @@ -4,12 +4,15 @@ preset raw;
@@ -69,7 +69,7 @@ index 2790536ff..de469d432 100644
      highp float occlDist = occludeDepth(worldSpaceDiff, TEXTURE, 0.75).r;
  
 diff --git a/Resources/Shaders/Internal/light-hard.swsl b/Resources/Shaders/Internal/light-hard.swsl
-index 7998888a8..d9b76b78d 100644
+index 7998888a89..d9b76b78dc 100644
 --- a/Resources/Shaders/Internal/light-hard.swsl
 +++ b/Resources/Shaders/Internal/light-hard.swsl
 @@ -3,9 +3,10 @@
@@ -85,7 +85,7 @@ index 7998888a8..d9b76b78d 100644
  }
  
 diff --git a/Resources/Shaders/Internal/light-soft.swsl b/Resources/Shaders/Internal/light-soft.swsl
-index 79cfaeeeb..1aa4080ea 100644
+index 79cfaeeebc..1aa4080eaf 100644
 --- a/Resources/Shaders/Internal/light-soft.swsl
 +++ b/Resources/Shaders/Internal/light-soft.swsl
 @@ -8,11 +8,11 @@ highp vec4 calcGaussianWeights(highp float sigma, highp vec4 offset)
@@ -135,7 +135,7 @@ index 79cfaeeeb..1aa4080ea 100644
  }
  
 diff --git a/Resources/Shaders/Internal/light_shared.swsl b/Resources/Shaders/Internal/light_shared.swsl
-index 8e2707a85..b72b97ee0 100644
+index 8e2707a85f..b72b97ee08 100644
 --- a/Resources/Shaders/Internal/light_shared.swsl
 +++ b/Resources/Shaders/Internal/light_shared.swsl
 @@ -4,8 +4,6 @@ preset raw;
@@ -169,7 +169,7 @@ index 8e2707a85..b72b97ee0 100644
  }
  
 diff --git a/Resources/Shaders/Internal/shadow_cast_shared.swsl b/Resources/Shaders/Internal/shadow_cast_shared.swsl
-index 6ed529fee..1918ef446 100644
+index 6ed529fee5..1918ef4464 100644
 --- a/Resources/Shaders/Internal/shadow_cast_shared.swsl
 +++ b/Resources/Shaders/Internal/shadow_cast_shared.swsl
 @@ -1,12 +1,13 @@
@@ -215,7 +215,7 @@ index 6ed529fee..1918ef446 100644
  }
 +
 diff --git a/Robust.Client.Injectors/CompileRobustXamlTask.cs b/Robust.Client.Injectors/CompileRobustXamlTask.cs
-index 7225f4650..a31d8905b 100644
+index 7225f4650d..a31d8905b6 100644
 --- a/Robust.Client.Injectors/CompileRobustXamlTask.cs
 +++ b/Robust.Client.Injectors/CompileRobustXamlTask.cs
 @@ -1,7 +1,10 @@
@@ -333,7 +333,7 @@ index 7225f4650..a31d8905b 100644
      }
  }
 diff --git a/Robust.Client/CommandLineArgs.cs b/Robust.Client/CommandLineArgs.cs
-index 8c6640c46..c7e37dd5a 100644
+index 8c6640c46e..c7e37dd5ad 100644
 --- a/Robust.Client/CommandLineArgs.cs
 +++ b/Robust.Client/CommandLineArgs.cs
 @@ -37,34 +37,32 @@ internal sealed class CommandLineArgs
@@ -461,7 +461,7 @@ index 8c6640c46..c7e37dd5a 100644
              else
              {
 diff --git a/Robust.Client/Console/ClientConGroupController.cs b/Robust.Client/Console/ClientConGroupController.cs
-index 6e8109cfd..3bc148294 100644
+index 6e8109cfd8..3bc1482946 100644
 --- a/Robust.Client/Console/ClientConGroupController.cs
 +++ b/Robust.Client/Console/ClientConGroupController.cs
 @@ -1,4 +1,4 @@
@@ -481,7 +481,7 @@ index 6e8109cfd..3bc148294 100644
          }
  
 diff --git a/Robust.Client/ContentStart.cs b/Robust.Client/ContentStart.cs
-index 5e947233e..6fa602113 100644
+index 5e947233e5..6fa6021137 100644
 --- a/Robust.Client/ContentStart.cs
 +++ b/Robust.Client/ContentStart.cs
 @@ -4,11 +4,7 @@ namespace Robust.Client
@@ -497,7 +497,7 @@ index 5e947233e..6fa602113 100644
  
          public static void StartLibrary(string[] args, GameControllerOptions options)
 diff --git a/Robust.Client/GameController/GameController.Input.cs b/Robust.Client/GameController/GameController.Input.cs
-index a6bc6a0cb..42ecf9907 100644
+index a6bc6a0cb5..42ecf99073 100644
 --- a/Robust.Client/GameController/GameController.Input.cs
 +++ b/Robust.Client/GameController/GameController.Input.cs
 @@ -49,5 +49,10 @@ namespace Robust.Client
@@ -512,7 +512,7 @@ index a6bc6a0cb..42ecf9907 100644
      }
  }
 diff --git a/Robust.Client/GameController/GameController.IoC.cs b/Robust.Client/GameController/GameController.IoC.cs
-index 6079fa63f..3e2161bf8 100644
+index 6079fa63f3..3e2161bf8d 100644
 --- a/Robust.Client/GameController/GameController.IoC.cs
 +++ b/Robust.Client/GameController/GameController.IoC.cs
 @@ -1,4 +1,4 @@
@@ -541,7 +541,7 @@ index 6079fa63f..3e2161bf8 100644
      }
  }
 diff --git a/Robust.Client/GameController/GameController.Standalone.cs b/Robust.Client/GameController/GameController.Standalone.cs
-index de20f0e75..b918ded66 100644
+index de20f0e753..b918ded662 100644
 --- a/Robust.Client/GameController/GameController.Standalone.cs
 +++ b/Robust.Client/GameController/GameController.Standalone.cs
 @@ -166,7 +166,15 @@ namespace Robust.Client
@@ -562,7 +562,7 @@ index de20f0e75..b918ded66 100644
  
              CleanupGameThread();
 diff --git a/Robust.Client/GameController/GameController.cs b/Robust.Client/GameController/GameController.cs
-index 60fabdcac..67dde9a42 100644
+index 60fabdcacd..67dde9a42f 100644
 --- a/Robust.Client/GameController/GameController.cs
 +++ b/Robust.Client/GameController/GameController.cs
 @@ -265,7 +265,14 @@ namespace Robust.Client
@@ -672,7 +672,7 @@ index 60fabdcac..67dde9a42 100644
              {
                  if (args.Window == _clyde.MainWindow)
 diff --git a/Robust.Client/GameObjects/Components/Renderable/SpriteComponent.cs b/Robust.Client/GameObjects/Components/Renderable/SpriteComponent.cs
-index a183d7572..06c796db5 100644
+index a183d75729..06c796db5a 100644
 --- a/Robust.Client/GameObjects/Components/Renderable/SpriteComponent.cs
 +++ b/Robust.Client/GameObjects/Components/Renderable/SpriteComponent.cs
 @@ -658,7 +658,7 @@ namespace Robust.Client.GameObjects
@@ -685,7 +685,7 @@ index a183d7572..06c796db5 100644
  
              return keyString;
 diff --git a/Robust.Client/GameObjects/EntitySystems/SpriteSystem.Render.cs b/Robust.Client/GameObjects/EntitySystems/SpriteSystem.Render.cs
-index c3ca7a240..2879fe1c7 100644
+index c3ca7a2403..2879fe1c73 100644
 --- a/Robust.Client/GameObjects/EntitySystems/SpriteSystem.Render.cs
 +++ b/Robust.Client/GameObjects/EntitySystems/SpriteSystem.Render.cs
 @@ -14,6 +14,16 @@ namespace Robust.Client.GameObjects;
@@ -706,7 +706,7 @@ index c3ca7a240..2879fe1c7 100644
          Entity<SpriteComponent> sprite,
          DrawingHandleWorld drawingHandle,
 diff --git a/Robust.Client/GameObjects/EntitySystems/SpriteSystem.cs b/Robust.Client/GameObjects/EntitySystems/SpriteSystem.cs
-index 0e52fc49d..16b4b56ed 100644
+index 0e52fc49d5..16b4b56ed0 100644
 --- a/Robust.Client/GameObjects/EntitySystems/SpriteSystem.cs
 +++ b/Robust.Client/GameObjects/EntitySystems/SpriteSystem.cs
 @@ -298,9 +298,23 @@ namespace Robust.Client.GameObjects
@@ -739,7 +739,7 @@ index 0e52fc49d..16b4b56ed 100644
 +    }
  }
 diff --git a/Robust.Client/Graphics/Clyde/Clyde.Events.cs b/Robust.Client/Graphics/Clyde/Clyde.Events.cs
-index 029d12c5f..3ff4be22e 100644
+index 029d12c5f6..3ff4be22e4 100644
 --- a/Robust.Client/Graphics/Clyde/Clyde.Events.cs
 +++ b/Robust.Client/Graphics/Clyde/Clyde.Events.cs
 @@ -1,4 +1,4 @@
@@ -776,7 +776,7 @@ index 029d12c5f..3ff4be22e 100644
  
          private sealed record DEventKeyDown(KeyEventArgs Args) : DEventBase;
 diff --git a/Robust.Client/Graphics/Clyde/Clyde.LightRendering.cs b/Robust.Client/Graphics/Clyde/Clyde.LightRendering.cs
-index 4be833c94..cec6eb34d 100644
+index 4be833c945..cec6eb34d3 100644
 --- a/Robust.Client/Graphics/Clyde/Clyde.LightRendering.cs
 +++ b/Robust.Client/Graphics/Clyde/Clyde.LightRendering.cs
 @@ -40,7 +40,7 @@ namespace Robust.Client.Graphics.Clyde
@@ -967,7 +967,7 @@ index 4be833c94..cec6eb34d 100644
              _lightsToRenderList = new LightRenderData[value];
              DebugTools.Assert(_maxLights >= _maxShadowcastingLights);
 diff --git a/Robust.Client/Graphics/Clyde/Clyde.Shaders.cs b/Robust.Client/Graphics/Clyde/Clyde.Shaders.cs
-index 1dc619dc7..632fd50ee 100644
+index 1dc619dc72..632fd50eed 100644
 --- a/Robust.Client/Graphics/Clyde/Clyde.Shaders.cs
 +++ b/Robust.Client/Graphics/Clyde/Clyde.Shaders.cs
 @@ -213,6 +213,7 @@ namespace Robust.Client.Graphics.Clyde
@@ -1016,7 +1016,7 @@ index 1dc619dc7..632fd50ee 100644
  
                  return program;
 diff --git a/Robust.Client/Graphics/Clyde/Clyde.Windowing.cs b/Robust.Client/Graphics/Clyde/Clyde.Windowing.cs
-index c77add4c7..221d0346e 100644
+index c77add4c76..221d0346ec 100644
 --- a/Robust.Client/Graphics/Clyde/Clyde.Windowing.cs
 +++ b/Robust.Client/Graphics/Clyde/Clyde.Windowing.cs
 @@ -1,4 +1,4 @@
@@ -1034,7 +1034,7 @@ index c77add4c7..221d0346e 100644
          public event Action<WindowDestroyedEventArgs>? DestroyWindow;
          public event Action<WindowContentScaleEventArgs>? OnWindowScaleChanged;
 diff --git a/Robust.Client/Graphics/Clyde/ClydeHeadless.cs b/Robust.Client/Graphics/Clyde/ClydeHeadless.cs
-index ffc8cd08c..1dc1a4e8e 100644
+index ffc8cd08c3..1dc1a4e8e5 100644
 --- a/Robust.Client/Graphics/Clyde/ClydeHeadless.cs
 +++ b/Robust.Client/Graphics/Clyde/ClydeHeadless.cs
 @@ -64,6 +64,7 @@ namespace Robust.Client.Graphics.Clyde
@@ -1046,7 +1046,7 @@ index ffc8cd08c..1dc1a4e8e 100644
          public event Action<WindowDestroyedEventArgs>? DestroyWindow { add { } remove { } }
  
 diff --git a/Robust.Client/Graphics/Clyde/GLContext/GLContextEgl.cs b/Robust.Client/Graphics/Clyde/GLContext/GLContextEgl.cs
-index 9f1412583..16841d678 100644
+index 9f14125832..16841d6780 100644
 --- a/Robust.Client/Graphics/Clyde/GLContext/GLContextEgl.cs
 +++ b/Robust.Client/Graphics/Clyde/GLContext/GLContextEgl.cs
 @@ -1,4 +1,4 @@
@@ -1056,7 +1056,7 @@ index 9f1412583..16841d678 100644
  using System.Runtime.InteropServices;
  using System.Text;
 diff --git a/Robust.Client/Graphics/Clyde/GLContext/GLContextWindow.cs b/Robust.Client/Graphics/Clyde/GLContext/GLContextWindow.cs
-index 55b8bcace..c2e6cec4a 100644
+index 55b8bcacec..c2e6cec4ac 100644
 --- a/Robust.Client/Graphics/Clyde/GLContext/GLContextWindow.cs
 +++ b/Robust.Client/Graphics/Clyde/GLContext/GLContextWindow.cs
 @@ -52,7 +52,7 @@ namespace Robust.Client.Graphics.Clyde
@@ -1069,7 +1069,7 @@ index 55b8bcace..c2e6cec4a 100644
  
              public GLContextWindow(Clyde clyde) : base(clyde)
 diff --git a/Robust.Client/Graphics/Clyde/Shaders/base-default.vert b/Robust.Client/Graphics/Clyde/Shaders/base-default.vert
-index 35e2c4093..429d408be 100644
+index 35e2c40937..429d408be0 100644
 --- a/Robust.Client/Graphics/Clyde/Shaders/base-default.vert
 +++ b/Robust.Client/Graphics/Clyde/Shaders/base-default.vert
 @@ -6,11 +6,11 @@
@@ -1090,7 +1090,7 @@ index 35e2c4093..429d408be 100644
  // Maybe we should merge these CPU side.
  // idk yet.
 diff --git a/Robust.Client/Graphics/Clyde/Shaders/base-raw.vert b/Robust.Client/Graphics/Clyde/Shaders/base-raw.vert
-index 576774427..b8d4e25d2 100644
+index 5767744272..b8d4e25d2b 100644
 --- a/Robust.Client/Graphics/Clyde/Shaders/base-raw.vert
 +++ b/Robust.Client/Graphics/Clyde/Shaders/base-raw.vert
 @@ -6,9 +6,9 @@
@@ -1107,7 +1107,7 @@ index 576774427..b8d4e25d2 100644
  // Maybe we should merge these CPU side.
  // idk yet.
 diff --git a/Robust.Client/Graphics/Clyde/Shaders/shadow-depth.frag b/Robust.Client/Graphics/Clyde/Shaders/shadow-depth.frag
-index afb8f1835..e4c418431 100644
+index afb8f1835a..e4c418431d 100644
 --- a/Robust.Client/Graphics/Clyde/Shaders/shadow-depth.frag
 +++ b/Robust.Client/Graphics/Clyde/Shaders/shadow-depth.frag
 @@ -10,7 +10,9 @@ void main()
@@ -1122,7 +1122,7 @@ index afb8f1835..e4c418431 100644
      // Main body.
  #ifdef HAS_DFDX
 diff --git a/Robust.Client/Graphics/Clyde/Shaders/shadow-depth.vert b/Robust.Client/Graphics/Clyde/Shaders/shadow-depth.vert
-index 76c0d73c3..94426904c 100644
+index 76c0d73c38..94426904c8 100644
 --- a/Robust.Client/Graphics/Clyde/Shaders/shadow-depth.vert
 +++ b/Robust.Client/Graphics/Clyde/Shaders/shadow-depth.vert
 @@ -12,7 +12,7 @@ attribute vec4 aPos;
@@ -1161,7 +1161,7 @@ index 76c0d73c3..94426904c 100644
          // Angle
          targetAngle,
 diff --git a/Robust.Client/Graphics/Clyde/Shaders/winblit.vert b/Robust.Client/Graphics/Clyde/Shaders/winblit.vert
-index 75211d3ba..a0f5bee5a 100644
+index 75211d3bad..a0f5bee5af 100644
 --- a/Robust.Client/Graphics/Clyde/Shaders/winblit.vert
 +++ b/Robust.Client/Graphics/Clyde/Shaders/winblit.vert
 @@ -10,7 +10,7 @@
@@ -1174,7 +1174,7 @@ index 75211d3ba..a0f5bee5a 100644
  void main()
  {
 diff --git a/Robust.Client/Graphics/Clyde/Windowing/Sdl3.Event.cs b/Robust.Client/Graphics/Clyde/Windowing/Sdl3.Event.cs
-index da4d28f69..7ee104a92 100644
+index da4d28f69c..7ee104a920 100644
 --- a/Robust.Client/Graphics/Clyde/Windowing/Sdl3.Event.cs
 +++ b/Robust.Client/Graphics/Clyde/Windowing/Sdl3.Event.cs
 @@ -1,9 +1,10 @@
@@ -1303,7 +1303,7 @@ index da4d28f69..7ee104a92 100644
  
              _clyde._currentHoveredWindow = windowReg;
 diff --git a/Robust.Client/Graphics/Clyde/Windowing/Sdl3.RawEvent.cs b/Robust.Client/Graphics/Clyde/Windowing/Sdl3.RawEvent.cs
-index 1b6cdba42..af2cb75aa 100644
+index 1b6cdba42b..af2cb75aa1 100644
 --- a/Robust.Client/Graphics/Clyde/Windowing/Sdl3.RawEvent.cs
 +++ b/Robust.Client/Graphics/Clyde/Windowing/Sdl3.RawEvent.cs
 @@ -1,4 +1,4 @@
@@ -1365,7 +1365,7 @@ index 1b6cdba42..af2cb75aa 100644
  
  #if MACOS
 diff --git a/Robust.Client/Graphics/Clyde/Windowing/Sdl3.Window.cs b/Robust.Client/Graphics/Clyde/Windowing/Sdl3.Window.cs
-index 70fa5edb4..51b60611d 100644
+index 70fa5edb40..51b60611de 100644
 --- a/Robust.Client/Graphics/Clyde/Windowing/Sdl3.Window.cs
 +++ b/Robust.Client/Graphics/Clyde/Windowing/Sdl3.Window.cs
 @@ -1,4 +1,4 @@
@@ -1517,7 +1517,7 @@ index 70fa5edb4..51b60611d 100644
          }
  
 diff --git a/Robust.Client/Graphics/Clyde/Windowing/Sdl3.cs b/Robust.Client/Graphics/Clyde/Windowing/Sdl3.cs
-index a02709bfa..d57ddf6d7 100644
+index a02709bfae..d57ddf6d7f 100644
 --- a/Robust.Client/Graphics/Clyde/Windowing/Sdl3.cs
 +++ b/Robust.Client/Graphics/Clyde/Windowing/Sdl3.cs
 @@ -1,4 +1,4 @@
@@ -1535,7 +1535,7 @@ index a02709bfa..d57ddf6d7 100644
              if (!res)
              {
 diff --git a/Robust.Client/Graphics/Drawing/DrawingHandleScreen.cs b/Robust.Client/Graphics/Drawing/DrawingHandleScreen.cs
-index 1f5c19301..27a25f60d 100644
+index 1f5c193014..27a25f60db 100644
 --- a/Robust.Client/Graphics/Drawing/DrawingHandleScreen.cs
 +++ b/Robust.Client/Graphics/Drawing/DrawingHandleScreen.cs
 @@ -154,6 +154,9 @@ namespace Robust.Client.Graphics
@@ -1549,7 +1549,7 @@ index 1f5c19301..27a25f60d 100644
          {
              var advanceTotal = Vector2.Zero;
 diff --git a/Robust.Client/Graphics/IClydeInternal.cs b/Robust.Client/Graphics/IClydeInternal.cs
-index 388522f31..6d889cfb5 100644
+index 388522f315..6d889cfb5e 100644
 --- a/Robust.Client/Graphics/IClydeInternal.cs
 +++ b/Robust.Client/Graphics/IClydeInternal.cs
 @@ -32,6 +32,7 @@ namespace Robust.Client.Graphics
@@ -1561,7 +1561,7 @@ index 388522f31..6d889cfb5 100644
          event Action<WindowDestroyedEventArgs> DestroyWindow;
  
 diff --git a/Robust.Client/Input/InputManager.cs b/Robust.Client/Input/InputManager.cs
-index e4aeda9a1..8c7134099 100644
+index e4aeda9a19..8c7134099a 100644
 --- a/Robust.Client/Input/InputManager.cs
 +++ b/Robust.Client/Input/InputManager.cs
 @@ -9,6 +9,7 @@ using System.Runtime.InteropServices;
@@ -1636,7 +1636,7 @@ index e4aeda9a1..8c7134099 100644
              var hasCanFocus = false;
 diff --git a/Robust.Client/Input/TouchFingerEventArgs.cs b/Robust.Client/Input/TouchFingerEventArgs.cs
 new file mode 100644
-index 000000000..c139d8f4c
+index 0000000000..c139d8f4c2
 --- /dev/null
 +++ b/Robust.Client/Input/TouchFingerEventArgs.cs
 @@ -0,0 +1,27 @@
@@ -1668,7 +1668,7 @@ index 000000000..c139d8f4c
 +    }
 +}
 diff --git a/Robust.Client/Robust.Client.csproj b/Robust.Client/Robust.Client.csproj
-index 6ee0278b6..a3b0fef85 100644
+index 6ee0278b6c..a3b0fef859 100644
 --- a/Robust.Client/Robust.Client.csproj
 +++ b/Robust.Client/Robust.Client.csproj
 @@ -1,9 +1,9 @@
@@ -1684,7 +1684,7 @@ index 6ee0278b6..a3b0fef85 100644
      <NoWarn>NU1701;CA1416</NoWarn>
      <OutputPath>../bin/Client</OutputPath>
 diff --git a/Robust.Client/UserInterface/Control.Layout.cs b/Robust.Client/UserInterface/Control.Layout.cs
-index 2c7ef9c72..d7f4f36ca 100644
+index 2c7ef9c72b..d7f4f36ca3 100644
 --- a/Robust.Client/UserInterface/Control.Layout.cs
 +++ b/Robust.Client/UserInterface/Control.Layout.cs
 @@ -40,6 +40,7 @@ namespace Robust.Client.UserInterface
@@ -1726,8 +1726,34 @@ index 2c7ef9c72..d7f4f36ca 100644
  
              switch (HorizontalAlignment)
              {
+diff --git a/Robust.Client/UserInterface/Controllers/UserInterfaceManager.Controllers.cs b/Robust.Client/UserInterface/Controllers/UserInterfaceManager.Controllers.cs
+index 9ed8f51986..f84eaedd9f 100644
+--- a/Robust.Client/UserInterface/Controllers/UserInterfaceManager.Controllers.cs
++++ b/Robust.Client/UserInterface/Controllers/UserInterfaceManager.Controllers.cs
+@@ -1,4 +1,4 @@
+-﻿using System;
++using System;
+ using System.Collections.Generic;
+ using System.Reflection;
+ using System.Reflection.Emit;
+@@ -268,7 +268,14 @@ internal partial class UserInterfaceManager
+     {
+         foreach (var controller in _uiControllers.Values)
+         {
+-            controller.Initialize();
++            try
++            {
++                controller.Initialize();
++            }
++            catch (Exception ex)
++            {
++                _sawmillUI.Error($"Error initializing UI controller {controller.GetType()}: {ex}");
++            }
+         }
+     }
+ 
 diff --git a/Robust.Client/UserInterface/Controls/ItemList.cs b/Robust.Client/UserInterface/Controls/ItemList.cs
-index d3cce9847..771b5b772 100644
+index d3cce9847b..771b5b7721 100644
 --- a/Robust.Client/UserInterface/Controls/ItemList.cs
 +++ b/Robust.Client/UserInterface/Controls/ItemList.cs
 @@ -646,6 +646,13 @@ namespace Robust.Client.UserInterface.Controls
@@ -1745,7 +1771,7 @@ index d3cce9847..771b5b772 100644
          private int _getScrollSpeed()
          {
 diff --git a/Robust.Client/UserInterface/Controls/LineEdit.cs b/Robust.Client/UserInterface/Controls/LineEdit.cs
-index 7aff69015..5bafdfc23 100644
+index 7aff690152..5bafdfc235 100644
 --- a/Robust.Client/UserInterface/Controls/LineEdit.cs
 +++ b/Robust.Client/UserInterface/Controls/LineEdit.cs
 @@ -336,9 +336,12 @@ namespace Robust.Client.UserInterface.Controls
@@ -1762,7 +1788,7 @@ index 7aff69015..5bafdfc23 100644
              OnTextTyped?.Invoke(args);
          }
 diff --git a/Robust.Client/UserInterface/Controls/OutputPanel.cs b/Robust.Client/UserInterface/Controls/OutputPanel.cs
-index 7242443b5..2780de2e3 100644
+index 7242443b5a..2780de2e32 100644
 --- a/Robust.Client/UserInterface/Controls/OutputPanel.cs
 +++ b/Robust.Client/UserInterface/Controls/OutputPanel.cs
 @@ -261,6 +261,12 @@ namespace Robust.Client.UserInterface.Controls
@@ -1779,7 +1805,7 @@ index 7242443b5..2780de2e3 100644
          {
              base.Resized();
 diff --git a/Robust.Client/UserInterface/Controls/ScrollBar.cs b/Robust.Client/UserInterface/Controls/ScrollBar.cs
-index 7d5d1b2ef..0f138aa46 100644
+index 7d5d1b2efd..0f138aa460 100644
 --- a/Robust.Client/UserInterface/Controls/ScrollBar.cs
 +++ b/Robust.Client/UserInterface/Controls/ScrollBar.cs
 @@ -108,7 +108,22 @@ namespace Robust.Client.UserInterface.Controls
@@ -1807,7 +1833,7 @@ index 7d5d1b2ef..0f138aa46 100644
  
              _grabData = (args.RelativePixelPosition, Value);
 diff --git a/Robust.Client/UserInterface/Controls/TextEdit.cs b/Robust.Client/UserInterface/Controls/TextEdit.cs
-index 72d61cbe3..d432c594d 100644
+index 72d61cbe30..d432c594d5 100644
 --- a/Robust.Client/UserInterface/Controls/TextEdit.cs
 +++ b/Robust.Client/UserInterface/Controls/TextEdit.cs
 @@ -1,4 +1,4 @@
@@ -1826,7 +1852,7 @@ index 72d61cbe3..d432c594d 100644
          _blink.Reset();
          EnsureCursorVisible();
 diff --git a/Robust.Client/UserInterface/CustomControls/DefaultWindow.xaml.cs b/Robust.Client/UserInterface/CustomControls/DefaultWindow.xaml.cs
-index 5be710c83..41de6738f 100644
+index 5be710c83a..41de6738fd 100644
 --- a/Robust.Client/UserInterface/CustomControls/DefaultWindow.xaml.cs
 +++ b/Robust.Client/UserInterface/CustomControls/DefaultWindow.xaml.cs
 @@ -58,7 +58,7 @@ namespace Robust.Client.UserInterface.CustomControls
@@ -1857,7 +1883,7 @@ index 5be710c83..41de6738f 100644
                  mode = DragMode.Move;
              }
 diff --git a/Robust.Client/UserInterface/IUserInterfaceManagerInternal.cs b/Robust.Client/UserInterface/IUserInterfaceManagerInternal.cs
-index 29c54bc48..a21a747e4 100644
+index 29c54bc48a..a21a747e49 100644
 --- a/Robust.Client/UserInterface/IUserInterfaceManagerInternal.cs
 +++ b/Robust.Client/UserInterface/IUserInterfaceManagerInternal.cs
 @@ -29,6 +29,7 @@ namespace Robust.Client.UserInterface
@@ -1870,7 +1896,7 @@ index 29c54bc48..a21a747e4 100644
  
 diff --git a/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs b/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs
 new file mode 100644
-index 000000000..f1651ce14
+index 0000000000..f1651ce140
 --- /dev/null
 +++ b/Robust.Client/UserInterface/Mobile/MobileControlsOverlay.cs
 @@ -0,0 +1,1133 @@
@@ -3009,7 +3035,7 @@ index 000000000..f1651ce14
 +}
 diff --git a/Robust.Client/UserInterface/Mobile/PojavActionButton.cs b/Robust.Client/UserInterface/Mobile/PojavActionButton.cs
 new file mode 100644
-index 000000000..4f00e0ab6
+index 0000000000..4f00e0ab68
 --- /dev/null
 +++ b/Robust.Client/UserInterface/Mobile/PojavActionButton.cs
 @@ -0,0 +1,370 @@
@@ -3385,7 +3411,7 @@ index 000000000..4f00e0ab6
 +}
 diff --git a/Robust.Client/UserInterface/Mobile/VirtualThumbstick.cs b/Robust.Client/UserInterface/Mobile/VirtualThumbstick.cs
 new file mode 100644
-index 000000000..cf0d6ed3d
+index 0000000000..cf0d6ed3d7
 --- /dev/null
 +++ b/Robust.Client/UserInterface/Mobile/VirtualThumbstick.cs
 @@ -0,0 +1,315 @@
@@ -3705,7 +3731,7 @@ index 000000000..cf0d6ed3d
 +    }
 +}
 diff --git a/Robust.Client/UserInterface/Stylesheets/DefaultStylesheet.cs b/Robust.Client/UserInterface/Stylesheets/DefaultStylesheet.cs
-index 72575887c..f6cab0f82 100644
+index 72575887ce..f6cab0f82c 100644
 --- a/Robust.Client/UserInterface/Stylesheets/DefaultStylesheet.cs
 +++ b/Robust.Client/UserInterface/Stylesheets/DefaultStylesheet.cs
 @@ -1,4 +1,5 @@
@@ -3746,7 +3772,7 @@ index 72575887c..f6cab0f82 100644
  
          Stylesheet = new Stylesheet(new StyleRule[]
 diff --git a/Robust.Client/UserInterface/UserInterfaceManager.Input.cs b/Robust.Client/UserInterface/UserInterfaceManager.Input.cs
-index 274aa2abc..f8a5fe966 100644
+index 274aa2abc0..f8a5fe9660 100644
 --- a/Robust.Client/UserInterface/UserInterfaceManager.Input.cs
 +++ b/Robust.Client/UserInterface/UserInterfaceManager.Input.cs
 @@ -46,6 +46,29 @@ internal partial class UserInterfaceManager
@@ -3895,7 +3921,7 @@ index 274aa2abc..f8a5fe966 100644
 +    }
  }
 diff --git a/Robust.Client/UserInterface/UserInterfaceManager.cs b/Robust.Client/UserInterface/UserInterfaceManager.cs
-index 57c86c351..9726191f3 100644
+index 57c86c3518..9726191f39 100644
 --- a/Robust.Client/UserInterface/UserInterfaceManager.cs
 +++ b/Robust.Client/UserInterface/UserInterfaceManager.cs
 @@ -52,6 +52,7 @@ namespace Robust.Client.UserInterface
@@ -3922,7 +3948,7 @@ index 57c86c351..9726191f3 100644
  
          public void InitializeTesting()
 diff --git a/Robust.Client/UserInterface/XAML/Proxy/XamlHotReloadManager.cs b/Robust.Client/UserInterface/XAML/Proxy/XamlHotReloadManager.cs
-index d6a83e8d7..ed7b1ae82 100644
+index d6a83e8d72..ed7b1ae828 100644
 --- a/Robust.Client/UserInterface/XAML/Proxy/XamlHotReloadManager.cs
 +++ b/Robust.Client/UserInterface/XAML/Proxy/XamlHotReloadManager.cs
 @@ -1,4 +1,4 @@
@@ -3950,7 +3976,7 @@ index d6a83e8d7..ed7b1ae82 100644
                  if (newPath == null)
                  {
 diff --git a/Robust.Shared.CompNetworkGenerator/ComponentNetworkGenerator.cs b/Robust.Shared.CompNetworkGenerator/ComponentNetworkGenerator.cs
-index 4a82cfeb8..9428b2838 100644
+index 4a82cfeb8c..9428b2838e 100644
 --- a/Robust.Shared.CompNetworkGenerator/ComponentNetworkGenerator.cs
 +++ b/Robust.Shared.CompNetworkGenerator/ComponentNetworkGenerator.cs
 @@ -1,4 +1,4 @@
@@ -3983,7 +4009,7 @@ index 4a82cfeb8..9428b2838 100644
                      var source = GenerateSource(context, classType, classSyntax, comp, raiseEv, fieldDeltas, excludeReplays);
                      // can be null if no members marked with network field, which already has a diagnostic, so
 diff --git a/Robust.Shared/Analyzers/ComponentNetworkGeneratorAuxiliary.cs b/Robust.Shared/Analyzers/ComponentNetworkGeneratorAuxiliary.cs
-index 18703ca0c..43496a381 100644
+index 18703ca0c8..43496a3810 100644
 --- a/Robust.Shared/Analyzers/ComponentNetworkGeneratorAuxiliary.cs
 +++ b/Robust.Shared/Analyzers/ComponentNetworkGeneratorAuxiliary.cs
 @@ -1,4 +1,4 @@
@@ -4036,7 +4062,7 @@ index 18703ca0c..43496a381 100644
  
  /// <summary>
 diff --git a/Robust.Shared/CVars.cs b/Robust.Shared/CVars.cs
-index d4c004f4a..bc012ba66 100644
+index d4c004f4ae..bc012ba66a 100644
 --- a/Robust.Shared/CVars.cs
 +++ b/Robust.Shared/CVars.cs
 @@ -992,38 +992,44 @@ namespace Robust.Shared
@@ -4137,7 +4163,7 @@ index d4c004f4a..bc012ba66 100644
          /// The window icon set to use. Overriden by <c>GameControllerOptions</c> on startup.
          /// </summary>
 diff --git a/Robust.Shared/Configuration/ConfigurationManager.cs b/Robust.Shared/Configuration/ConfigurationManager.cs
-index 72844ae3d..649a4c463 100644
+index 72844ae3dd..649a4c4632 100644
 --- a/Robust.Shared/Configuration/ConfigurationManager.cs
 +++ b/Robust.Shared/Configuration/ConfigurationManager.cs
 @@ -531,11 +531,29 @@ namespace Robust.Shared.Configuration
@@ -4175,7 +4201,7 @@ index 72844ae3d..649a4c463 100644
          }
  
 diff --git a/Robust.Shared/ContentPack/BaseModLoader.cs b/Robust.Shared/ContentPack/BaseModLoader.cs
-index 93a6d1a59..4163d2a7b 100644
+index 93a6d1a59d..4163d2a7bb 100644
 --- a/Robust.Shared/ContentPack/BaseModLoader.cs
 +++ b/Robust.Shared/ContentPack/BaseModLoader.cs
 @@ -1,4 +1,4 @@
@@ -4286,7 +4312,7 @@ index 93a6d1a59..4163d2a7b 100644
  
          public bool IsContentAssembly(Assembly typeAssembly)
 diff --git a/Robust.Shared/ContentPack/DirLoader.cs b/Robust.Shared/ContentPack/DirLoader.cs
-index 2524f0606..416ccbdf5 100644
+index 2524f06062..416ccbdf52 100644
 --- a/Robust.Shared/ContentPack/DirLoader.cs
 +++ b/Robust.Shared/ContentPack/DirLoader.cs
 @@ -1,4 +1,4 @@
@@ -4336,8 +4362,120 @@ index 2524f0606..416ccbdf5 100644
  
                  // GetFiles returns full paths, we want them relative to root
                  foreach (var filePath in paths)
+diff --git a/Robust.Shared/ContentPack/IResourceManagerInternal.cs b/Robust.Shared/ContentPack/IResourceManagerInternal.cs
+index 3ccce3e535..3aa3a8395f 100644
+--- a/Robust.Shared/ContentPack/IResourceManagerInternal.cs
++++ b/Robust.Shared/ContentPack/IResourceManagerInternal.cs
+@@ -1,4 +1,4 @@
+-﻿using System;
++using System;
+ using System.Collections.Generic;
+ using System.Diagnostics.CodeAnalysis;
+ using System.IO;
+@@ -42,9 +42,9 @@ namespace Robust.Shared.ContentPack
+         /// <exception cref="FileNotFoundException">Thrown if <paramref name="pack"/> does not exist on disk.</exception>
+         /// <exception cref="ArgumentException">Thrown if <paramref name="prefix"/> is not rooted.</exception>
+         /// <exception cref="ArgumentNullException">Thrown if <paramref name="pack"/> is null.</exception>
+-        void MountContentPack(string pack, ResPath? prefix = null);
++        void MountContentPack(string pack, ResPath? prefix = null, Func<string, bool>? filter = null);
+ 
+-        void MountContentPack(Stream zipStream, ResPath? prefix = null);
++        void MountContentPack(Stream zipStream, ResPath? prefix = null, Func<string, bool>? filter = null);
+ 
+         /// <summary>
+         ///     Adds a directory to search inside of to the VFS. The directory is relative to
+diff --git a/Robust.Shared/ContentPack/PackLoader.cs b/Robust.Shared/ContentPack/PackLoader.cs
+index 2c3244b1da..dc82baba35 100644
+--- a/Robust.Shared/ContentPack/PackLoader.cs
++++ b/Robust.Shared/ContentPack/PackLoader.cs
+@@ -1,4 +1,5 @@
+-﻿using System.Collections.Generic;
++using System;
++using System.Collections.Generic;
+ using System.Diagnostics.CodeAnalysis;
+ using System.IO;
+ using System.IO.Compression;
+@@ -17,6 +18,7 @@ namespace Robust.Shared.ContentPack
+             private readonly FileInfo? _pack;
+             private readonly ISawmill _sawmill;
+             private readonly Stream? _stream;
++            private readonly Func<string, bool>? _filter;
+             private ZipArchive _zip = default!;
+ 
+             /// <summary>
+@@ -24,16 +26,19 @@ namespace Robust.Shared.ContentPack
+             /// </summary>
+             /// <param name="pack">The zip file to mount in the VFS.</param>
+             /// <param name="sawmill">Sawmill to use for logging.</param>
+-            public PackLoader(FileInfo pack, ISawmill sawmill)
++            /// <param name="filter">Optional predicate to filter which files can be accessed.</param>
++            public PackLoader(FileInfo pack, ISawmill sawmill, Func<string, bool>? filter = null)
+             {
+                 _pack = pack;
+                 _sawmill = sawmill;
++                _filter = filter;
+             }
+ 
+-            public PackLoader(Stream stream, ISawmill sawmill)
++            public PackLoader(Stream stream, ISawmill sawmill, Func<string, bool>? filter = null)
+             {
+                 _stream = stream;
+                 _sawmill = sawmill;
++                _filter = filter;
+             }
+ 
+             /// <inheritdoc />
+@@ -57,7 +62,14 @@ namespace Robust.Shared.ContentPack
+             /// <inheritdoc />
+             public bool TryGetFile(ResPath relPath, [NotNullWhen(true)] out Stream? stream)
+             {
+-                var entry = _zip.GetEntry(relPath.ToString());
++                var pathStr = relPath.ToString();
++                if (_filter != null && !_filter(pathStr))
++                {
++                    stream = null;
++                    return false;
++                }
++
++                var entry = _zip.GetEntry(pathStr);
+ 
+                 if (entry == null)
+                 {
+@@ -81,7 +93,11 @@ namespace Robust.Shared.ContentPack
+ 
+             public bool FileExists(ResPath relPath)
+             {
+-                return _zip.GetEntry(relPath.ToString()) != null;
++                var pathStr = relPath.ToString();
++                if (_filter != null && !_filter(pathStr))
++                    return false;
++
++                return _zip.GetEntry(pathStr) != null;
+             }
+ 
+             /// <inheritdoc />
+@@ -96,6 +112,9 @@ namespace Robust.Shared.ContentPack
+                         continue;
+                     }
+ 
++                    if (_filter != null && !_filter(entry.FullName))
++                        continue;
++
+                     if (entry.FullName.StartsWith(rootPath))
+                     {
+                         yield return new ResPath(entry.FullName).ToRelativePath();
+@@ -113,6 +132,9 @@ namespace Robust.Shared.ContentPack
+                         continue;
+                     }
+ 
++                    if (_filter != null && !_filter(entry.FullName))
++                        continue;
++
+                     yield return new ResPath(entry.FullName).ToRootedPath().ToString();
+                 }
+             }
 diff --git a/Robust.Shared/ContentPack/PathHelpers.cs b/Robust.Shared/ContentPack/PathHelpers.cs
-index 64ffaee3c..0cabecba4 100644
+index 64ffaee3c0..0cabecba43 100644
 --- a/Robust.Shared/ContentPack/PathHelpers.cs
 +++ b/Robust.Shared/ContentPack/PathHelpers.cs
 @@ -1,4 +1,4 @@
@@ -4373,8 +4511,46 @@ index 64ffaee3c..0cabecba4 100644
              }
              return Path.GetDirectoryName(location)!;
          }
+diff --git a/Robust.Shared/ContentPack/ResourceManager.cs b/Robust.Shared/ContentPack/ResourceManager.cs
+index b58f22eb18..a32d9b75f7 100644
+--- a/Robust.Shared/ContentPack/ResourceManager.cs
++++ b/Robust.Shared/ContentPack/ResourceManager.cs
+@@ -1,4 +1,4 @@
+-﻿using System;
++using System;
+ using System.Collections.Generic;
+ using System.Diagnostics.CodeAnalysis;
+ using System.IO;
+@@ -75,7 +75,7 @@ namespace Robust.Shared.ContentPack
+         }
+ 
+         /// <inheritdoc />
+-        public void MountContentPack(string pack, ResPath? prefix = null)
++        public void MountContentPack(string pack, ResPath? prefix = null, Func<string, bool>? filter = null)
+         {
+             prefix = SanitizePrefix(prefix);
+ 
+@@ -91,15 +91,15 @@ namespace Robust.Shared.ContentPack
+ 
+             //create new PackLoader
+ 
+-            var loader = new PackLoader(packInfo, Sawmill);
++            var loader = new PackLoader(packInfo, Sawmill, filter);
+             AddRoot(prefix.Value, loader);
+         }
+ 
+-        public void MountContentPack(Stream zipStream, ResPath? prefix = null)
++        public void MountContentPack(Stream zipStream, ResPath? prefix = null, Func<string, bool>? filter = null)
+         {
+             prefix = SanitizePrefix(prefix);
+ 
+-            var loader = new PackLoader(zipStream, Sawmill);
++            var loader = new PackLoader(zipStream, Sawmill, filter);
+             AddRoot(prefix.Value, loader);
+         }
+ 
 diff --git a/Robust.Shared/GameObjects/Component.cs b/Robust.Shared/GameObjects/Component.cs
-index e2679c779..84421b983 100644
+index e2679c7798..84421b9838 100644
 --- a/Robust.Shared/GameObjects/Component.cs
 +++ b/Robust.Shared/GameObjects/Component.cs
 @@ -27,6 +27,7 @@ namespace Robust.Shared.GameObjects
@@ -4402,7 +4578,7 @@ index e2679c779..84421b983 100644
          [ViewVariables]
          public bool Initialized => LifeStage >= ComponentLifeStage.Initializing;
 diff --git a/Robust.Shared/GameObjects/ComponentFactory.cs b/Robust.Shared/GameObjects/ComponentFactory.cs
-index 509cf09cd..7289da8df 100644
+index 509cf09cd7..7289da8df2 100644
 --- a/Robust.Shared/GameObjects/ComponentFactory.cs
 +++ b/Robust.Shared/GameObjects/ComponentFactory.cs
 @@ -484,18 +484,28 @@ namespace Robust.Shared.GameObjects
@@ -4439,7 +4615,7 @@ index 509cf09cd..7289da8df 100644
              _typeToIdx = typeToidx.ToFrozenDictionary();
              _names = names.ToFrozenDictionary();
 diff --git a/Robust.Shared/GameObjects/Components/Light/OccluderComponent.cs b/Robust.Shared/GameObjects/Components/Light/OccluderComponent.cs
-index b5d321f0d..23c44d253 100644
+index b5d321f0d8..23c44d2531 100644
 --- a/Robust.Shared/GameObjects/Components/Light/OccluderComponent.cs
 +++ b/Robust.Shared/GameObjects/Components/Light/OccluderComponent.cs
 @@ -20,6 +20,13 @@ public sealed partial class OccluderComponent : Component, IComponentTreeEntry<O
@@ -4457,7 +4633,7 @@ index b5d321f0d..23c44d253 100644
      /// Local-space convex polygon vertices.
      /// </summary>
 diff --git a/Robust.Shared/GameObjects/EntityEventBus.Common.cs b/Robust.Shared/GameObjects/EntityEventBus.Common.cs
-index b076d269b..1d1026fa8 100644
+index b076d269bb..1d1026fa87 100644
 --- a/Robust.Shared/GameObjects/EntityEventBus.Common.cs
 +++ b/Robust.Shared/GameObjects/EntityEventBus.Common.cs
 @@ -1,4 +1,4 @@
@@ -4483,7 +4659,7 @@ index b076d269b..1d1026fa8 100644
      }
  
 diff --git a/Robust.Shared/GameObjects/EntityEventBus.Directed.cs b/Robust.Shared/GameObjects/EntityEventBus.Directed.cs
-index c67178fc0..67737952d 100644
+index c67178fc01..67737952d6 100644
 --- a/Robust.Shared/GameObjects/EntityEventBus.Directed.cs
 +++ b/Robust.Shared/GameObjects/EntityEventBus.Directed.cs
 @@ -199,7 +199,7 @@ namespace Robust.Shared.GameObjects
@@ -4505,7 +4681,7 @@ index c67178fc0..67737952d 100644
              RaiseLocalEventCore(uid, ref unitRef, type, broadcast);
          }
 diff --git a/Robust.Shared/GameObjects/EntityEvents.cs b/Robust.Shared/GameObjects/EntityEvents.cs
-index 6e246f53a..0e987992a 100644
+index 6e246f53a7..0e987992a6 100644
 --- a/Robust.Shared/GameObjects/EntityEvents.cs
 +++ b/Robust.Shared/GameObjects/EntityEvents.cs
 @@ -51,7 +51,7 @@ namespace Robust.Shared.GameObjects
@@ -4518,7 +4694,7 @@ index 6e246f53a..0e987992a 100644
          public EntitySessionMessage(EntitySessionEventArgs eventArgs, T message)
          {
 diff --git a/Robust.Shared/GameObjects/EntityManager.ComponentDeltas.cs b/Robust.Shared/GameObjects/EntityManager.ComponentDeltas.cs
-index 08660cd8d..c9561313e 100644
+index 08660cd8d6..c9561313ed 100644
 --- a/Robust.Shared/GameObjects/EntityManager.ComponentDeltas.cs
 +++ b/Robust.Shared/GameObjects/EntityManager.ComponentDeltas.cs
 @@ -30,6 +30,12 @@ public abstract partial class EntityManager
@@ -4551,11 +4727,305 @@ index 08660cd8d..c9561313e 100644
      /// <summary>
      /// The last unclassified modification to this component.
      /// </summary>
+diff --git a/Robust.Shared/GameObjects/EntitySystemManager.cs b/Robust.Shared/GameObjects/EntitySystemManager.cs
+index 5e7a70ce68..f2b72225db 100644
+--- a/Robust.Shared/GameObjects/EntitySystemManager.cs
++++ b/Robust.Shared/GameObjects/EntitySystemManager.cs
+@@ -1,4 +1,4 @@
+-﻿using System;
++using System;
+ using System.Collections.Generic;
+ using System.Diagnostics.CodeAnalysis;
+ using System.Linq;
+@@ -136,6 +136,7 @@ namespace Robust.Shared.GameObjects
+         }
+ 
+         /// <inheritdoc />
++        [MethodImpl(MethodImplOptions.NoInlining)]
+         public void Initialize(bool discover = true)
+         {
+             // Tempted to make this an assert
+@@ -160,38 +161,68 @@ namespace Robust.Shared.GameObjects
+ 
+             foreach (var type in systems)
+             {
+-                _sawmill.Debug("Initializing entity system {0}", type);
++                try
++                {
++                    _sawmill.Debug("Initializing entity system {0}", type);
+ 
+-                SystemDependencyCollection.Register(type);
+-                _systemTypes.Add(type);
++                    // ПРОВЕРКА ДЛЯ MONO: форсируем загрузку метаданных полей, методов и базовых типов ДО регистрации!
++                    // Если внутри системы есть ссылка на struct вместо class (type kind 17), она упадет прямо здесь.
++                    _ = type.GetFields(
++                        System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic);
++                    _ = type.GetMethods(System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.Public | System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.DeclaredOnly);
+ 
+-                excludedTypes.Add(type);
+-                if (subTypes.ContainsKey(type))
+-                {
+-                    subTypes.Remove(type);
+-                }
++                    var baseTypes = GetBaseTypes(type).ToArray();
++
++                    SystemDependencyCollection.Register(type);
++                    _systemTypes.Add(type);
+ 
+-                // also register systems under their supertypes, so they can be retrieved by their supertype.
+-                // We don't do this if there are multiple subtype systems of that supertype though, otherwise
+-                // it wouldn't be clear which instance to return when asking for the supertype
+-                foreach (var baseType in GetBaseTypes(type))
++                    excludedTypes.Add(type);
++                    if (subTypes.ContainsKey(type))
++                    {
++                        subTypes.Remove(type);
++                    }
++
++                    // also register systems under their supertypes, so they can be retrieved by their supertype.
++                    // We don't do this if there are multiple subtype systems of that supertype though, otherwise
++                    // it wouldn't be clear which instance to return when asking for the supertype
++                    foreach (var baseType in baseTypes)
++                    {
++                        // already known that there are multiple subtype systems of this type,
++                        // so don't register under the supertype because it would be unclear
++                        // which instance to return if we retrieved it by the supertype
++                        if (excludedTypes.Contains(baseType)) continue;
++
++                        if (subTypes.Remove(baseType))
++                            excludedTypes.Add(baseType);
++                        else
++                            subTypes.Add(baseType, type);
++                    }
++                }
++                catch (Exception ex)
+                 {
+-                    // already known that there are multiple subtype systems of this type,
+-                    // so don't register under the supertype because it would be unclear
+-                    // which instance to return if we retrieved it by the supertype
+-                    if (excludedTypes.Contains(baseType)) continue;
+-
+-                    if (subTypes.Remove(baseType))
+-                        excludedTypes.Add(baseType);
+-                    else
+-                        subTypes.Add(baseType, type);
++                    _sawmill.Error($"[MonoPort] Пропущена несовместимая система {type.FullName} на этапе регистрации: {ex.Message}");
++                    _systemTypes.Remove(type);
+                 }
+             }
+ 
+-            foreach (var (baseType, type) in subTypes)
++            foreach (var (baseType, type) in new Dictionary<Type, Type>(subTypes))
+             {
+-                SystemDependencyCollection.Register(baseType, type, overwrite: true);
+-                _systemTypes.Remove(baseType);
++                try
++                {
++                    if (!_systemTypes.Contains(type))
++                    {
++                        subTypes.Remove(baseType);
++                        continue;
++                    }
++
++                    SystemDependencyCollection.Register(baseType, type, overwrite: true);
++                    _systemTypes.Remove(baseType);
++                }
++                catch (Exception ex)
++                {
++                    _sawmill.Error($"[MonoPort] Ошибка регистрации subType {baseType.FullName} -> {type.FullName}: {ex.Message}");
++                    subTypes.Remove(baseType);
++                }
+             }
+ 
+             var queryMethod = typeof(EntityManager).GetMethod(nameof(EntityManager.GetEntityQuery), 1, [])!;
+@@ -204,13 +235,38 @@ namespace Robust.Shared.GameObjects
+ 
+             SystemDependencyCollection.BuildGraph();
+ 
+-            foreach (var systemType in _systemTypes)
++            var failedSystems = new HashSet<Type>();
++            foreach (var systemType in _systemTypes.ToArray())
+             {
+-                var system = (IEntitySystem)SystemDependencyCollection.ResolveType(systemType);
+-                system.Initialize();
+-                if (system is EntitySystem entitySystem)
+-                    entitySystem.AutoSubscriptions();
+-                SystemLoaded?.Invoke(this, new SystemChangedArgs(system));
++                try
++                {
++                    if (!SystemDependencyCollection.TryResolveType(systemType, out var sysObj))
++                    {
++                        failedSystems.Add(systemType);
++                        continue;
++                    }
++
++                    var system = (IEntitySystem)sysObj;
++                    system.Initialize();
++                    if (system is EntitySystem entitySystem)
++                        entitySystem.AutoSubscriptions();
++                    SystemLoaded?.Invoke(this, new SystemChangedArgs(system));
++                }
++                catch (Exception ex)
++                {
++                    _sawmill.Error($"[MonoPort] Сбой при Initialize/AutoSubscriptions системы {systemType.FullName}: {ex}");
++                    failedSystems.Add(systemType);
++                }
++            }
++
++            // Удаляем упавшие системы, чтобы они не сломали CalculateUpdateOrder и TickUpdate
++            if (failedSystems.Count > 0)
++            {
++                _systemTypes.RemoveAll(t => failedSystems.Contains(t));
++                foreach (var kv in subTypes.Where(kv => failedSystems.Contains(kv.Value) || failedSystems.Contains(kv.Key)).ToList())
++                {
++                    subTypes.Remove(kv.Key);
++                }
+             }
+ 
+             // Create update order for entity systems.
+@@ -267,16 +323,14 @@ namespace Robust.Shared.GameObjects
+             {
+                 foreach (var after in node.Value.UpdatesAfter)
+                 {
+-                    var system = typeToNode[after];
+-
+-                    system.Dependant.Add(node);
++                    if (typeToNode.TryGetValue(after, out var system))
++                        system.Dependant.Add(node);
+                 }
+ 
+                 foreach (var before in node.Value.UpdatesBefore)
+                 {
+-                    var system = typeToNode[before];
+-
+-                    node.Dependant.Add(system);
++                    if (typeToNode.TryGetValue(before, out var system))
++                        node.Dependant.Add(system);
+                 }
+             }
+ 
+@@ -288,12 +342,21 @@ namespace Robust.Shared.GameObjects
+         }
+ 
+         private static IEnumerable<Type> GetBaseTypes(Type type) {
+-            if(type.BaseType == null) return type.GetInterfaces();
++            Type? baseType = null;
++            Type[] interfaces = Type.EmptyTypes;
++            try
++            {
++                baseType = type.BaseType;
++                interfaces = type.GetInterfaces();
++            }
++            catch {}
++
++            if(baseType == null) return interfaces;
+ 
+-            return Enumerable.Repeat(type.BaseType, 1)
+-                .Concat(type.GetInterfaces())
+-                .Concat(type.GetInterfaces().SelectMany<Type, Type>(GetBaseTypes))
+-                .Concat(GetBaseTypes(type.BaseType));
++            return Enumerable.Repeat(baseType, 1)
++                .Concat(interfaces)
++                .Concat(interfaces.SelectMany<Type, Type>(GetBaseTypes))
++                .Concat(GetBaseTypes(baseType));
+         }
+ 
+         /// <inheritdoc />
 diff --git a/Robust.Shared/IoC/DependencyCollection.cs b/Robust.Shared/IoC/DependencyCollection.cs
-index 8e53bf386..3fb032b2c 100644
+index 8e53bf386f..b345a52257 100644
 --- a/Robust.Shared/IoC/DependencyCollection.cs
 +++ b/Robust.Shared/IoC/DependencyCollection.cs
-@@ -705,6 +705,38 @@ namespace Robust.Shared.IoC
+@@ -521,7 +521,11 @@ namespace Robust.Shared.IoC
+                     }
+                     catch (TargetInvocationException e)
+                     {
+-                        throw new ImplementationConstructorException(value, e.InnerException);
++                        System.Console.Error.WriteLine($"[MonoPort] Constructor failed for {value.FullName}: {e.InnerException}");
++                    }
++                    catch (Exception e)
++                    {
++                        System.Console.Error.WriteLine($"[MonoPort] Failed to instantiate {value.FullName}: {e}");
+                     }
+                 }
+ 
+@@ -570,12 +574,26 @@ namespace Robust.Shared.IoC
+                 // Graph built, go over ones that need injection.
+                 foreach (var implementation in injectList)
+                 {
+-                    InjectDependenciesReflection(implementation);
++                    try
++                    {
++                        InjectDependenciesReflection(implementation);
++                    }
++                    catch (Exception ex)
++                    {
++                        System.Console.Error.WriteLine($"[MonoPort] Fatal injection error in {implementation.GetType().FullName}: {ex}");
++                    }
+                 }
+ 
+                 foreach (var injectedItem in injectList.OfType<IPostInjectInit>())
+                 {
+-                    injectedItem.PostInject();
++                    try
++                    {
++                        injectedItem.PostInject();
++                    }
++                    catch (Exception ex)
++                    {
++                        System.Console.Error.WriteLine($"[MonoPort] PostInject error in {injectedItem.GetType().FullName}: {ex}");
++                    }
+                 }
+             }
+         }
+@@ -650,21 +668,43 @@ namespace Robust.Shared.IoC
+ 
+         private void InjectDependenciesReflection(object obj)
+         {
+-            if (CalculateHasDependenciesSafe(obj.GetType()))
++            // На Android/iOS НЕ используем IHasDependencies.Inject, т.к. его JIT-компиляция
++            // падает с TypeLoadException (type kind 17) при малейшем несовпадении struct/class!
++            if (!OperatingSystem.IsAndroid() && !OperatingSystem.IsIOS() && CalculateHasDependenciesSafe(obj.GetType()))
+             {
+                 InjectImmediateHasDependencies(obj);
+                 return;
+             }
+ 
+             var type = obj.GetType();
+-            foreach (var field in type.GetAllFields())
++            for (var checkType = type; checkType != null; checkType = checkType.BaseType)
+             {
+-                if (!Attribute.IsDefined(field, typeof(DependencyAttribute)))
++                FieldInfo[] fields;
++                try
++                {
++                    fields = checkType.GetFields(BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance | BindingFlags.DeclaredOnly);
++                }
++                catch (Exception ex)
+                 {
++                    System.Console.Error.WriteLine($"[MonoPort] GetFields failed on {checkType.FullName}: {ex.Message}");
+                     continue;
+                 }
+ 
+-                field.SetValue(obj, ResolveForInjection(type, field.FieldType, _services));
++                foreach (var field in fields)
++                {
++                    try
++                    {
++                        if (!Attribute.IsDefined(field, typeof(DependencyAttribute)))
++                            continue;
++
++                        var val = ResolveForInjection(type, field.FieldType, _services);
++                        field.SetValue(obj, val);
++                    }
++                    catch (Exception ex)
++                    {
++                        System.Console.Error.WriteLine($"[MonoPort] Field inject failed: {type.FullName}.{field.Name} (FieldType: {field.FieldType}): {ex.Message}");
++                    }
++                }
+             }
+         }
+ 
+@@ -705,6 +745,38 @@ namespace Robust.Shared.IoC
                  return default;
              }
  
@@ -4594,8 +5064,18 @@ index 8e53bf386..3fb032b2c 100644
              var dynamicMethod = new DynamicMethod($"_injector<>{type}", null, InjectorParameters, type, true);
  
              dynamicMethod.DefineParameter(1, ParameterAttributes.In, "target");
+@@ -801,6 +873,9 @@ namespace Robust.Shared.IoC
+ 
+         private static bool CalculateHasDependenciesSafe(Type type)
+         {
++            if (OperatingSystem.IsAndroid() || OperatingSystem.IsIOS())
++                return false;
++
+             bool safe;
+ 
+             lock (IsHasDependenciesSafe)
 diff --git a/Robust.Shared/IoC/IHasDependencies.cs b/Robust.Shared/IoC/IHasDependencies.cs
-index f0852e013..c2d0b39ea 100644
+index f0852e013a..c2d0b39eae 100644
 --- a/Robust.Shared/IoC/IHasDependencies.cs
 +++ b/Robust.Shared/IoC/IHasDependencies.cs
 @@ -1,4 +1,4 @@
@@ -4644,7 +5124,7 @@ index f0852e013..c2d0b39ea 100644
  
  /// <summary>
 diff --git a/Robust.Shared/Localization/ILocalizationManager.cs b/Robust.Shared/Localization/ILocalizationManager.cs
-index 1c70a727c..169752aba 100644
+index 1c70a727cf..169752aba2 100644
 --- a/Robust.Shared/Localization/ILocalizationManager.cs
 +++ b/Robust.Shared/Localization/ILocalizationManager.cs
 @@ -131,6 +131,18 @@ namespace Robust.Shared.Localization
@@ -4667,7 +5147,7 @@ index 1c70a727c..169752aba 100644
          ///     Immediately reload ALL localizations from resources.
          /// </summary>
 diff --git a/Robust.Shared/Localization/LocalizationManager.cs b/Robust.Shared/Localization/LocalizationManager.cs
-index 69e28e861..c6c10962a 100644
+index 69e28e8616..c6c10962aa 100644
 --- a/Robust.Shared/Localization/LocalizationManager.cs
 +++ b/Robust.Shared/Localization/LocalizationManager.cs
 @@ -429,14 +429,36 @@ namespace Robust.Shared.Localization
@@ -4708,8 +5188,40 @@ index 69e28e861..c6c10962a 100644
          public void AddLoadedToStringSerializer(IRobustMappedStringSerializer serializer)
          {
              /*
+diff --git a/Robust.Shared/Log/ConsoleLogHandler.cs b/Robust.Shared/Log/ConsoleLogHandler.cs
+index 2633b8ec50..aca421a6fe 100644
+--- a/Robust.Shared/Log/ConsoleLogHandler.cs
++++ b/Robust.Shared/Log/ConsoleLogHandler.cs
+@@ -1,4 +1,4 @@
+-﻿using System;
++using System;
+ using System.Diagnostics;
+ using System.IO;
+ using System.Text;
+@@ -113,6 +113,21 @@ namespace Robust.Shared.Log
+                     _line.AppendLine(message.Exception.ToString());
+                 }
+ 
++                if (OperatingSystem.IsAndroid())
++                {
++                    try
++                    {
++                        var logPath = "/data/data/io.spacestation14.android/files/game.log";
++                        var fi = new System.IO.FileInfo(logPath);
++                        if (fi.Exists && fi.Length > 512 * 1024)
++                        {
++                            System.IO.File.Delete(logPath);
++                        }
++                        System.IO.File.AppendAllText(logPath, _line.ToString());
++                    }
++                    catch { }
++                }
++
+                 if (System.Console.OutputEncoding.CodePage == WindowsConsole.NativeMethods.CodePageUtf8)
+                 {
+                     // Fast path: if we can output as UTF-8, do it.
 diff --git a/Robust.Shared/Map/CoordinatesExtensions.cs b/Robust.Shared/Map/CoordinatesExtensions.cs
-index 38c8560ef..eb2975c89 100644
+index 38c8560efa..eb2975c892 100644
 --- a/Robust.Shared/Map/CoordinatesExtensions.cs
 +++ b/Robust.Shared/Map/CoordinatesExtensions.cs
 @@ -8,6 +8,9 @@ namespace Robust.Shared.Map
@@ -4724,7 +5236,7 @@ index 38c8560ef..eb2975c89 100644
              IoCManager.Resolve(ref entityManager);
 diff --git a/Robust.Shared/Map/IMapManager.cs b/Robust.Shared/Map/IMapManager.cs
 new file mode 100644
-index 000000000..724ee906b
+index 0000000000..724ee906b5
 --- /dev/null
 +++ b/Robust.Shared/Map/IMapManager.cs
 @@ -0,0 +1,132 @@
@@ -4861,7 +5373,7 @@ index 000000000..724ee906b
 +    }
 +}
 diff --git a/Robust.Shared/Map/TileDefinitionManager.cs b/Robust.Shared/Map/TileDefinitionManager.cs
-index 41989358a..1772637ce 100644
+index 41989358ad..1772637ce8 100644
 --- a/Robust.Shared/Map/TileDefinitionManager.cs
 +++ b/Robust.Shared/Map/TileDefinitionManager.cs
 @@ -1,4 +1,4 @@
@@ -4901,7 +5413,7 @@ index 41989358a..1772637ce 100644
                  definition = null;
                  return false;
 diff --git a/Robust.Shared/Native/Libc.cs b/Robust.Shared/Native/Libc.cs
-index 06be04d55..e29fe6663 100644
+index 06be04d55c..e29fe66638 100644
 --- a/Robust.Shared/Native/Libc.cs
 +++ b/Robust.Shared/Native/Libc.cs
 @@ -1,4 +1,4 @@
@@ -4919,7 +5431,7 @@ index 06be04d55..e29fe6663 100644
      public static extern IntPtr dlopen([MarshalAs(UnmanagedType.LPUTF8Str)] string name, int flags);
  }
 diff --git a/Robust.Shared/Network/AuthManager.cs b/Robust.Shared/Network/AuthManager.cs
-index ea2250e89..a86a98eb1 100644
+index ea2250e891..a86a98eb11 100644
 --- a/Robust.Shared/Network/AuthManager.cs
 +++ b/Robust.Shared/Network/AuthManager.cs
 @@ -1,4 +1,4 @@
@@ -4938,7 +5450,7 @@ index ea2250e89..a86a98eb1 100644
          NetUserId? UserId { get; set; }
          string? Server { get; set; }
 diff --git a/Robust.Shared/Network/NetManager.ClientConnect.cs b/Robust.Shared/Network/NetManager.ClientConnect.cs
-index 509322be6..c1614abbb 100644
+index 509322be62..c1614abbb1 100644
 --- a/Robust.Shared/Network/NetManager.ClientConnect.cs
 +++ b/Robust.Shared/Network/NetManager.ClientConnect.cs
 @@ -105,6 +105,7 @@ namespace Robust.Shared.Network
@@ -4982,7 +5494,7 @@ index 509322be6..c1614abbb 100644
                  request.Headers.Authorization = new AuthenticationHeaderValue("SS14Auth", authToken);
                  var joinResp = await _http.Client.SendAsync(request, cancel);
 diff --git a/Robust.Shared/Network/NetManager.cs b/Robust.Shared/Network/NetManager.cs
-index b79a8d0ef..c12b5a316 100644
+index b79a8d0ef2..c12b5a316a 100644
 --- a/Robust.Shared/Network/NetManager.cs
 +++ b/Robust.Shared/Network/NetManager.cs
 @@ -1140,15 +1140,17 @@ namespace Robust.Shared.Network
@@ -5008,7 +5520,7 @@ index b79a8d0ef..c12b5a316 100644
                  return true;
              }
 diff --git a/Robust.Shared/ProgramShared.cs b/Robust.Shared/ProgramShared.cs
-index a75bfa08b..2c8479afc 100644
+index a75bfa08bc..2c8479afcd 100644
 --- a/Robust.Shared/ProgramShared.cs
 +++ b/Robust.Shared/ProgramShared.cs
 @@ -29,27 +29,33 @@ internal static class ProgramShared
@@ -5098,10 +5610,333 @@ index a75bfa08b..2c8479afc 100644
  #endif
  
 diff --git a/Robust.Shared/Prototypes/PrototypeManager.cs b/Robust.Shared/Prototypes/PrototypeManager.cs
-index 64d2669e7..70d7004bb 100644
+index 64d2669e75..85738a9360 100644
 --- a/Robust.Shared/Prototypes/PrototypeManager.cs
 +++ b/Robust.Shared/Prototypes/PrototypeManager.cs
-@@ -702,34 +702,58 @@ namespace Robust.Shared.Prototypes
+@@ -251,14 +251,24 @@ namespace Robust.Shared.Prototypes
+                 throw new InvalidOperationException("No prototypes have been loaded yet.");
+             }
+ 
+-            try
++            if (_kinds.TryGetValue(typeof(T), out var kindData) && kindData.Instances.TryGetValue(id, out var inst))
+             {
+-                return (T)_kinds[typeof(T)].Instances[id];
++                return (T)inst;
+             }
+-            catch (KeyNotFoundException)
++
++            var fallback = CreateFallbackPrototype(typeof(T), id) as T;
++            if (fallback != null)
+             {
+-                throw new UnknownPrototypeException(id, typeof(T));
++                if (kindData != null)
++                {
++                    kindData.UnfrozenInstances ??= kindData.Instances.ToDictionary();
++                    kindData.UnfrozenInstances[id] = fallback;
++                    kindData.Instances = kindData.UnfrozenInstances.ToFrozenDictionary();
++                }
++                return fallback;
+             }
++
++            throw new UnknownPrototypeException(id, typeof(T));
+         }
+ 
+         /// <inheritdoc />
+@@ -281,13 +291,93 @@ namespace Robust.Shared.Prototypes
+                 throw new InvalidOperationException("No prototypes have been loaded yet.");
+             }
+ 
++            if (_kinds.TryGetValue(kind, out var kindData) && kindData.Instances.TryGetValue(id, out var inst))
++            {
++                return inst;
++            }
++
++            var fallback = CreateFallbackPrototype(kind, id);
++            if (fallback != null)
++            {
++                if (kindData != null)
++                {
++                    kindData.UnfrozenInstances ??= kindData.Instances.ToDictionary();
++                    kindData.UnfrozenInstances[id] = fallback;
++                    kindData.Instances = kindData.UnfrozenInstances.ToFrozenDictionary();
++                }
++                return fallback;
++            }
++
++            throw new UnknownPrototypeException(id, kind);
++        }
++
++        private IPrototype? CreateFallbackPrototype(Type kind, string id)
++        {
++            if (kind.Name == "ColorPalettePrototype")
++                return CreateFallbackColorPalette(kind, id);
++
+             try
+             {
+-                return _kinds[kind].Instances[id];
++                var instance = Activator.CreateInstance(kind);
++                if (instance == null) return null;
++
++                const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
++                var idProp = kind.GetProperty("ID", flags);
++                idProp?.SetValue(instance, id);
++                var idField = kind.GetField("ID", flags) ?? kind.GetField("_id", flags);
++                idField?.SetValue(instance, id);
++
++                var nameProp = kind.GetProperty("Name", flags);
++                nameProp?.SetValue(instance, id);
++                var nameField = kind.GetField("Name", flags) ?? kind.GetField("_name", flags);
++                nameField?.SetValue(instance, id);
++
++                if (kind.Name == "ContentTileDefinition" && id == "Space")
++                {
++                    var isSubFloorProp = kind.GetProperty("IsSubFloor", flags);
++                    isSubFloorProp?.SetValue(instance, true);
++                    var isSpaceProp = kind.GetProperty("IsSpace", flags);
++                    isSpaceProp?.SetValue(instance, true);
++                }
++
++                EnsureNonNullCollections(instance, kind, flags);
++
++                Sawmill.Warning($"Created emergency fallback prototype {kind.Name} for '{id}'.");
++                return (IPrototype)instance;
+             }
+-            catch (KeyNotFoundException)
++            catch (Exception ex)
+             {
+-                throw new UnknownPrototypeException(id, kind);
++                Sawmill.Error($"Failed to create fallback prototype {kind.Name} for '{id}': {ex}");
++                return null;
++            }
++        }
++
++        private IPrototype? CreateFallbackColorPalette(Type kind, string id)
++        {
++            try
++            {
++                var instance = Activator.CreateInstance(kind);
++                if (instance == null) return null;
++
++                const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
++                var idProp = kind.GetProperty("ID", flags);
++                idProp?.SetValue(instance, id);
++
++                var nameProp = kind.GetProperty("Name", flags);
++                nameProp?.SetValue(instance, id);
++
++                var colorsProp = kind.GetProperty("Colors", flags);
++                colorsProp?.SetValue(instance, GetDefaultChatColors());
++
++                EnsureNonNullCollections(instance, kind, flags);
++
++                Sawmill.Warning($"Created emergency fallback ColorPalettePrototype for '{id}' to prevent startup crash.");
++                return (IPrototype)instance;
++            }
++            catch (Exception ex)
++            {
++                Sawmill.Error($"Failed to create emergency fallback ColorPalettePrototype for '{id}': {ex}");
++                return null;
+             }
+         }
+ 
+@@ -679,6 +769,14 @@ namespace Robust.Shared.Prototypes
+             }
+             catch (Exception e)
+             {
++                try
++                {
++                    var legacy = ReadLegacyPrototype(kind, id, mapping);
++                    if (legacy != null)
++                        return legacy;
++                }
++                catch { }
++
+                 if (throwOnReadFailure)
+                     throw new PrototypeLoadException($"Failed reading {kind}({id})", e);
+ 
+@@ -687,6 +785,181 @@ namespace Robust.Shared.Prototypes
+             }
+         }
+ 
++        private IPrototype? ReadLegacyPrototype(Type kind, string id, MappingDataNode mapping)
++        {
++            try
++            {
++                var instance = Activator.CreateInstance(kind);
++                if (instance == null) return null;
++
++                const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
++                var idProp = kind.GetProperty("ID", flags);
++                idProp?.SetValue(instance, id);
++                var idField = kind.GetField("ID", flags) ?? kind.GetField("_id", flags);
++                idField?.SetValue(instance, id);
++
++                var props = kind.GetProperties(flags);
++                var fields = kind.GetFields(flags);
++
++                foreach (var (key, node) in mapping.Children)
++                {
++                    if (node is ValueDataNode valNode)
++                    {
++                        var valStr = valNode.Value;
++                        var prop = props.FirstOrDefault(p => string.Equals(p.Name, key, StringComparison.OrdinalIgnoreCase));
++                        if (prop != null && prop.CanWrite)
++                        {
++                            SetLegacyMemberValue(prop.PropertyType, val => prop.SetValue(instance, val), valStr);
++                            continue;
++                        }
++                        var field = fields.FirstOrDefault(f => string.Equals(f.Name, key, StringComparison.OrdinalIgnoreCase) ||
++                                                               string.Equals(f.Name, "_" + key, StringComparison.OrdinalIgnoreCase));
++                        if (field != null)
++                        {
++                            SetLegacyMemberValue(field.FieldType, val => field.SetValue(instance, val), valStr);
++                        }
++                    }
++                    else if (node is MappingDataNode mapNode)
++                    {
++                        var prop = props.FirstOrDefault(p => string.Equals(p.Name, key, StringComparison.OrdinalIgnoreCase));
++                        if (prop != null && prop.CanWrite)
++                        {
++                            SetLegacyMappingMemberValue(prop.PropertyType, val => prop.SetValue(instance, val), mapNode);
++                            continue;
++                        }
++                        var field = fields.FirstOrDefault(f => string.Equals(f.Name, key, StringComparison.OrdinalIgnoreCase) ||
++                                                               string.Equals(f.Name, "_" + key, StringComparison.OrdinalIgnoreCase));
++                        if (field != null)
++                        {
++                            SetLegacyMappingMemberValue(field.FieldType, val => field.SetValue(instance, val), mapNode);
++                        }
++                    }
++                }
++
++                if (kind.Name == "ColorPalettePrototype")
++                {
++                    var colorsProp = kind.GetProperty("Colors", flags);
++                    if (colorsProp != null)
++                    {
++                        if (colorsProp.GetValue(instance) is not Dictionary<string, Robust.Shared.Maths.Color> colDict || colDict.Count == 0)
++                        {
++                            colorsProp.SetValue(instance, GetDefaultChatColors());
++                        }
++                    }
++                }
++
++                EnsureNonNullCollections(instance, kind, flags);
++
++                return (IPrototype)instance;
++            }
++            catch
++            {
++                return null;
++            }
++        }
++
++        private static void SetLegacyMemberValue(Type targetType, Action<object?> setter, string valStr)
++        {
++            try
++            {
++                if (targetType == typeof(string))
++                    setter(valStr);
++                else if (targetType == typeof(bool) && bool.TryParse(valStr, out var b))
++                    setter(b);
++                else if (targetType == typeof(int) && int.TryParse(valStr, out var i))
++                    setter(i);
++                else if (targetType == typeof(ushort) && ushort.TryParse(valStr, out var u))
++                    setter(u);
++                else if (targetType == typeof(short) && short.TryParse(valStr, out var s))
++                    setter(s);
++                else if (targetType == typeof(byte) && byte.TryParse(valStr, out var by))
++                    setter(by);
++                else if (targetType == typeof(float) && float.TryParse(valStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var f))
++                    setter(f);
++                else if (targetType == typeof(double) && double.TryParse(valStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var d))
++                    setter(d);
++                else if (targetType.IsEnum && Enum.TryParse(targetType, valStr, true, out var enumVal))
++                    setter(enumVal);
++            }
++            catch {}
++        }
++
++        private static void SetLegacyMappingMemberValue(Type targetType, Action<object?> setter, MappingDataNode mapNode)
++        {
++            try
++            {
++                if (targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(Dictionary<,>))
++                {
++                    var genArgs = targetType.GetGenericArguments();
++                    if (genArgs[0] == typeof(string))
++                    {
++                        if (genArgs[1] == typeof(Robust.Shared.Maths.Color))
++                        {
++                            var dict = new Dictionary<string, Robust.Shared.Maths.Color>();
++                            foreach (var (k, v) in mapNode.Children)
++                            {
++                                if (v is ValueDataNode vn && Robust.Shared.Maths.Color.TryFromHex(vn.Value, out var col))
++                                    dict[k] = col;
++                            }
++                            setter(dict);
++                            return;
++                        }
++                        if (genArgs[1] == typeof(string))
++                        {
++                            var dict = new Dictionary<string, string>();
++                            foreach (var (k, v) in mapNode.Children)
++                            {
++                                if (v is ValueDataNode vn)
++                                    dict[k] = vn.Value;
++                            }
++                            setter(dict);
++                            return;
++                        }
++                    }
++                }
++            }
++            catch {}
++        }
++
++        private static void EnsureNonNullCollections(object instance, Type kind, BindingFlags flags)
++        {
++            foreach (var prop in kind.GetProperties(flags))
++            {
++                if (!prop.CanWrite || !prop.CanRead) continue;
++                try
++                {
++                    if (prop.GetValue(instance) != null) continue;
++                    var pt = prop.PropertyType;
++                    if (pt.IsGenericType)
++                    {
++                        var genDef = pt.GetGenericTypeDefinition();
++                        if (genDef == typeof(Dictionary<,>) || genDef == typeof(List<>) || genDef == typeof(HashSet<>))
++                        {
++                            var newCol = Activator.CreateInstance(pt);
++                            prop.SetValue(instance, newCol);
++                        }
++                    }
++                }
++                catch {}
++            }
++        }
++
++        private static Dictionary<string, Robust.Shared.Maths.Color> GetDefaultChatColors() => new()
++        {
++            ["ploink"] = Robust.Shared.Maths.Color.FromHex("#da8bc9"),
++            ["ourple"] = Robust.Shared.Maths.Color.FromHex("#b18bda"),
++            ["us-navy"] = Robust.Shared.Maths.Color.FromHex("#96a4eb"),
++            ["yet-another-blue"] = Robust.Shared.Maths.Color.FromHex("#8cb7e8"),
++            ["cyan"] = Robust.Shared.Maths.Color.FromHex("#8bc9da"),
++            ["fake-color"] = Robust.Shared.Maths.Color.FromHex("#8bdaba"),
++            ["green"] = Robust.Shared.Maths.Color.FromHex("#8bda8e"),
++            ["you-wish-you-were-green"] = Robust.Shared.Maths.Color.FromHex("#a9da8b"),
++            ["piss"] = Robust.Shared.Maths.Color.FromHex("#ceda8b"),
++            ["orange"] = Robust.Shared.Maths.Color.FromHex("#dabc8b"),
++            ["the-orange-she-tells-you-not-to-worry-about"] = Robust.Shared.Maths.Color.FromHex("#daa58b"),
++            ["red"] = Robust.Shared.Maths.Color.FromHex("#da8b8b")
++        };
++
+         private async Task PushKindInheritance(Type kind, KindData data)
+         {
+             if (data.Inheritance is not { } tree)
+@@ -702,34 +975,58 @@ namespace Robust.Shared.Prototypes
  
              foreach (var root in tree.RootNodes)
              {
@@ -5173,7 +6008,7 @@ index 64d2669e7..70d7004bb 100644
                          }
                      }
  
-@@ -737,21 +761,35 @@ namespace Robust.Shared.Prototypes
+@@ -737,21 +1034,35 @@ namespace Robust.Shared.Prototypes
                      {
                          foreach (var child in children)
                          {
@@ -5215,30 +6050,117 @@ index 64d2669e7..70d7004bb 100644
                      throw;
                  }
              }
-@@ -798,7 +836,7 @@ namespace Robust.Shared.Prototypes
+@@ -798,10 +1109,10 @@ namespace Robust.Shared.Prototypes
          {
              if (!_kinds.TryGetValue(typeof(T), out var index))
              {
 -                throw new UnknownPrototypeException(id, typeof(T));
-+                return false;
++                return typeof(T).Name == "ColorPalettePrototype" || typeof(T).Name == "ContentTileDefinition";
              }
  
-             return index.Instances.ContainsKey(id);
-@@ -847,7 +885,8 @@ namespace Robust.Shared.Prototypes
+-            return index.Instances.ContainsKey(id);
++            return index.Instances.ContainsKey(id) || typeof(T).Name == "ColorPalettePrototype" || typeof(T).Name == "ContentTileDefinition";
+         }
+ 
+         /// <inheritdoc />
+@@ -845,12 +1156,25 @@ namespace Robust.Shared.Prototypes
+         /// <inheritdoc />
+         public bool TryIndex(Type kind, string id, [NotNullWhen(true)] out IPrototype? prototype)
          {
-             if (!_kinds.TryGetValue(kind, out var index))
+-            if (!_kinds.TryGetValue(kind, out var index))
++            if (_kinds.TryGetValue(kind, out var index) && index.Instances.TryGetValue(id, out prototype))
              {
 -                throw new UnknownPrototypeException(id, kind);
-+                prototype = null;
-+                return false;
++                return true;
              }
  
-             return index.Instances.TryGetValue(id, out prototype);
+-            return index.Instances.TryGetValue(id, out prototype);
++            prototype = CreateFallbackPrototype(kind, id);
++            if (prototype != null)
++            {
++                if (index != null)
++                {
++                    index.UnfrozenInstances ??= index.Instances.ToDictionary();
++                    index.UnfrozenInstances[id] = prototype;
++                    index.Instances = index.UnfrozenInstances.ToFrozenDictionary();
++                }
++                return true;
++            }
++
++            prototype = null;
++            return false;
+         }
+ 
+ 
 diff --git a/Robust.Shared/Reflection/ReflectionManager.cs b/Robust.Shared/Reflection/ReflectionManager.cs
-index 0d7fedf56..6652f93aa 100644
+index 0d7fedf565..429a4554a4 100644
 --- a/Robust.Shared/Reflection/ReflectionManager.cs
 +++ b/Robust.Shared/Reflection/ReflectionManager.cs
-@@ -394,7 +394,10 @@ namespace Robust.Shared.Reflection
+@@ -76,7 +76,18 @@ namespace Robust.Shared.Reflection
+ 
+             foreach (var inheritor in inheritors)
+             {
+-                if (!inheritor.IsAbstract)
++                bool isAbstract = false;
++                try
++                {
++                    isAbstract = inheritor.IsAbstract;
++                }
++                catch (Exception ex)
++                {
++                    _sawmill?.Warning($"ReflectionManager: Skipping invalid inheritor of {baseType}: {ex.Message}");
++                    continue;
++                }
++
++                if (!isAbstract)
+                     yield return inheritor;
+             }
+         }
+@@ -91,7 +102,19 @@ namespace Robust.Shared.Reflection
+ 
+             foreach (var assembly in assemblies)
+             {
+-                var types = assembly.GetTypes();
++                Type[] types;
++                try
++                {
++                    types = assembly.GetTypes();
++                }
++                catch (ReflectionTypeLoadException e)
++                {
++                    types = e.Types.Where(t => t != null).ToArray()!;
++                }
++                catch (Exception)
++                {
++                    types = Type.EmptyTypes;
++                }
+                 typeSets.Add(types);
+                 totalLength += types.Length;
+             }
+@@ -105,7 +128,9 @@ namespace Robust.Shared.Reflection
+             {
+                 foreach (var type in typeSet)
+                 {
+-                    var attribute = (ReflectAttribute?)Attribute.GetCustomAttribute(type, typeof(ReflectAttribute));
++                    try
++                    {
++                        var attribute = (ReflectAttribute?)Attribute.GetCustomAttribute(type, typeof(ReflectAttribute));
+ 
+                     if (!(attribute?.Discoverable ?? ReflectAttribute.DEFAULT_DISCOVERABLE))
+                         continue;
+@@ -183,6 +208,11 @@ namespace Robust.Shared.Reflection
+                         }
+                     }
+                 }
++                catch (Exception ex)
++                {
++                    _sawmill?.Warning($"ReflectionManager: Skipping invalid type {type}: {ex.Message}");
++                }
++            }
+             }
+ 
+             var toAdd = new HashSet<Type>();
+@@ -394,7 +424,10 @@ namespace Robust.Shared.Reflection
                          if (!TypeNameMatchesEnumReference(@enum.FullName!, typeName))
                              continue;
  
@@ -5251,7 +6173,7 @@ index 0d7fedf56..6652f93aa 100644
                              r != _reverseEnumCache[e])
                          {
 diff --git a/Robust.Shared/Serialization/ISerializationGenerated.cs b/Robust.Shared/Serialization/ISerializationGenerated.cs
-index 7cb0fd3d2..e90de9061 100644
+index 7cb0fd3d22..e90de90616 100644
 --- a/Robust.Shared/Serialization/ISerializationGenerated.cs
 +++ b/Robust.Shared/Serialization/ISerializationGenerated.cs
 @@ -1,4 +1,4 @@
@@ -5289,7 +6211,7 @@ index 7cb0fd3d2..e90de9061 100644
      static virtual void Read(
 diff --git a/Robust.Shared/Serialization/Manager/Attributes/ValidatePrototypeIdAttribute.cs b/Robust.Shared/Serialization/Manager/Attributes/ValidatePrototypeIdAttribute.cs
 new file mode 100644
-index 000000000..fb175147c
+index 0000000000..fb175147c8
 --- /dev/null
 +++ b/Robust.Shared/Serialization/Manager/Attributes/ValidatePrototypeIdAttribute.cs
 @@ -0,0 +1,14 @@
@@ -5308,7 +6230,7 @@ index 000000000..fb175147c
 +{
 +}
 diff --git a/Robust.Shared/Serialization/Manager/SerializationManager.Instantiation.cs b/Robust.Shared/Serialization/Manager/SerializationManager.Instantiation.cs
-index eeefefe85..d8d584c92 100644
+index eeefefe85a..d8d584c926 100644
 --- a/Robust.Shared/Serialization/Manager/SerializationManager.Instantiation.cs
 +++ b/Robust.Shared/Serialization/Manager/SerializationManager.Instantiation.cs
 @@ -1,4 +1,4 @@
@@ -5387,8 +6309,56 @@ index eeefefe85..d8d584c92 100644
 +        return () => (T)invokeMethod.Invoke(rawDelegate, null)!;
      }
  }
+diff --git a/Robust.Shared/Serialization/Manager/SerializationManager.Reading.cs b/Robust.Shared/Serialization/Manager/SerializationManager.Reading.cs
+index b2b5d27b9f..fece0b8041 100644
+--- a/Robust.Shared/Serialization/Manager/SerializationManager.Reading.cs
++++ b/Robust.Shared/Serialization/Manager/SerializationManager.Reading.cs
+@@ -1,4 +1,4 @@
+-﻿using System;
++using System;
+ using System.Collections.Concurrent;
+ using System.Diagnostics;
+ using System.Linq;
+@@ -752,7 +752,23 @@ namespace Robust.Shared.Serialization.Manager
+                             {
+                                 var definition = GetDefinition(typeof(T));
+                                 if (definition == null)
++                                {
++                                    _sawmill.Warning($"No data definition found for type {baseType} with node type {node.GetType()} when reading, attempting fallback instantiation");
++                                    if (instanceProvider != null)
++                                    {
++                                        val = instanceProvider.Invoke()!;
++                                        break;
++                                    }
++
++                                    var ctor = typeof(T).GetConstructor(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic, Type.EmptyTypes);
++                                    if (ctor != null)
++                                    {
++                                        val = (T) ctor.Invoke(null);
++                                        break;
++                                    }
++
+                                     throw new ArgumentException($"No data definition found for type {baseType} with node type {node.GetType()} when reading");
++                                }
+ 
+                                 var valObj = instanceProvider == null ? definition.InstantiateObj() : instanceProvider.Invoke()!;
+                                 definition.PopulateObj(ref valObj, mapping, this, hookCtx, context);
+@@ -1443,7 +1459,12 @@ namespace Robust.Shared.Serialization.Manager
+             where TValue : ISerializationGenerated<TValue>
+         {
+             if (definition == null)
+-                throw new ArgumentException($"No data definition found for type {typeof(TValue)} with node type {node.GetType()} when reading");
++            {
++                _sawmill.Warning($"No data definition found for type {typeof(TValue)} with node type {node.GetType()} when reading, attempting fallback instantiation");
++                var instanceFallback = instanceProvider();
++                TryRunAfterHook(instanceFallback, hookCtx);
++                return instanceFallback;
++            }
+ 
+             var instance = instanceProvider();
+ 
 diff --git a/Robust.Shared/Serialization/Manager/SerializationManager.cs b/Robust.Shared/Serialization/Manager/SerializationManager.cs
-index 151805d55..21989961c 100644
+index 151805d557..21989961c7 100644
 --- a/Robust.Shared/Serialization/Manager/SerializationManager.cs
 +++ b/Robust.Shared/Serialization/Manager/SerializationManager.cs
 @@ -33,6 +33,7 @@ namespace Robust.Shared.Serialization.Manager
@@ -5574,7 +6544,7 @@ index 151805d55..21989961c 100644
  
          public void Shutdown()
 diff --git a/Robust.Shared/Serialization/RobustMappedStringSerializer.cs b/Robust.Shared/Serialization/RobustMappedStringSerializer.cs
-index ead07fe95..841047f8d 100644
+index ead07fe952..841047f8d2 100644
 --- a/Robust.Shared/Serialization/RobustMappedStringSerializer.cs
 +++ b/Robust.Shared/Serialization/RobustMappedStringSerializer.cs
 @@ -482,7 +482,14 @@ namespace Robust.Shared.Serialization
@@ -5625,7 +6595,7 @@ index ead07fe95..841047f8d 100644
  
          /// <summary>
 diff --git a/Robust.Shared/Serialization/TypeSerializers/Implementations/ComponentRegistrySerializer.cs b/Robust.Shared/Serialization/TypeSerializers/Implementations/ComponentRegistrySerializer.cs
-index 4f71d0d07..ff044107a 100644
+index 4f71d0d07a..ff044107ae 100644
 --- a/Robust.Shared/Serialization/TypeSerializers/Implementations/ComponentRegistrySerializer.cs
 +++ b/Robust.Shared/Serialization/TypeSerializers/Implementations/ComponentRegistrySerializer.cs
 @@ -82,35 +82,42 @@ namespace Robust.Shared.Serialization.TypeSerializers.Implementations
@@ -5696,7 +6666,7 @@ index 4f71d0d07..ff044107a 100644
  
              return components;
 diff --git a/Robust.Shared/Serialization/TypeSerializers/Implementations/Custom/Prototype/Array/PrototypeIdArraySerializer.cs b/Robust.Shared/Serialization/TypeSerializers/Implementations/Custom/Prototype/Array/PrototypeIdArraySerializer.cs
-index 0e8e9e286..0c30140df 100644
+index 0e8e9e2867..0c30140df8 100644
 --- a/Robust.Shared/Serialization/TypeSerializers/Implementations/Custom/Prototype/Array/PrototypeIdArraySerializer.cs
 +++ b/Robust.Shared/Serialization/TypeSerializers/Implementations/Custom/Prototype/Array/PrototypeIdArraySerializer.cs
 @@ -28,3 +28,21 @@ public sealed class AbstractPrototypeIdArraySerializer<TPrototype> : ITypeValida
@@ -5723,7 +6693,7 @@ index 0e8e9e286..0c30140df 100644
 +
 diff --git a/Robust.Shared/Serialization/TypeSerializers/Implementations/Custom/Prototype/Dictionary/PrototypeIdDictionarySerializer.cs b/Robust.Shared/Serialization/TypeSerializers/Implementations/Custom/Prototype/Dictionary/PrototypeIdDictionarySerializer.cs
 new file mode 100644
-index 000000000..8faab1305
+index 0000000000..8faab13051
 --- /dev/null
 +++ b/Robust.Shared/Serialization/TypeSerializers/Implementations/Custom/Prototype/Dictionary/PrototypeIdDictionarySerializer.cs
 @@ -0,0 +1,55 @@
@@ -5784,7 +6754,7 @@ index 000000000..8faab1305
 +}
 diff --git a/Robust.Shared/Serialization/TypeSerializers/Implementations/Custom/Prototype/Dictionary/PrototypeIdValueDictionarySerializer.cs b/Robust.Shared/Serialization/TypeSerializers/Implementations/Custom/Prototype/Dictionary/PrototypeIdValueDictionarySerializer.cs
 new file mode 100644
-index 000000000..860d875cf
+index 0000000000..860d875cf7
 --- /dev/null
 +++ b/Robust.Shared/Serialization/TypeSerializers/Implementations/Custom/Prototype/Dictionary/PrototypeIdValueDictionarySerializer.cs
 @@ -0,0 +1,61 @@
@@ -5851,7 +6821,7 @@ index 000000000..860d875cf
 +}
 diff --git a/Robust.Shared/Serialization/TypeSerializers/Implementations/Custom/Prototype/List/PrototypeIdListSerializer.cs b/Robust.Shared/Serialization/TypeSerializers/Implementations/Custom/Prototype/List/PrototypeIdListSerializer.cs
 new file mode 100644
-index 000000000..81020ff5b
+index 0000000000..81020ff5ba
 --- /dev/null
 +++ b/Robust.Shared/Serialization/TypeSerializers/Implementations/Custom/Prototype/List/PrototypeIdListSerializer.cs
 @@ -0,0 +1,65 @@
@@ -5922,7 +6892,7 @@ index 000000000..81020ff5b
 +}
 diff --git a/Robust.Shared/Serialization/TypeSerializers/Implementations/Custom/Prototype/PrototypeFlagsTypeSerializer.cs b/Robust.Shared/Serialization/TypeSerializers/Implementations/Custom/Prototype/PrototypeFlagsTypeSerializer.cs
 new file mode 100644
-index 000000000..4039e79b7
+index 0000000000..4039e79b70
 --- /dev/null
 +++ b/Robust.Shared/Serialization/TypeSerializers/Implementations/Custom/Prototype/PrototypeFlagsTypeSerializer.cs
 @@ -0,0 +1,107 @@
@@ -6035,7 +7005,7 @@ index 000000000..4039e79b7
 +}
 diff --git a/Robust.Shared/Serialization/TypeSerializers/Implementations/Custom/Prototype/PrototypeIdSerializer.cs b/Robust.Shared/Serialization/TypeSerializers/Implementations/Custom/Prototype/PrototypeIdSerializer.cs
 new file mode 100644
-index 000000000..2369d8006
+index 0000000000..2369d80064
 --- /dev/null
 +++ b/Robust.Shared/Serialization/TypeSerializers/Implementations/Custom/Prototype/PrototypeIdSerializer.cs
 @@ -0,0 +1,37 @@
@@ -6078,7 +7048,7 @@ index 000000000..2369d8006
 +}
 diff --git a/Robust.Shared/Serialization/TypeSerializers/Implementations/Custom/Prototype/Set/PrototypeIdHashSetSerializer.cs b/Robust.Shared/Serialization/TypeSerializers/Implementations/Custom/Prototype/Set/PrototypeIdHashSetSerializer.cs
 new file mode 100644
-index 000000000..7f5030aea
+index 0000000000..7f5030aea0
 --- /dev/null
 +++ b/Robust.Shared/Serialization/TypeSerializers/Implementations/Custom/Prototype/Set/PrototypeIdHashSetSerializer.cs
 @@ -0,0 +1,41 @@
@@ -6124,7 +7094,7 @@ index 000000000..7f5030aea
 +    }
 +}
 diff --git a/Robust.Shared/SharedIoC.cs b/Robust.Shared/SharedIoC.cs
-index d743f5bda..a13d2030a 100644
+index d743f5bda4..a13d2030a0 100644
 --- a/Robust.Shared/SharedIoC.cs
 +++ b/Robust.Shared/SharedIoC.cs
 @@ -43,6 +43,7 @@ namespace Robust.Shared
@@ -6136,7 +7106,7 @@ index d743f5bda..a13d2030a 100644
              deps.Register<IParallelManager, ParallelManager>();
              deps.Register<IParallelManagerInternal, ParallelManager>();
 diff --git a/Robust.Shared/Timing/PrecisionSleep.cs b/Robust.Shared/Timing/PrecisionSleep.cs
-index 328e021cd..13a9d2f1e 100644
+index 328e021cde..13a9d2f1e5 100644
 --- a/Robust.Shared/Timing/PrecisionSleep.cs
 +++ b/Robust.Shared/Timing/PrecisionSleep.cs
 @@ -1,4 +1,4 @@
@@ -6155,7 +7125,7 @@ index 328e021cd..13a9d2f1e 100644
  
      private struct timespec
 diff --git a/Robust.Shared/Utility/ResPath.cs b/Robust.Shared/Utility/ResPath.cs
-index 1dc2126f0..f761352c4 100644
+index 1dc2126f07..f761352c4e 100644
 --- a/Robust.Shared/Utility/ResPath.cs
 +++ b/Robust.Shared/Utility/ResPath.cs
 @@ -1,4 +1,4 @@
@@ -6196,7 +7166,7 @@ index 1dc2126f0..f761352c4 100644
  
      #endregion
 diff --git a/Robust.Shared/Utility/TypeHelpers.cs b/Robust.Shared/Utility/TypeHelpers.cs
-index 8831e60fa..2b328737c 100644
+index 8831e60fa9..2b328737c4 100644
 --- a/Robust.Shared/Utility/TypeHelpers.cs
 +++ b/Robust.Shared/Utility/TypeHelpers.cs
 @@ -183,23 +183,53 @@ namespace Robust.Shared.Utility

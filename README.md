@@ -83,3 +83,11 @@ Android port of [Space Station 14](https://github.com/space-wizards/space-statio
 
 Continuous Integration builds and publishes signed release APKs on every push to `master` via GitHub Actions:
 [Build Android Release Workflow](https://github.com/Ixee24/space-station-14-mobile/actions)
+
+---
+
+## Credits
+
+- Initial port, native builds & launcher: **[SolomonNumb1](https://github.com/SolomonNumb1)**
+- Multi-touch, virtual controls, crash diagnostics & legacy compatibility: **[Ixee24](https://github.com/Ixee24)**
+

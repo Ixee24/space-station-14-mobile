@@ -2387,7 +2387,7 @@ index ea95f5d9da..117b7f77f0 100644
                  VerticalAlignment = VAlignment.Bottom,
                  Visible = false,
 diff --git a/Content.Client/UserInterface/Systems/Chat/ChatUIController.cs b/Content.Client/UserInterface/Systems/Chat/ChatUIController.cs
-index 8e99a97180..59e478745e 100644
+index 8e99a97180..f06b007abf 100644
 --- a/Content.Client/UserInterface/Systems/Chat/ChatUIController.cs
 +++ b/Content.Client/UserInterface/Systems/Chat/ChatUIController.cs
 @@ -235,11 +235,19 @@ public override void Initialize()
@@ -2397,7 +2397,7 @@ index 8e99a97180..59e478745e 100644
 -        var nameColors = _prototypeManager.Index(ChatNamePalette).Colors.Values.ToArray();
 -        _chatNameColors = new string[nameColors.Length];
 -        for (var i = 0; i < nameColors.Length; i++)
-+        if (_prototypeManager.TryIndex(ChatNamePalette, out var palette))
++        if (_prototypeManager.TryIndex(ChatNamePalette, out var palette) && palette.Colors != null && palette.Colors.Count > 0)
          {
 -            _chatNameColors[i] = nameColors[i].ToHex();
 +            var nameColors = palette.Colors.Values.ToArray();

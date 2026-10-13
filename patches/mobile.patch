@@ -1726,6 +1726,32 @@ index 2c7ef9c72..d7f4f36ca 100644
  
              switch (HorizontalAlignment)
              {
+diff --git a/Robust.Client/UserInterface/Controllers/UserInterfaceManager.Controllers.cs b/Robust.Client/UserInterface/Controllers/UserInterfaceManager.Controllers.cs
+index 9ed8f5198..f84eaedd9 100644
+--- a/Robust.Client/UserInterface/Controllers/UserInterfaceManager.Controllers.cs
++++ b/Robust.Client/UserInterface/Controllers/UserInterfaceManager.Controllers.cs
+@@ -1,4 +1,4 @@
+-﻿using System;
++using System;
+ using System.Collections.Generic;
+ using System.Reflection;
+ using System.Reflection.Emit;
+@@ -268,7 +268,14 @@ internal partial class UserInterfaceManager
+     {
+         foreach (var controller in _uiControllers.Values)
+         {
+-            controller.Initialize();
++            try
++            {
++                controller.Initialize();
++            }
++            catch (Exception ex)
++            {
++                _sawmillUI.Error($"Error initializing UI controller {controller.GetType()}: {ex}");
++            }
+         }
+     }
+ 
 diff --git a/Robust.Client/UserInterface/Controls/ItemList.cs b/Robust.Client/UserInterface/Controls/ItemList.cs
 index d3cce9847..771b5b772 100644
 --- a/Robust.Client/UserInterface/Controls/ItemList.cs
@@ -5280,7 +5306,7 @@ index a75bfa08b..2c8479afc 100644
  #endif
  
 diff --git a/Robust.Shared/Prototypes/PrototypeManager.cs b/Robust.Shared/Prototypes/PrototypeManager.cs
-index 64d2669e7..005222ffe 100644
+index 64d2669e7..85738a936 100644
 --- a/Robust.Shared/Prototypes/PrototypeManager.cs
 +++ b/Robust.Shared/Prototypes/PrototypeManager.cs
 @@ -251,14 +251,24 @@ namespace Robust.Shared.Prototypes
@@ -5312,7 +5338,7 @@ index 64d2669e7..005222ffe 100644
          }
  
          /// <inheritdoc />
-@@ -281,13 +291,106 @@ namespace Robust.Shared.Prototypes
+@@ -281,13 +291,93 @@ namespace Robust.Shared.Prototypes
                  throw new InvalidOperationException("No prototypes have been loaded yet.");
              }
  
@@ -5366,6 +5392,8 @@ index 64d2669e7..005222ffe 100644
 +                    isSpaceProp?.SetValue(instance, true);
 +                }
 +
++                EnsureNonNullCollections(instance, kind, flags);
++
 +                Sawmill.Warning($"Created emergency fallback prototype {kind.Name} for '{id}'.");
 +                return (IPrototype)instance;
              }
@@ -5385,32 +5413,17 @@ index 64d2669e7..005222ffe 100644
 +                var instance = Activator.CreateInstance(kind);
 +                if (instance == null) return null;
 +
-+                var idProp = kind.GetProperty("ID", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
++                const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
++                var idProp = kind.GetProperty("ID", flags);
 +                idProp?.SetValue(instance, id);
 +
-+                var nameProp = kind.GetProperty("Name", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
++                var nameProp = kind.GetProperty("Name", flags);
 +                nameProp?.SetValue(instance, id);
 +
-+                var colorsProp = kind.GetProperty("Colors", BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance);
-+                if (colorsProp != null)
-+                {
-+                    var fallbackColors = new Dictionary<string, Robust.Shared.Maths.Color>
-+                    {
-+                        ["ploink"] = Robust.Shared.Maths.Color.FromHex("#da8bc9"),
-+                        ["ourple"] = Robust.Shared.Maths.Color.FromHex("#b18bda"),
-+                        ["us-navy"] = Robust.Shared.Maths.Color.FromHex("#96a4eb"),
-+                        ["yet-another-blue"] = Robust.Shared.Maths.Color.FromHex("#8cb7e8"),
-+                        ["cyan"] = Robust.Shared.Maths.Color.FromHex("#8bc9da"),
-+                        ["fake-color"] = Robust.Shared.Maths.Color.FromHex("#8bdaba"),
-+                        ["green"] = Robust.Shared.Maths.Color.FromHex("#8bda8e"),
-+                        ["you-wish-you-were-green"] = Robust.Shared.Maths.Color.FromHex("#a9da8b"),
-+                        ["piss"] = Robust.Shared.Maths.Color.FromHex("#ceda8b"),
-+                        ["orange"] = Robust.Shared.Maths.Color.FromHex("#dabc8b"),
-+                        ["the-orange-she-tells-you-not-to-worry-about"] = Robust.Shared.Maths.Color.FromHex("#daa58b"),
-+                        ["red"] = Robust.Shared.Maths.Color.FromHex("#da8b8b")
-+                    };
-+                    colorsProp.SetValue(instance, fallbackColors);
-+                }
++                var colorsProp = kind.GetProperty("Colors", flags);
++                colorsProp?.SetValue(instance, GetDefaultChatColors());
++
++                EnsureNonNullCollections(instance, kind, flags);
 +
 +                Sawmill.Warning($"Created emergency fallback ColorPalettePrototype for '{id}' to prevent startup crash.");
 +                return (IPrototype)instance;
@@ -5422,7 +5435,7 @@ index 64d2669e7..005222ffe 100644
              }
          }
  
-@@ -679,6 +782,14 @@ namespace Robust.Shared.Prototypes
+@@ -679,6 +769,14 @@ namespace Robust.Shared.Prototypes
              }
              catch (Exception e)
              {
@@ -5437,7 +5450,7 @@ index 64d2669e7..005222ffe 100644
                  if (throwOnReadFailure)
                      throw new PrototypeLoadException($"Failed reading {kind}({id})", e);
  
-@@ -687,6 +798,76 @@ namespace Robust.Shared.Prototypes
+@@ -687,6 +785,181 @@ namespace Robust.Shared.Prototypes
              }
          }
  
@@ -5475,7 +5488,36 @@ index 64d2669e7..005222ffe 100644
 +                            SetLegacyMemberValue(field.FieldType, val => field.SetValue(instance, val), valStr);
 +                        }
 +                    }
++                    else if (node is MappingDataNode mapNode)
++                    {
++                        var prop = props.FirstOrDefault(p => string.Equals(p.Name, key, StringComparison.OrdinalIgnoreCase));
++                        if (prop != null && prop.CanWrite)
++                        {
++                            SetLegacyMappingMemberValue(prop.PropertyType, val => prop.SetValue(instance, val), mapNode);
++                            continue;
++                        }
++                        var field = fields.FirstOrDefault(f => string.Equals(f.Name, key, StringComparison.OrdinalIgnoreCase) ||
++                                                               string.Equals(f.Name, "_" + key, StringComparison.OrdinalIgnoreCase));
++                        if (field != null)
++                        {
++                            SetLegacyMappingMemberValue(field.FieldType, val => field.SetValue(instance, val), mapNode);
++                        }
++                    }
 +                }
++
++                if (kind.Name == "ColorPalettePrototype")
++                {
++                    var colorsProp = kind.GetProperty("Colors", flags);
++                    if (colorsProp != null)
++                    {
++                        if (colorsProp.GetValue(instance) is not Dictionary<string, Robust.Shared.Maths.Color> colDict || colDict.Count == 0)
++                        {
++                            colorsProp.SetValue(instance, GetDefaultChatColors());
++                        }
++                    }
++                }
++
++                EnsureNonNullCollections(instance, kind, flags);
 +
 +                return (IPrototype)instance;
 +            }
@@ -5511,10 +5553,86 @@ index 64d2669e7..005222ffe 100644
 +            catch {}
 +        }
 +
++        private static void SetLegacyMappingMemberValue(Type targetType, Action<object?> setter, MappingDataNode mapNode)
++        {
++            try
++            {
++                if (targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(Dictionary<,>))
++                {
++                    var genArgs = targetType.GetGenericArguments();
++                    if (genArgs[0] == typeof(string))
++                    {
++                        if (genArgs[1] == typeof(Robust.Shared.Maths.Color))
++                        {
++                            var dict = new Dictionary<string, Robust.Shared.Maths.Color>();
++                            foreach (var (k, v) in mapNode.Children)
++                            {
++                                if (v is ValueDataNode vn && Robust.Shared.Maths.Color.TryFromHex(vn.Value, out var col))
++                                    dict[k] = col;
++                            }
++                            setter(dict);
++                            return;
++                        }
++                        if (genArgs[1] == typeof(string))
++                        {
++                            var dict = new Dictionary<string, string>();
++                            foreach (var (k, v) in mapNode.Children)
++                            {
++                                if (v is ValueDataNode vn)
++                                    dict[k] = vn.Value;
++                            }
++                            setter(dict);
++                            return;
++                        }
++                    }
++                }
++            }
++            catch {}
++        }
++
++        private static void EnsureNonNullCollections(object instance, Type kind, BindingFlags flags)
++        {
++            foreach (var prop in kind.GetProperties(flags))
++            {
++                if (!prop.CanWrite || !prop.CanRead) continue;
++                try
++                {
++                    if (prop.GetValue(instance) != null) continue;
++                    var pt = prop.PropertyType;
++                    if (pt.IsGenericType)
++                    {
++                        var genDef = pt.GetGenericTypeDefinition();
++                        if (genDef == typeof(Dictionary<,>) || genDef == typeof(List<>) || genDef == typeof(HashSet<>))
++                        {
++                            var newCol = Activator.CreateInstance(pt);
++                            prop.SetValue(instance, newCol);
++                        }
++                    }
++                }
++                catch {}
++            }
++        }
++
++        private static Dictionary<string, Robust.Shared.Maths.Color> GetDefaultChatColors() => new()
++        {
++            ["ploink"] = Robust.Shared.Maths.Color.FromHex("#da8bc9"),
++            ["ourple"] = Robust.Shared.Maths.Color.FromHex("#b18bda"),
++            ["us-navy"] = Robust.Shared.Maths.Color.FromHex("#96a4eb"),
++            ["yet-another-blue"] = Robust.Shared.Maths.Color.FromHex("#8cb7e8"),
++            ["cyan"] = Robust.Shared.Maths.Color.FromHex("#8bc9da"),
++            ["fake-color"] = Robust.Shared.Maths.Color.FromHex("#8bdaba"),
++            ["green"] = Robust.Shared.Maths.Color.FromHex("#8bda8e"),
++            ["you-wish-you-were-green"] = Robust.Shared.Maths.Color.FromHex("#a9da8b"),
++            ["piss"] = Robust.Shared.Maths.Color.FromHex("#ceda8b"),
++            ["orange"] = Robust.Shared.Maths.Color.FromHex("#dabc8b"),
++            ["the-orange-she-tells-you-not-to-worry-about"] = Robust.Shared.Maths.Color.FromHex("#daa58b"),
++            ["red"] = Robust.Shared.Maths.Color.FromHex("#da8b8b")
++        };
++
          private async Task PushKindInheritance(Type kind, KindData data)
          {
              if (data.Inheritance is not { } tree)
-@@ -702,34 +883,58 @@ namespace Robust.Shared.Prototypes
+@@ -702,34 +975,58 @@ namespace Robust.Shared.Prototypes
  
              foreach (var root in tree.RootNodes)
              {
@@ -5586,7 +5704,7 @@ index 64d2669e7..005222ffe 100644
                          }
                      }
  
-@@ -737,21 +942,35 @@ namespace Robust.Shared.Prototypes
+@@ -737,21 +1034,35 @@ namespace Robust.Shared.Prototypes
                      {
                          foreach (var child in children)
                          {
@@ -5628,7 +5746,7 @@ index 64d2669e7..005222ffe 100644
                      throw;
                  }
              }
-@@ -798,10 +1017,10 @@ namespace Robust.Shared.Prototypes
+@@ -798,10 +1109,10 @@ namespace Robust.Shared.Prototypes
          {
              if (!_kinds.TryGetValue(typeof(T), out var index))
              {
@@ -5641,7 +5759,7 @@ index 64d2669e7..005222ffe 100644
          }
  
          /// <inheritdoc />
-@@ -845,12 +1064,25 @@ namespace Robust.Shared.Prototypes
+@@ -845,12 +1156,25 @@ namespace Robust.Shared.Prototypes
          /// <inheritdoc />
          public bool TryIndex(Type kind, string id, [NotNullWhen(true)] out IPrototype? prototype)
          {

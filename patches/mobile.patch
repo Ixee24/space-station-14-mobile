@@ -5941,6 +5941,256 @@ index eeefefe85..d8d584c92 100644
 +        return () => (T)invokeMethod.Invoke(rawDelegate, null)!;
      }
  }
+diff --git a/Robust.Shared/Serialization/Manager/SerializationManager.Reading.cs b/Robust.Shared/Serialization/Manager/SerializationManager.Reading.cs
+index b2b5d27b9..78b2a957e 100644
+--- a/Robust.Shared/Serialization/Manager/SerializationManager.Reading.cs
++++ b/Robust.Shared/Serialization/Manager/SerializationManager.Reading.cs
+@@ -1,5 +1,6 @@
+-﻿using System;
++using System;
+ using System.Collections.Concurrent;
++using System.Collections.Generic;
+ using System.Diagnostics;
+ using System.Linq;
+ using System.Linq.Expressions;
+@@ -752,7 +753,15 @@ namespace Robust.Shared.Serialization.Manager
+                             {
+                                 var definition = GetDefinition(typeof(T));
+                                 if (definition == null)
+-                                    throw new ArgumentException($"No data definition found for type {baseType} with node type {node.GetType()} when reading");
++                                {
++                                    if (typeof(IPrototype).IsAssignableFrom(typeof(T)))
++                                    {
++                                        throw new ArgumentException($"No data definition found for type {baseType} with node type {node.GetType()} when reading");
++                                    }
++
++                                    val = ReadLegacyDataDefinition<T>(mapping, instanceProvider);
++                                    break;
++                                }
+ 
+                                 var valObj = instanceProvider == null ? definition.InstantiateObj() : instanceProvider.Invoke()!;
+                                 definition.PopulateObj(ref valObj, mapping, this, hookCtx, context);
+@@ -1456,9 +1465,220 @@ namespace Robust.Shared.Serialization.Manager
+ 
+         private TValue ReadNoSerializer<TValue>(DataNode node)
+         {
++            if (!typeof(IPrototype).IsAssignableFrom(typeof(TValue)) && node is MappingDataNode mapping)
++            {
++                return ReadLegacyDataDefinition<TValue>(mapping, null);
++            }
++
+             throw new ArgumentException($"No type serializer or data definition found for type {typeof(TValue)} with node type {node.GetType()} when reading");
+         }
+ 
++        private T ReadLegacyDataDefinition<T>(
++            MappingDataNode mapping,
++            ISerializationManager.InstantiationDelegate<T>? instanceProvider)
++        {
++            var res = ReadLegacyDataDefinition(typeof(T), mapping, instanceProvider != null ? () => (object) instanceProvider()! : null);
++            return res != null ? (T) res : default!;
++        }
++
++        private object? ReadLegacyDataDefinition(
++            Type type,
++            MappingDataNode mapping,
++            Func<object>? instanceProvider = null)
++        {
++            try
++            {
++                object? instance = null;
++                if (instanceProvider != null)
++                {
++                    instance = instanceProvider();
++                }
++
++                if (instance == null)
++                {
++                    try
++                    {
++                        instance = Activator.CreateInstance(type, nonPublic: true);
++                    }
++                    catch
++                    {
++                        instance = RuntimeHelpers.GetUninitializedObject(type);
++                    }
++                }
++
++                if (instance == null)
++                    return null;
++
++                const BindingFlags flags = BindingFlags.Public | BindingFlags.NonPublic | BindingFlags.Instance;
++                var props = type.GetProperties(flags);
++                var fields = type.GetFields(flags);
++
++                foreach (var (key, node) in mapping.Children)
++                {
++                    if (node is ValueDataNode valNode)
++                    {
++                        var valStr = valNode.Value;
++                        var prop = props.FirstOrDefault(p => string.Equals(p.Name, key, StringComparison.OrdinalIgnoreCase));
++                        if (prop != null && prop.CanWrite)
++                        {
++                            SetLegacyMemberValue(prop.PropertyType, v => prop.SetValue(instance, v), valStr);
++                            continue;
++                        }
++
++                        var field = fields.FirstOrDefault(f => string.Equals(f.Name, key, StringComparison.OrdinalIgnoreCase) ||
++                                                               string.Equals(f.Name, "_" + key, StringComparison.OrdinalIgnoreCase));
++                        if (field != null)
++                        {
++                            SetLegacyMemberValue(field.FieldType, v => field.SetValue(instance, v), valStr);
++                        }
++                    }
++                    else if (node is MappingDataNode mapNode)
++                    {
++                        var prop = props.FirstOrDefault(p => string.Equals(p.Name, key, StringComparison.OrdinalIgnoreCase));
++                        if (prop != null && prop.CanWrite)
++                        {
++                            SetLegacyMappingMemberValue(prop.PropertyType, v => prop.SetValue(instance, v), mapNode);
++                            continue;
++                        }
++
++                        var field = fields.FirstOrDefault(f => string.Equals(f.Name, key, StringComparison.OrdinalIgnoreCase) ||
++                                                               string.Equals(f.Name, "_" + key, StringComparison.OrdinalIgnoreCase));
++                        if (field != null)
++                        {
++                            SetLegacyMappingMemberValue(field.FieldType, v => field.SetValue(instance, v), mapNode);
++                        }
++                    }
++                    else if (node is SequenceDataNode seqNode)
++                    {
++                        var prop = props.FirstOrDefault(p => string.Equals(p.Name, key, StringComparison.OrdinalIgnoreCase));
++                        if (prop != null && prop.CanRead)
++                        {
++                            SetLegacySequenceMemberValue(prop.PropertyType, prop.GetValue(instance), v => { if (prop.CanWrite) prop.SetValue(instance, v); }, seqNode);
++                            continue;
++                        }
++
++                        var field = fields.FirstOrDefault(f => string.Equals(f.Name, key, StringComparison.OrdinalIgnoreCase) ||
++                                                               string.Equals(f.Name, "_" + key, StringComparison.OrdinalIgnoreCase));
++                        if (field != null)
++                        {
++                            SetLegacySequenceMemberValue(field.FieldType, field.GetValue(instance), v => field.SetValue(instance, v), seqNode);
++                        }
++                    }
++                }
++
++                return instance;
++            }
++            catch (Exception ex)
++            {
++                _sawmill?.Warning($"Failed during legacy data definition read for {type}: {ex.Message}");
++                return null;
++            }
++        }
++
++        private static void SetLegacyMemberValue(Type targetType, Action<object?> setter, string valStr)
++        {
++            try
++            {
++                if (targetType == typeof(string))
++                    setter(valStr);
++                else if (targetType == typeof(bool) && bool.TryParse(valStr, out var b))
++                    setter(b);
++                else if (targetType == typeof(int) && int.TryParse(valStr, out var i))
++                    setter(i);
++                else if (targetType == typeof(long) && long.TryParse(valStr, out var l))
++                    setter(l);
++                else if (targetType == typeof(ushort) && ushort.TryParse(valStr, out var u))
++                    setter(u);
++                else if (targetType == typeof(short) && short.TryParse(valStr, out var s))
++                    setter(s);
++                else if (targetType == typeof(byte) && byte.TryParse(valStr, out var by))
++                    setter(by);
++                else if (targetType == typeof(float) && float.TryParse(valStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var f))
++                    setter(f);
++                else if (targetType == typeof(double) && double.TryParse(valStr, System.Globalization.NumberStyles.Float, System.Globalization.CultureInfo.InvariantCulture, out var d))
++                    setter(d);
++                else if (targetType == typeof(DateTime) && DateTime.TryParse(valStr, System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.RoundtripKind, out var dt))
++                    setter(dt);
++                else if (targetType.IsEnum && Enum.TryParse(targetType, valStr, true, out var enumVal))
++                    setter(enumVal);
++            }
++            catch {}
++        }
++
++        private void SetLegacyMappingMemberValue(Type targetType, Action<object?> setter, MappingDataNode mapNode)
++        {
++            try
++            {
++                if (targetType.IsGenericType && targetType.GetGenericTypeDefinition() == typeof(Dictionary<,>))
++                {
++                    var genArgs = targetType.GetGenericArguments();
++                    if (genArgs[0] == typeof(string) && genArgs[1] == typeof(string))
++                    {
++                        var dict = new Dictionary<string, string>();
++                        foreach (var (k, v) in mapNode.Children)
++                        {
++                            if (v is ValueDataNode vn)
++                                dict[k] = vn.Value;
++                        }
++                        setter(dict);
++                        return;
++                    }
++                }
++
++                var nestedObj = ReadLegacyDataDefinition(targetType, mapNode);
++                if (nestedObj != null)
++                {
++                    setter(nestedObj);
++                }
++            }
++            catch {}
++        }
++
++        private void SetLegacySequenceMemberValue(Type targetType, object? existingVal, Action<object?> setter, SequenceDataNode seqNode)
++        {
++            try
++            {
++                Type? itemType = null;
++                if (targetType.IsArray)
++                {
++                    itemType = targetType.GetElementType();
++                }
++                else if (targetType.IsGenericType && typeof(System.Collections.IEnumerable).IsAssignableFrom(targetType))
++                {
++                    itemType = targetType.GetGenericArguments().FirstOrDefault();
++                }
++
++                if (itemType == null)
++                    return;
++
++                var listType = typeof(List<>).MakeGenericType(itemType);
++                var list = (System.Collections.IList?) existingVal;
++                if (list == null || list.IsReadOnly)
++                {
++                    list = (System.Collections.IList) Activator.CreateInstance(listType)!;
++                    setter(list);
++                }
++
++                foreach (var childNode in seqNode.Sequence)
++                {
++                    if (childNode is ValueDataNode valNode)
++                    {
++                        object? parsedItem = null;
++                        SetLegacyMemberValue(itemType, v => parsedItem = v, valNode.Value);
++                        if (parsedItem != null)
++                            list.Add(parsedItem);
++                    }
++                    else if (childNode is MappingDataNode mapNode)
++                    {
++                        var childObj = ReadLegacyDataDefinition(itemType, mapNode);
++                        if (childObj != null)
++                            list.Add(childObj);
++                    }
++                }
++            }
++            catch {}
++        }
++
+         private static class ReadTypeMetadata<T>
+         {
+             // ReSharper disable once StaticMemberInGenericType
 diff --git a/Robust.Shared/Serialization/Manager/SerializationManager.cs b/Robust.Shared/Serialization/Manager/SerializationManager.cs
 index 151805d55..21989961c 100644
 --- a/Robust.Shared/Serialization/Manager/SerializationManager.cs

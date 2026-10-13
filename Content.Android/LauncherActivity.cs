@@ -819,6 +819,7 @@ public sealed class LauncherActivity : Activity
         };
     }
 
+    // [SolomonNumb1] hides on screen IME keyboard when closing login or search dialogs to prevent UI overlap
     private void HideKeyboard(View? view)
     {
         try
@@ -1208,6 +1209,7 @@ public sealed class LauncherActivity : Activity
         MainActivity.LaunchBuildCVars["mobile.controls_layout"] = serialized;
     }
 
+    // [SolomonNumb1] settings dialog: controls scale, opacity, joystick size, FPS limits, and cache management
     private void ShowSettingsDialog()
     {
         var prefs = GetSharedPreferences("ss14_mobile_config", FileCreationMode.Private);
@@ -2082,6 +2084,7 @@ public sealed class LauncherActivity : Activity
 
     #region Crash Reporter (no logcat required)
 
+    // [SolomonNumb1] prompts user with crash diagnostics if previous game session terminated unexpectedly
     private void CheckForCrashAndPrompt()
     {
         try
@@ -2156,7 +2159,7 @@ public sealed class LauncherActivity : Activity
         issuesBtn.Background = LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
         issuesBtn.SetTextColor(LauncherTheme.Foreground);
         issuesBtn.LayoutParameters = new LinearLayout.LayoutParams(0, (int)(34 * density), 1f);
-        issuesBtn.Click += (_, _) => OpenUrl("https://github.com/Ixee24/space-station-14-mobile/issues");
+        issuesBtn.Click += (_, _) => OpenUrl("https://github.com/SolomonNumb1/space-station-14-mobile/issues");
         btnRow.AddView(issuesBtn);
         view.AddView(btnRow);
 

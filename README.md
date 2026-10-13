@@ -9,7 +9,7 @@ Android port of [Space Station 14](https://github.com/space-wizards/space-statio
 > 
 > * **Use at your own risk:** Stability, controls, and performance may vary depending on your device
 > * **Do not report mobile specific issues (crashes, low fps, ui bugs) via in game ahelp or to the official Wizard's Den staff**
-> * If you encounter bugs or performance problems related to the Android build, please report them directly in the section [issues](https://github.com/Ixee24/space-station-14-mobile/issues) of this repository
+> * If you encounter bugs or performance problems related to the Android build, please report them directly in the section [issues](https://github.com/SolomonNumb1/space-station-14-mobile/issues) of this repository
 > * NEVERTHELESS, the project will be supported and improved
 
 ## Features
@@ -62,3 +62,7 @@ Android port of [Space Station 14](https://github.com/space-wizards/space-statio
 
 ## Building
 Built via GitHub Actions (`.github/workflows/android-release.yml`).
+
+## Credits
+- Initial port, native builds & launcher: **[SolomonNumb1](https://github.com/SolomonNumb1)**
+- Multi-touch, swipe scrolling & crash reporter: **[Ixee24](https://github.com/Ixee24)**

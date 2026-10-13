@@ -240,6 +240,7 @@ public sealed class LauncherStorage
         }
     }
 
+    // [SolomonNumb1] normalizes server URIs into canonical cache keys regardless of protocol scheme
     public static string NormalizeServerKey(string address)
     {
         if (string.IsNullOrWhiteSpace(address)) return string.Empty;

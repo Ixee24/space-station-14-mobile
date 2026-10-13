@@ -226,6 +226,7 @@ public sealed class AczClient
                         entryData = readBuffer.AsMemory(0, uncompressedLength);
                     }
 
+                    // [SolomonNumb1] compresses server ACZ packages with fastest level to reduce storage consumption on device
                     var zipEntry = zip.CreateEntry(entry.Path, CompressionLevel.Fastest);
                     using (var entryStream = zipEntry.Open())
                     {

@@ -56,6 +56,7 @@ public static class ContentCacheManager
         return $"{mb:F1} MB";
     }
 
+    // [SolomonNumb1] deletes previous server zip when a new content build is downloaded
     public static void PurgeOldBuildForServer(Context context, LauncherStorage storage, string serverAddress, string newZipPath)
     {
         try
@@ -82,6 +83,7 @@ public static class ContentCacheManager
         }
     }
 
+    // [SolomonNumb1] removes abandoned .tmp files and prunes builds older than retention threshold
     public static void PruneStaleCache(Context context, LauncherStorage storage, int maxBuildsToKeep = 2, int maxDaysOld = 3)
     {
         try
@@ -132,6 +134,7 @@ public static class ContentCacheManager
         }
     }
 
+    // [SolomonNumb1] wipes all cached server content and engine builds on user request, freeing storage
     public static long ClearAllCache(Context context, LauncherStorage storage)
     {
         long freedBytes = 0;

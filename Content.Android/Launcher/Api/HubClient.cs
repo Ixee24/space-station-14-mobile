@@ -74,6 +74,7 @@ public sealed class HubClient
         try
         {
             using var cts = CancellationTokenSource.CreateLinkedTokenSource(ct);
+            // [SolomonNumb1] extended 25s timeout for direct server pings to accommodate high latency mobile networks
             cts.CancelAfter(TimeSpan.FromSeconds(25));
 
             global::Android.Util.Log.Info("SS14Launcher", $"Querying direct server info: {infoAddr}");

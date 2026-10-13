@@ -425,6 +425,7 @@ namespace Content.Android
 
         private static bool _javaHandlerInstalled;
 
+        // [SolomonNumb1] hook JVM uncaught exception handler to capture OS level android crashes before app termination
         private static void InstallJavaCrashHandler()
         {
             if (_javaHandlerInstalled)
@@ -500,6 +501,7 @@ namespace Content.Android
             try
             {
                 RequestedOrientation = global::Android.Content.PM.ScreenOrientation.SensorLandscape;
+                // [SolomonNumb1] routes hardware volume keys directly to media stream for in game sound control
                 VolumeControlStream = global::Android.Media.Stream.Music;
             }
             catch { }
@@ -663,6 +665,7 @@ namespace Content.Android
             catch {}
         }
 
+        // [SolomonNumb1] downscales render surface to 720p/900p/1080p, drastically improving framerates on L GPUs(telling this with my mali g57 mc2,lmao)
         private void ApplyDisplayResolution()
         {
             try
@@ -708,6 +711,7 @@ namespace Content.Android
             }
         }
 
+        // [SolomonNumb1] enforces SensorLandscape orientation, preventing SDL runtime from resetting display mode
         public override global::Android.Content.PM.ScreenOrientation RequestedOrientation
         {
             get => base.RequestedOrientation;

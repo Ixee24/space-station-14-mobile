@@ -10,6 +10,7 @@ namespace Content.Android;
 /// private files dir, alongside game.log (Console redirect).
 /// The launcher surfaces these via a View/Share/Clear dialog.
 /// </summary>
+// [SolomonNumb1] standalone crash reporter, intercepts unhandled exceptions,logs to priveta files, enables user sharing via launcher
 public static class CrashReporter
 {
     private static readonly object Lock = new();
@@ -72,6 +73,7 @@ public static class CrashReporter
         }
     }
 
+    // [SolomonNumb1] dumps the full error chain,stack trace and hardware specs to help debug stuff
     public static void WriteCrash(string stage, Exception? ex)
     {
         try
@@ -142,6 +144,7 @@ public static class CrashReporter
         }
     }
 
+    // [SolomonNumb1] trims oldest entries to keep log file under 512 kb
     private static void RotateIfNeeded(string path)
     {
         try
@@ -220,6 +223,7 @@ public static class CrashReporter
     /// <summary>
     /// Full shareable report: device header + crash.txt tail + game.log tail, truncated.
     /// </summary>
+    // [SolomonNumb1] generates unified diagnostic report including device info, log tails, and touch layout
     public static string GetFullReport()
     {
         var sb = new StringBuilder();

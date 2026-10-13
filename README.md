@@ -66,3 +66,9 @@ Built via GitHub Actions (`.github/workflows/android-release.yml`).
 ## Credits
 - Initial port, native builds & launcher: **[SolomonNumb1](https://github.com/SolomonNumb1)**
 - Multi-touch, swipe scrolling & crash reporter: **[Ixee24](https://github.com/Ixee24)**
+
+## License & Legal
+This project is open-source under the [MIT License](LICENSE).
+For full legal disclaimers, trademark notices, and third-party attributions, please refer to [LEGAL.md](LEGAL.md).
+"Space Station 14" and "RobustToolbox" are copyrighted by the Space Wizards Federation and individual contributors.
+This project is an independent community project and is not affiliated with or endorsed by the Space Wizards Federation.

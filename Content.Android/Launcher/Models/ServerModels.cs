@@ -31,8 +31,8 @@ public sealed record ServerStatus(
     [property: JsonPropertyName("round_start_time")] string? RoundStartTime,
     [property: JsonPropertyName("run_level")] int? RunLevel,
     [property: JsonPropertyName("tags")] string[]? Tags,
-    [property: JsonPropertyName("map")] string? Map,
-    [property: JsonPropertyName("preset")] string? Preset
+    [property: JsonPropertyName("map")] string? Map = null,
+    [property: JsonPropertyName("preset")] string? Preset = null
 );
 
 public sealed class ServerBuildInfo

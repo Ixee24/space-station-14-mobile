@@ -79,6 +79,18 @@ public sealed class LauncherActivity : Activity
     private ServerInfo? _pendingServerInfo;
     private string? _pendingServerAddress;
 
+    private string? _expandedServerAddress;
+    private readonly Dictionary<string, ServerInfo> _serverInfoCache = new(StringComparer.OrdinalIgnoreCase);
+    private readonly HashSet<string> _loadingServerInfo = new(StringComparer.OrdinalIgnoreCase);
+
+    private bool _filtersVisible;
+    private string _filterLanguage = "all";
+    private string _filterRegion = "all";
+    private bool _filterHideEmpty;
+    private bool _filterHideFull;
+    private Button _filterBtn = default!;
+    private LinearLayout _filtersPanel = default!;
+
     protected override void OnCreate(Bundle? savedInstanceState)
     {
         base.OnCreate(savedInstanceState);
@@ -278,6 +290,26 @@ public sealed class LauncherActivity : Activity
         };
         controlsRow.AddView(_searchInput);
 
+        var filterLp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WrapContent, (int)(32 * density));
+        filterLp.SetMargins((int)(6 * density), 0, (int)(6 * density), 0);
+        _filterBtn = new Button(this)
+        {
+            Text = "Filters",
+            TextSize = 11,
+            Typeface = Typeface.DefaultBold
+        };
+        _filterBtn.Background = LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
+        _filterBtn.SetTextColor(LauncherTheme.Foreground);
+        _filterBtn.SetPadding((int)(10 * density), 0, (int)(10 * density), 0);
+        _filterBtn.LayoutParameters = filterLp;
+        _filterBtn.Click += (_, _) =>
+        {
+            _filtersVisible = !_filtersVisible;
+            _filtersPanel.Visibility = _filtersVisible ? ViewStates.Visible : ViewStates.Gone;
+            UpdateFilterButtonState();
+        };
+        controlsRow.AddView(_filterBtn);
+
         var refreshBtn = new Button(this)
         {
             Text = "↻",
@@ -293,6 +325,10 @@ public sealed class LauncherActivity : Activity
 
         mainLayout.AddView(controlsRow);
 
+        _filtersPanel = BuildFiltersPanel(density);
+        _filtersPanel.Visibility = ViewStates.Gone;
+        mainLayout.AddView(_filtersPanel);
+
         var sep = new View(this);
         sep.SetBackgroundColor(LauncherTheme.Separator);
         sep.LayoutParameters = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, (int)(1 * density));
@@ -306,12 +342,12 @@ public sealed class LauncherActivity : Activity
         tableHeader.SetPadding((int)(12 * density), (int)(4 * density), (int)(12 * density), (int)(4 * density));
 
         var thName = CreateTableHeaderText("SERVER NAME", 1f);
-        var thStatus = CreateTableHeaderText("STATUS", 0.35f);
+        var thTime = CreateTableHeaderText("TIME", 0.35f);
         var thPlayers = CreateTableHeaderText("PLAYERS", 0.25f);
         var thAction = CreateTableHeaderText("CONNECT", 0.3f);
 
         tableHeader.AddView(thName);
-        tableHeader.AddView(thStatus);
+        tableHeader.AddView(thTime);
         tableHeader.AddView(thPlayers);
         tableHeader.AddView(thAction);
         mainLayout.AddView(tableHeader);
@@ -675,7 +711,54 @@ public sealed class LauncherActivity : Activity
             items = items.Where(s =>
                 (s.StatusData?.Name?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false) ||
                 s.Address.Contains(q, StringComparison.OrdinalIgnoreCase) ||
-                (s.StatusData?.Tags != null && s.StatusData.Tags.Any(t => t.Contains(q, StringComparison.OrdinalIgnoreCase))));
+                (s.StatusData?.Tags != null && s.StatusData.Tags.Any(t => t.Contains(q, StringComparison.OrdinalIgnoreCase))) ||
+                (_serverInfoCache.TryGetValue(s.Address, out var inf) && (inf.Description?.Contains(q, StringComparison.OrdinalIgnoreCase) ?? false)));
+        }
+
+        // Language filter
+        if (_filterLanguage == "ru")
+        {
+            items = items.Where(s => s.StatusData?.Tags != null && s.StatusData.Tags.Any(t =>
+                t.Equals("lang:ru", StringComparison.OrdinalIgnoreCase) ||
+                t.StartsWith("lang:ru-", StringComparison.OrdinalIgnoreCase) ||
+                t.Contains("ru", StringComparison.OrdinalIgnoreCase)));
+        }
+        else if (_filterLanguage == "en")
+        {
+            items = items.Where(s => s.StatusData?.Tags != null && s.StatusData.Tags.Any(t =>
+                t.Equals("lang:en", StringComparison.OrdinalIgnoreCase) ||
+                t.StartsWith("lang:en-", StringComparison.OrdinalIgnoreCase) ||
+                t.Contains("en", StringComparison.OrdinalIgnoreCase)));
+        }
+
+        // Region filter
+        if (_filterRegion == "eu")
+        {
+            items = items.Where(s => s.StatusData?.Tags != null && s.StatusData.Tags.Any(t =>
+                t.StartsWith("region:eu", StringComparison.OrdinalIgnoreCase) ||
+                t.Contains("ru_central", StringComparison.OrdinalIgnoreCase) ||
+                t.Contains("luna", StringComparison.OrdinalIgnoreCase)));
+        }
+        else if (_filterRegion == "na")
+        {
+            items = items.Where(s => s.StatusData?.Tags != null && s.StatusData.Tags.Any(t =>
+                t.StartsWith("region:na", StringComparison.OrdinalIgnoreCase)));
+        }
+
+        // Hide empty / hide full
+        if (_filterHideEmpty)
+        {
+            items = items.Where(s => (s.StatusData?.Players ?? 0) > 0);
+        }
+
+        if (_filterHideFull)
+        {
+            items = items.Where(s =>
+            {
+                var p = s.StatusData?.Players ?? 0;
+                var max = s.StatusData?.SoftMaxPlayers ?? 0;
+                return max <= 0 || p < max;
+            });
         }
 
         var sorted = items.OrderByDescending(s => s.StatusData?.Players ?? 0).ToList();
@@ -709,6 +792,11 @@ public sealed class LauncherActivity : Activity
             return;
         }
 
+        if (_filterBtn != null)
+        {
+            _filterBtn.Text = $"Filters ({sorted.Count} / {_servers.Count})";
+        }
+
         var idx = 0;
         foreach (var server in sorted)
         {
@@ -720,6 +808,14 @@ public sealed class LauncherActivity : Activity
 
     private View CreateServerTableRow(ServerListEntry server, bool alternate, float density)
     {
+        var container = new LinearLayout(this)
+        {
+            Orientation = Orientation.Vertical
+        };
+        container.LayoutParameters = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent);
+
+        var isExpanded = string.Equals(_expandedServerAddress, server.Address, StringComparison.OrdinalIgnoreCase);
+
         var row = new LinearLayout(this)
         {
             Orientation = Orientation.Horizontal
@@ -733,6 +829,16 @@ public sealed class LauncherActivity : Activity
             Orientation = Orientation.Horizontal
         };
         nameCol.LayoutParameters = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 1f);
+
+        var chevron = new TextView(this)
+        {
+            Text = isExpanded ? "▼ " : "▶ ",
+            TextSize = 11
+        };
+        chevron.SetTextColor(isExpanded ? LauncherTheme.NanoGold : LauncherTheme.ForegroundMuted);
+        chevron.Clickable = true;
+        chevron.Click += (_, _) => ToggleExpandServer(server.Address);
+        nameCol.AddView(chevron);
 
         var isFav = _storage.IsFavorite(server.Address);
         var starBtn = new TextView(this)
@@ -753,6 +859,9 @@ public sealed class LauncherActivity : Activity
         {
             Orientation = Orientation.Vertical
         };
+        titleLayout.Clickable = true;
+        titleLayout.Click += (_, _) => ToggleExpandServer(server.Address);
+
         var titleText = new TextView(this)
         {
             Text = server.StatusData?.Name ?? server.Address,
@@ -774,14 +883,16 @@ public sealed class LauncherActivity : Activity
         row.AddView(nameCol);
 
         var isDirect = _storage.IsDirectFavorite(server.Address);
-        var statusCol = new TextView(this)
+        var timeCol = new TextView(this)
         {
-            Text = FormatRunLevel(server.StatusData?.RunLevel, isDirect),
+            Text = FormatRoundTime(server.StatusData, isDirect),
             TextSize = 11
         };
-        statusCol.SetTextColor(LauncherTheme.SubText);
-        statusCol.LayoutParameters = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 0.35f);
-        row.AddView(statusCol);
+        timeCol.SetTextColor(LauncherTheme.SubText);
+        timeCol.LayoutParameters = new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WrapContent, 0.35f);
+        timeCol.Clickable = true;
+        timeCol.Click += (_, _) => ToggleExpandServer(server.Address);
+        row.AddView(timeCol);
 
         var players = server.StatusData?.Players ?? 0;
         var maxPlayers = server.StatusData?.SoftMaxPlayers ?? 0;
@@ -808,7 +919,270 @@ public sealed class LauncherActivity : Activity
         connectBtn.Click += async (_, _) => await StartConnectingAsync(server.Address);
         row.AddView(connectBtn);
 
-        return row;
+        container.AddView(row);
+
+        if (isExpanded)
+        {
+            var detailsBox = new LinearLayout(this)
+            {
+                Orientation = Orientation.Vertical
+            };
+            detailsBox.SetBackgroundColor(LauncherTheme.PopupBackground);
+            detailsBox.SetPadding((int)(26 * density), (int)(10 * density), (int)(16 * density), (int)(12 * density));
+            detailsBox.LayoutParameters = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent);
+
+            if (_serverInfoCache.TryGetValue(server.Address, out var info))
+            {
+                if (!string.IsNullOrWhiteSpace(info.Description))
+                {
+                    var descText = new TextView(this)
+                    {
+                        Text = info.Description.Trim(),
+                        TextSize = 11
+                    };
+                    descText.SetTextColor(LauncherTheme.Foreground);
+                    descText.SetTextIsSelectable(true);
+                    descText.SetPadding(0, 0, 0, (int)(8 * density));
+                    detailsBox.AddView(descText);
+                }
+
+                var metaSb = new System.Text.StringBuilder();
+                if (!string.IsNullOrEmpty(server.StatusData?.Map)) metaSb.Append($"Map: {server.StatusData.Map}   ");
+                if (!string.IsNullOrEmpty(server.StatusData?.Preset)) metaSb.Append($"Mode: {server.StatusData.Preset}   ");
+                if (metaSb.Length > 0)
+                {
+                    var metaText = new TextView(this)
+                    {
+                        Text = metaSb.ToString(),
+                        TextSize = 10
+                    };
+                    metaText.SetTextColor(LauncherTheme.NanoGold);
+                    metaText.SetPadding(0, 0, 0, (int)(8 * density));
+                    detailsBox.AddView(metaText);
+                }
+
+                if (info.Links != null && info.Links.Count > 0)
+                {
+                    var linksLayout = new LinearLayout(this)
+                    {
+                        Orientation = Orientation.Horizontal
+                    };
+                    linksLayout.SetPadding(0, 0, 0, (int)(8 * density));
+                    foreach (var link in info.Links)
+                    {
+                        if (string.IsNullOrEmpty(link.Url)) continue;
+                        var linkBtn = new Button(this)
+                        {
+                            Text = link.Name ?? link.Icon ?? "Link",
+                            TextSize = 10
+                        };
+                        linkBtn.Background = LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
+                        linkBtn.SetTextColor(LauncherTheme.Foreground);
+                        var lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WrapContent, (int)(28 * density))
+                        {
+                            RightMargin = (int)(8 * density)
+                        };
+                        linkBtn.LayoutParameters = lp;
+                        var url = link.Url;
+                        linkBtn.Click += (_, _) => OpenUrl(url);
+                        linksLayout.AddView(linkBtn);
+                    }
+                    detailsBox.AddView(linksLayout);
+                }
+            }
+            else
+            {
+                var loadingText = new TextView(this)
+                {
+                    Text = "Loading server details...",
+                    TextSize = 11
+                };
+                loadingText.SetTextColor(LauncherTheme.SubText);
+                loadingText.SetPadding(0, 0, 0, (int)(8 * density));
+                detailsBox.AddView(loadingText);
+            }
+
+            container.AddView(detailsBox);
+        }
+
+        return container;
+    }
+
+    private void ToggleExpandServer(string address)
+    {
+        if (string.Equals(_expandedServerAddress, address, StringComparison.OrdinalIgnoreCase))
+        {
+            _expandedServerAddress = null;
+        }
+        else
+        {
+            _expandedServerAddress = address;
+            if (!_serverInfoCache.ContainsKey(address) && !_loadingServerInfo.Contains(address))
+            {
+                _loadingServerInfo.Add(address);
+                Task.Run(async () =>
+                {
+                    try
+                    {
+                        var info = await _hubClient.FetchServerInfoAsync(address);
+                        if (info != null)
+                        {
+                            _serverInfoCache[address] = info;
+                        }
+                    }
+                    catch { }
+                    finally
+                    {
+                        _loadingServerInfo.Remove(address);
+                        RunOnUiThread(() =>
+                        {
+                            if (string.Equals(_expandedServerAddress, address, StringComparison.OrdinalIgnoreCase))
+                            {
+                                RenderServerList();
+                            }
+                        });
+                    }
+                });
+            }
+        }
+        RenderServerList();
+    }
+
+    private string FormatRoundTime(ServerStatus? status, bool isDirect = false)
+    {
+        if (status == null) return isDirect ? "Offline" : "—";
+        if (status.RunLevel == 0) return "Lobby";
+        if (status.RunLevel == 2) return "Ending";
+
+        if (!string.IsNullOrEmpty(status.RoundStartTime) &&
+            DateTime.TryParse(status.RoundStartTime, null, System.Globalization.DateTimeStyles.RoundtripKind, out var startTime))
+        {
+            var elapsed = DateTime.UtcNow - startTime.ToUniversalTime();
+            if (elapsed.TotalMinutes < 0) return "0m";
+            if (elapsed.TotalHours < 1)
+                return $"{Math.Max(0, (int)elapsed.TotalMinutes)}m";
+            return $"{(int)elapsed.TotalHours}h {elapsed.Minutes:D2}m";
+        }
+
+        return status.RunLevel == 1 ? "In-Round" : "Online";
+    }
+
+    private LinearLayout BuildFiltersPanel(float density)
+    {
+        var panel = new LinearLayout(this)
+        {
+            Orientation = Orientation.Vertical
+        };
+        panel.SetBackgroundColor(LauncherTheme.PopupBackground);
+        panel.SetPadding((int)(12 * density), (int)(8 * density), (int)(12 * density), (int)(8 * density));
+        panel.LayoutParameters = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MatchParent, ViewGroup.LayoutParams.WrapContent);
+
+        // Language row
+        var langRow = new LinearLayout(this) { Orientation = Orientation.Horizontal };
+        langRow.SetPadding(0, 0, 0, (int)(6 * density));
+        var langLabel = new TextView(this)
+        {
+            Text = "Language:",
+            TextSize = 11,
+            Typeface = Typeface.DefaultBold
+        };
+        langLabel.SetTextColor(LauncherTheme.NanoGold);
+        langLabel.LayoutParameters = new LinearLayout.LayoutParams((int)(75 * density), ViewGroup.LayoutParams.WrapContent);
+        langRow.AddView(langLabel);
+
+        langRow.AddView(CreateFilterChip("All", _filterLanguage == "all", density, () => { _filterLanguage = "all"; ApplyFilterChange(); }));
+        langRow.AddView(CreateFilterChip("Russian (RU)", _filterLanguage == "ru", density, () => { _filterLanguage = "ru"; ApplyFilterChange(); }));
+        langRow.AddView(CreateFilterChip("English (EN)", _filterLanguage == "en", density, () => { _filterLanguage = "en"; ApplyFilterChange(); }));
+        panel.AddView(langRow);
+
+        // Region row
+        var regRow = new LinearLayout(this) { Orientation = Orientation.Horizontal };
+        regRow.SetPadding(0, 0, 0, (int)(6 * density));
+        var regLabel = new TextView(this)
+        {
+            Text = "Region:",
+            TextSize = 11,
+            Typeface = Typeface.DefaultBold
+        };
+        regLabel.SetTextColor(LauncherTheme.NanoGold);
+        regLabel.LayoutParameters = new LinearLayout.LayoutParams((int)(75 * density), ViewGroup.LayoutParams.WrapContent);
+        regRow.AddView(regLabel);
+
+        regRow.AddView(CreateFilterChip("All", _filterRegion == "all", density, () => { _filterRegion = "all"; ApplyFilterChange(); }));
+        regRow.AddView(CreateFilterChip("Europe / RU", _filterRegion == "eu", density, () => { _filterRegion = "eu"; ApplyFilterChange(); }));
+        regRow.AddView(CreateFilterChip("North America", _filterRegion == "na", density, () => { _filterRegion = "na"; ApplyFilterChange(); }));
+        panel.AddView(regRow);
+
+        // Options row (Hide empty, Hide full, Reset)
+        var optRow = new LinearLayout(this) { Orientation = Orientation.Horizontal };
+        var optLabel = new TextView(this)
+        {
+            Text = "Players:",
+            TextSize = 11,
+            Typeface = Typeface.DefaultBold
+        };
+        optLabel.SetTextColor(LauncherTheme.NanoGold);
+        optLabel.LayoutParameters = new LinearLayout.LayoutParams((int)(75 * density), ViewGroup.LayoutParams.WrapContent);
+        optRow.AddView(optLabel);
+
+        optRow.AddView(CreateFilterChip("Hide Empty", _filterHideEmpty, density, () => { _filterHideEmpty = !_filterHideEmpty; ApplyFilterChange(); }));
+        optRow.AddView(CreateFilterChip("Hide Full", _filterHideFull, density, () => { _filterHideFull = !_filterHideFull; ApplyFilterChange(); }));
+        optRow.AddView(CreateFilterChip("Reset All", false, density, () =>
+        {
+            _filterLanguage = "all";
+            _filterRegion = "all";
+            _filterHideEmpty = false;
+            _filterHideFull = false;
+            ApplyFilterChange();
+        }));
+        panel.AddView(optRow);
+
+        return panel;
+    }
+
+    private Button CreateFilterChip(string text, bool isActive, float density, Action onClick)
+    {
+        var btn = new Button(this)
+        {
+            Text = text,
+            TextSize = 10,
+            Typeface = isActive ? Typeface.DefaultBold : Typeface.Default
+        };
+        btn.Background = isActive
+            ? LauncherTheme.CreateBox(LauncherTheme.ControlHigh, 3)
+            : LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
+        btn.SetTextColor(isActive ? Color.White : LauncherTheme.Foreground);
+        var lp = new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WrapContent, (int)(26 * density));
+        lp.SetMargins(0, 0, (int)(6 * density), 0);
+        btn.LayoutParameters = lp;
+        btn.SetPadding((int)(8 * density), 0, (int)(8 * density), 0);
+        btn.Click += (_, _) => onClick();
+        return btn;
+    }
+
+    private void ApplyFilterChange()
+    {
+        var density = Resources?.DisplayMetrics?.Density ?? 1f;
+        if (_filtersPanel != null && _filtersPanel.Parent is ViewGroup parent)
+        {
+            var idx = parent.IndexOfChild(_filtersPanel);
+            parent.RemoveViewAt(idx);
+            _filtersPanel = BuildFiltersPanel(density);
+            _filtersPanel.Visibility = _filtersVisible ? ViewStates.Visible : ViewStates.Gone;
+            parent.AddView(_filtersPanel, idx);
+        }
+        UpdateFilterButtonState();
+        RenderServerList();
+    }
+
+    private void UpdateFilterButtonState()
+    {
+        if (_filterBtn == null) return;
+        var hasActiveFilters = _filterLanguage != "all" || _filterRegion != "all" || _filterHideEmpty || _filterHideFull;
+        _filterBtn.SetTextColor(hasActiveFilters ? LauncherTheme.NanoGold : LauncherTheme.Foreground);
+        _filterBtn.Background = hasActiveFilters
+            ? LauncherTheme.CreateBox(LauncherTheme.ControlHigh, 3)
+            : LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
     }
 
     private void RenderDirectConnectView(float density)
@@ -1791,7 +2165,7 @@ public sealed class LauncherActivity : Activity
 
         var listHeader = new TextView(this)
         {
-            Text = "Individual Button Settings:",
+            Text = "Button Customization:",
             TextSize = 13,
             Typeface = global::Android.Graphics.Typeface.DefaultBold
         };
@@ -2409,8 +2783,8 @@ public sealed class LauncherActivity : Activity
         StartActivity(intent);
     }
 
-    #region Crash Reporter (no logcat required)
-
+    #region Crash Reporter
+    // Prompts user with crash diagnostics if previous game session terminated unexpectedly
     private void CheckForCrashAndPrompt()
     {
         try
@@ -2420,7 +2794,7 @@ public sealed class LauncherActivity : Activity
             var builder = new AlertDialog.Builder(this);
             builder.SetTitle("Last session crashed");
             builder.SetMessage("The game crashed last time. You can view the crash report " +
-                "and share it (no logcat / PC needed).\n\n" + CrashReporter.GetStatusLine());
+                "and share it with developers.\n\n" + CrashReporter.GetStatusLine());
             builder.SetPositiveButton("View Report", (_, _) => ShowCrashReporterDialog());
             builder.SetNegativeButton("Dismiss", (_, _) => CrashReporter.MarkSeen());
             builder.SetCancelable(true);
@@ -2444,7 +2818,7 @@ public sealed class LauncherActivity : Activity
             : report;
 
         var builder = new AlertDialog.Builder(this);
-        builder.SetTitle("Crash Report (no logcat needed)");
+        builder.SetTitle("Crash Report");
 
         var scroll = new ScrollView(this);
         var view = new LinearLayout(this) { Orientation = Orientation.Vertical };
@@ -2613,7 +2987,7 @@ public sealed class LauncherActivity : Activity
         catch {}
     }
 
-    public const string CurrentAppVersion = "v1.2.0";
+    public const string CurrentAppVersion = "v1.2.1";
 
     public string GetCurrentAppVersion()
     {
@@ -2655,7 +3029,7 @@ public sealed class LauncherActivity : Activity
 
         var msgText = new TextView(this)
         {
-            Text = "This Space Station 14 Android port is an UNOFFICIAL, community-driven client modification (proof of concept).\n\n" +
+            Text = "This Space Station 14 Android port is an UNOFFICIAL, community-driven client modification.\n\n" +
                    "• It is NOT developed, provided, or supported by Wizard's Den or Space Wizards Federation.\n\n" +
                    "• Play at your own risk: Stability, controls, and performance vary depending on your device.\n\n" +
                    "• DO NOT report mobile-specific issues (crashes, low FPS, touch UI bugs) via in-game 'ahelp' or to official Wizard's Den staff/mentors.\n\n" +

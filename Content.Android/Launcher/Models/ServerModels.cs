@@ -16,7 +16,9 @@ public sealed record ServerStatus(
     [property: JsonPropertyName("soft_max_players")] int SoftMaxPlayers,
     [property: JsonPropertyName("round_start_time")] string? RoundStartTime,
     [property: JsonPropertyName("run_level")] int? RunLevel,
-    [property: JsonPropertyName("tags")] string[]? Tags
+    [property: JsonPropertyName("tags")] string[]? Tags,
+    [property: JsonPropertyName("map")] string? Map,
+    [property: JsonPropertyName("preset")] string? Preset
 );
 
 public sealed class ServerBuildInfo

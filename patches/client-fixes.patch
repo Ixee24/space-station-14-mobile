@@ -2525,10 +2525,10 @@ index 3651b0d893..f08f0d695e 100644
      }
  
 diff --git a/Content.Client/Viewport/ScalingViewport.cs b/Content.Client/Viewport/ScalingViewport.cs
-index 23498ead99..d0460a5c13 100644
+index 23498ead99..101fb085d8 100644
 --- a/Content.Client/Viewport/ScalingViewport.cs
 +++ b/Content.Client/Viewport/ScalingViewport.cs
-@@ -1,9 +1,13 @@
+@@ -1,14 +1,19 @@
  using System;
  using System.Collections.Generic;
  using System.Numerics;
@@ -2542,7 +2542,13 @@ index 23498ead99..d0460a5c13 100644
  using Robust.Client.UserInterface;
  using Robust.Client.UserInterface.CustomControls;
  using Robust.Shared.Configuration;
-@@ -27,6 +31,7 @@ public sealed partial class ScalingViewport : Control, IViewportControl
+ using Robust.Shared.Graphics;
+ using Robust.Shared.IoC;
++using Robust.Shared.Log;
+ using Robust.Shared.Map;
+ using Robust.Shared.Maths;
+ using Robust.Shared.Prototypes;
+@@ -27,6 +32,7 @@ public sealed partial class ScalingViewport : Control, IViewportControl
          [Dependency] private IClyde _clyde = default!;
          [Dependency] private IEntityManager _entityManager = default!;
          [Dependency] private IInputManager _inputManager = default!;
@@ -2550,7 +2556,7 @@ index 23498ead99..d0460a5c13 100644
          [Dependency] private IPrototypeManager _prototypeManager = default!;
          [Dependency] private IConfigurationManager _cfg = default!;
  
-@@ -160,6 +165,26 @@ protected override void KeyBindUp(GUIBoundKeyEventArgs args)
+@@ -160,13 +166,40 @@ protected override void KeyBindUp(GUIBoundKeyEventArgs args)
              _inputManager.ViewportKeyEvent(this, args);
          }
  
@@ -2577,6 +2583,21 @@ index 23498ead99..d0460a5c13 100644
          protected override void Draw(IRenderHandle handle)
          {
              EnsureViewportCreated();
+ 
+             DebugTools.AssertNotNull(_viewport);
+ 
+-            _viewport!.Render();
++            try
++            {
++                _viewport!.Render();
++            }
++            catch (Exception e)
++            {
++                Logger.ErrorS("viewport", $"Exception while rendering ScalingViewport:\n{e}");
++            }
+ 
+             if (_queuedScreenshots.Count != 0)
+             {
 diff --git a/Content.Shared/Maps/TurfSystem.cs b/Content.Shared/Maps/TurfSystem.cs
 index 620187a74d..d218fe8104 100644
 --- a/Content.Shared/Maps/TurfSystem.cs

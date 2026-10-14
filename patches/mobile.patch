@@ -7917,7 +7917,7 @@ index 8831e60fa..2b328737c 100644
  
          internal static bool HasParameterlessConstructor(this Type type, BindingFlags flags = BindingFlags.Instance | BindingFlags.Public)
 diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetConnection.Handshake.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetConnection.Handshake.cs
-index cdf6a36..3f5cc46 100644
+index cdf6a36..895edd7 100644
 --- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetConnection.Handshake.cs
 +++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetConnection.Handshake.cs
 @@ -104,6 +104,7 @@ internal void UnconnectedHeartbeat(double now)
@@ -7928,15 +7928,18 @@ index cdf6a36..3f5cc46 100644
  
  			// clear send queues
  			for (int i = 0; i < m_sendChannels.Length; i++)
-@@ -169,6 +170,7 @@ internal void SendConnect(double now)
- 			if (m_handshakeAttempts > 1)
- 				m_peer.LogDebug("Resending Connect...");
+@@ -166,9 +167,8 @@ internal void SendConnect(double now)
+ 			m_lastHandshakeSendTime = now;
+ 			m_handshakeAttempts++;
+ 
+-			if (m_handshakeAttempts > 1)
+-				m_peer.LogDebug("Resending Connect...");
  			SetStatus(NetConnectionStatus.InitiatedConnect, "Locally requested connect");
-+			System.Console.WriteLine($"[Lidgren] SendConnect attempt {m_handshakeAttempts} to {m_remoteEndPoint}");
++			m_peer.LogDebug($"SendConnect attempt {m_handshakeAttempts} to {m_remoteEndPoint}");
  		}
  
  		internal void SendConnectResponse(double now, bool onLibraryThread)
-@@ -229,6 +231,7 @@ private void WriteLocalHail(NetOutgoingMessage om)
+@@ -229,6 +229,7 @@ private void WriteLocalHail(NetOutgoingMessage om)
  
  		internal void SendConnectionEstablished()
  		{
@@ -7944,11 +7947,11 @@ index cdf6a36..3f5cc46 100644
  			NetOutgoingMessage om = m_peer.CreateMessage(4);
  			om.m_messageType = NetMessageType.ConnectionEstablished;
  			om.Write((float)NetTime.Now);
-@@ -425,12 +428,17 @@ internal void ReceivedHandshake(double now, NetMessageType tp, int ptr, int payl
+@@ -425,12 +426,17 @@ internal void ReceivedHandshake(double now, NetMessageType tp, int ptr, int payl
  
  		private void HandleConnectResponse(double now, NetMessageType tp, int ptr, int payloadLength)
  		{
-+			System.Console.WriteLine($"[Lidgren] HandleConnectResponse status={m_status} len={payloadLength}");
++			m_peer.LogDebug($"HandleConnectResponse status={m_status} len={payloadLength} from {m_remoteEndPoint}");
  			byte[]? hail;
  			switch (m_status)
  			{
@@ -7957,33 +7960,33 @@ index cdf6a36..3f5cc46 100644
  					bool ok = ValidateHandshakeData(ptr, payloadLength, out hail);
 +					if (!ok)
 +					{
-+						System.Console.WriteLine($"[Lidgren] ValidateHandshakeData returned false!");
++						m_peer.LogWarning($"ValidateHandshakeData returned false for {m_remoteEndPoint}!");
 +					}
  					if (ok)
  					{
  						if (hail != null)
-@@ -480,8 +488,11 @@ private bool ValidateHandshakeData(int ptr, int payloadLength, out byte[]? hail)
+@@ -480,8 +486,11 @@ private bool ValidateHandshakeData(int ptr, int payloadLength, out byte[]? hail)
  				if (remainingBytes > 0)
  					hail = msg.ReadBytes(remainingBytes);
  
-+				System.Console.WriteLine($"[Lidgren] ValidateHandshakeData: remoteAppId='{remoteAppIdentifier}' myAppId='{m_peer.m_configuration.AppIdentifier}' uid={remoteUniqueIdentifier}");
++				m_peer.LogDebug($"ValidateHandshakeData: remoteAppId='{remoteAppIdentifier}' myAppId='{m_peer.m_configuration.AppIdentifier}' uid={remoteUniqueIdentifier}");
 +
  				if (remoteAppIdentifier != m_peer.m_configuration.AppIdentifier)
  				{
-+					System.Console.WriteLine($"[Lidgren] APP IDENTIFIER MISMATCH! '{remoteAppIdentifier}' != '{m_peer.m_configuration.AppIdentifier}'");
++					m_peer.LogError($"APP IDENTIFIER MISMATCH! '{remoteAppIdentifier}' != '{m_peer.m_configuration.AppIdentifier}'");
  					ExecuteDisconnect("Wrong application identifier!", true);
  					return false;
  				}
-@@ -491,6 +502,7 @@ private bool ValidateHandshakeData(int ptr, int payloadLength, out byte[]? hail)
+@@ -491,6 +500,7 @@ private bool ValidateHandshakeData(int ptr, int payloadLength, out byte[]? hail)
  			catch(Exception ex)
  			{
  				// whatever; we failed
-+				System.Console.WriteLine($"[Lidgren] ValidateHandshakeData EXCEPTION: {ex}");
++				m_peer.LogError($"ValidateHandshakeData EXCEPTION: {ex}");
  				ExecuteDisconnect("Handshake data validation failed", true);
  				m_peer.LogWarning($"ReadRemoteHandshakeData failed: {ex.Message}");
  				return false;
 diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Internal.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Internal.cs
-index 341cca4..cec4869 100644
+index 341cca4..cf533ba 100644
 --- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Internal.cs
 +++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Internal.cs
 @@ -427,7 +427,7 @@ private void Heartbeat()
@@ -8001,7 +8004,7 @@ index 341cca4..cec4869 100644
  
 +			if (bytesReceived > 0)
 +			{
-+				System.Console.WriteLine($"[Lidgren] UDP recv {bytesReceived} bytes from {(NetEndPoint)senderRemote}");
++				LogDebug($"UDP recv {bytesReceived} bytes from {(NetEndPoint)senderRemote}");
 +			}
 +
  			if (bytesReceived < NetConstants.HeaderByteSize)
@@ -8012,21 +8015,71 @@ index 341cca4..cec4869 100644
  			if (m_upnp != null && now < m_upnp.m_discoveryResponseDeadline && bytesReceived > 32)
  			{
  				// is this an UPnP response?
-@@ -708,11 +711,14 @@ internal void HandleIncomingDiscoveryResponse(double now, NetEndPoint senderEndP
+@@ -518,6 +521,20 @@ private int ReceiveSocketData(double now)
+ 			}
+ 
+ 			m_connectionLookup.TryGetValue(senderRemote, out NetConnection? sender);
++			if (sender == null)
++			{
++				var senderEp = (IPEndPoint)senderRemote;
++				if (senderEp.Address.IsIPv4MappedToIPv6)
++				{
++					var unmapped = new IPEndPoint(senderEp.Address.MapToIPv4(), senderEp.Port);
++					m_connectionLookup.TryGetValue((NetSocketAddress)unmapped, out sender);
++				}
++				else if (senderEp.AddressFamily == AddressFamily.InterNetwork)
++				{
++					var mapped = new IPEndPoint(senderEp.Address.MapToIPv6(), senderEp.Port);
++					m_connectionLookup.TryGetValue((NetSocketAddress)mapped, out sender);
++				}
++			}
+ 
+ 			//
+ 			// parse packet into messages
+@@ -708,12 +725,43 @@ internal void HandleIncomingDiscoveryResponse(double now, NetEndPoint senderEndP
  
  		private void ReceivedUnconnectedLibraryMessage(double now, NetEndPoint senderEndPoint, NetMessageType tp, int ptr, int payloadByteLength)
  		{
-+			System.Console.WriteLine($"[Lidgren] Unconnected message {tp} ({payloadByteLength}b) from {senderEndPoint}");
++			LogDebug($"Unconnected message {tp} ({payloadByteLength}b) from {senderEndPoint}");
  			if (m_handshakes.TryGetValue(senderEndPoint, out NetConnection? shake))
  			{
-+				System.Console.WriteLine($"[Lidgren] Matched handshake for {senderEndPoint}");
++				LogDebug($"Matched handshake for {senderEndPoint}");
  				shake.ReceivedHandshake(now, tp, ptr, payloadByteLength);
  				return;
  			}
-+			System.Console.WriteLine($"[Lidgren] No match in m_handshakes for {senderEndPoint}! Handshakes count={m_handshakes.Count}");
  
++			// Try matching with normalized address (IPv4 vs IPv6-mapped IPv4)
++			NetEndPoint? altEndPoint = null;
++			if (senderEndPoint.Address.IsIPv4MappedToIPv6)
++			{
++				altEndPoint = new NetEndPoint(senderEndPoint.Address.MapToIPv4(), senderEndPoint.Port);
++			}
++			else if (senderEndPoint.AddressFamily == AddressFamily.InterNetwork)
++			{
++				altEndPoint = new NetEndPoint(senderEndPoint.Address.MapToIPv6(), senderEndPoint.Port);
++			}
++
++			if (altEndPoint != null && m_handshakes.TryGetValue(altEndPoint, out shake))
++			{
++				LogDebug($"Matched handshake for {senderEndPoint} using alternate {altEndPoint}");
++				shake.ReceivedHandshake(now, tp, ptr, payloadByteLength);
++				return;
++			}
++
++			// If this is a ConnectResponse and the client only has 1 active outgoing handshake, adopt it!
++			if (tp == NetMessageType.ConnectResponse && m_handshakes.Count == 1)
++			{
++				var onlyHs = System.Linq.Enumerable.First(m_handshakes.Values);
++				LogWarning($"ConnectResponse from {senderEndPoint} did not match handshake key {onlyHs.RemoteEndPoint}; adopting for single active outgoing handshake!");
++				onlyHs.ReceivedHandshake(now, tp, ptr, payloadByteLength);
++				return;
++			}
++
++			LogWarning($"No match in m_handshakes for {senderEndPoint}! Handshakes: [{string.Join(", ", m_handshakes.Keys)}]");
++
  			//
  			// Library message from a completely unknown sender; lets just accept Connect
+ 			//
 diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs
 index ec31cda..d595516 100644
 --- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs
@@ -8079,10 +8132,10 @@ index ec31cda..d595516 100644
  	}
  
 diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetFastSocket.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetFastSocket.cs
-index 51cd824..77835c1 100644
+index 51cd824..18f2b2c 100644
 --- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetFastSocket.cs
 +++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetFastSocket.cs
-@@ -40,25 +40,38 @@ public static int ReceiveFrom(
+@@ -40,25 +40,29 @@ public static int ReceiveFrom(
  		{
  			if (!IsLinux && !IsWindows)
  			{
@@ -8098,22 +8151,7 @@ index 51cd824..77835c1 100644
 -						(uint) ipEndPoint.Address.ScopeId);
 +					var ret = socket.ReceiveFrom(buffer, offset, size, socketFlags, ref endPoint);
 +					var ipEndPoint = (IPEndPoint) endPoint;
-+					if (ipEndPoint.AddressFamily == AddressFamily.InterNetworkV6)
-+					{
-+						// IPv6
-+						NetIpv6Address ipAddress = default;
-+						ipEndPoint.Address.TryWriteBytes(MemoryMarshal.CreateSpan(ref ipAddress.Address[0], 16), out _);
-+						socketAddress = new NetSocketAddressV6(ipAddress, (ushort) ipEndPoint.Port,
-+							(uint) ipEndPoint.Address.ScopeId);
-+					}
-+					else
-+					{
-+						// IPv4
-+						NetIpv4Address ipAddress = default;
-+						ipEndPoint.Address.TryWriteBytes(MemoryMarshal.CreateSpan(ref ipAddress.Address[0], 4), out _);
-+						socketAddress = new NetSocketAddressV4(ipAddress, (ushort) ipEndPoint.Port);
-+					}
-+
++					socketAddress = (NetSocketAddress) ipEndPoint;
 +					return ret;
  				}
 -				else
@@ -8126,10 +8164,16 @@ index 51cd824..77835c1 100644
 +					socketAddress = default;
 +					return 0;
 +				}
++				catch (SocketException sx) when (sx.SocketErrorCode == SocketError.ConnectionReset)
++				{
++					socketAddress = default;
++					return 0;
++				}
 +				catch (Exception ex)
 +				{
 +					System.Console.WriteLine($"[Lidgren] BCL ReceiveFrom error: {ex.GetType().Name}: {ex.Message}");
-+					throw;
++					socketAddress = default;
++					return 0;
  				}
 -
 -				return ret;

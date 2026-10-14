@@ -808,19 +808,12 @@ namespace Content.Android
         {
             private readonly System.Text.StringBuilder _sb = new();
             private readonly string _tag;
-            private readonly StreamWriter? _fileWriter;
+            private readonly string? _filePath;
 
             public AndroidLogcatWriter(string tag, string? filePath = null)
             {
                 _tag = tag;
-                if (filePath != null)
-                {
-                    try
-                    {
-                        _fileWriter = new StreamWriter(File.Open(filePath, FileMode.Create, FileAccess.Write, FileShare.ReadWrite)) { AutoFlush = true };
-                    }
-                    catch {}
-                }
+                _filePath = filePath;
             }
 
             public override System.Text.Encoding Encoding => System.Text.Encoding.UTF8;
@@ -832,7 +825,19 @@ namespace Content.Android
                     var line = _sb.ToString();
                     _sb.Clear();
                     global::Android.Util.Log.Info(_tag, line);
-                    try { _fileWriter?.WriteLine(line); } catch {}
+                    if (_filePath != null)
+                    {
+                        try
+                        {
+                            var fi = new System.IO.FileInfo(_filePath);
+                            if (fi.Exists && fi.Length > 512 * 1024)
+                            {
+                                System.IO.File.Delete(_filePath);
+                            }
+                            System.IO.File.AppendAllText(_filePath, line + "\n");
+                        }
+                        catch {}
+                    }
                 }
                 else if (value != '\r')
                 {
@@ -852,7 +857,7 @@ namespace Content.Android
         {
             try
             {
-                var filesDir = "/data/data/io.spacestation14.android/files";
+                var filesDir = CrashReporter.FilesDir;
                 try
                 {
                     var logWriter = new AndroidLogcatWriter("SS14_LOG", Path.Combine(filesDir, "game.log"));

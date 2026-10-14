@@ -2897,8 +2897,8 @@ public sealed class LauncherActivity : Activity
                 return;
             }
             var text = File.ReadAllText(logPath);
-            if (text.Length > 50_000)
-                text = "[... truncated tail ...]\n" + text.Substring(text.Length - 50_000);
+            if (text.Length > 250_000)
+                text = "[... truncated tail ...]\n" + text.Substring(text.Length - 250_000);
 
             var intent = new Intent(Intent.ActionSend);
             intent.SetType("text/plain");
@@ -2987,7 +2987,7 @@ public sealed class LauncherActivity : Activity
         catch {}
     }
 
-    public const string CurrentAppVersion = "v1.2.11";
+    public const string CurrentAppVersion = "v1.2.12";
 
     public string GetCurrentAppVersion()
     {

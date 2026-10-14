@@ -21,8 +21,8 @@ public static class CrashReporter
     private const long MaxCrashFileBytes = 512 * 1024;
 
     // How much log text we embed/share at most (Intent extras have ~1MB limit).
-    private const int MaxReportChars = 60_000;
-    private const int MaxLogTailChars = 20_000;
+    private const int MaxReportChars = 120_000;
+    private const int MaxLogTailChars = 50_000;
 
     public static string FilesDir
     {
@@ -229,6 +229,9 @@ public static class CrashReporter
         sb.AppendLine("=== crash.txt (tail) ===");
         sb.AppendLine(TailText(CrashPath, MaxReportChars - MaxLogTailChars - 2000));
         sb.AppendLine();
+        sb.AppendLine("=== game.log (filtered tail, excluding RSI/loc spam) ===");
+        sb.AppendLine(GetFilteredLogTail(GameLogPath, 150));
+        sb.AppendLine();
         sb.AppendLine("=== game.log (tail) ===");
         sb.AppendLine(TailText(GameLogPath, MaxLogTailChars));
         sb.AppendLine();
@@ -345,6 +348,46 @@ public static class CrashReporter
         catch (Exception ex)
         {
             return $"(could not read {Path.GetFileName(path)}: {ex.Message})";
+        }
+    }
+
+    private static string GetFilteredLogTail(string path, int maxLines = 150)
+    {
+        try
+        {
+            if (!File.Exists(path))
+                return "(file not found)";
+
+            using var fs = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+            using var sr = new StreamReader(fs);
+            var lines = new List<string>();
+            string? l;
+            while ((l = sr.ReadLine()) != null)
+            {
+                if (l.Contains("Unable to load RSI", StringComparison.OrdinalIgnoreCase) ||
+                    l.Contains("go.comp.sprite:", StringComparison.OrdinalIgnoreCase) ||
+                    l.Contains("Unknown messageId", StringComparison.OrdinalIgnoreCase))
+                {
+                    continue;
+                }
+                lines.Add(l);
+            }
+
+            if (lines.Count == 0)
+                return "(no non-spam lines)";
+
+            var takeFrom = Math.Max(0, lines.Count - maxLines);
+            var sb = new StringBuilder();
+            if (takeFrom > 0)
+                sb.AppendLine($"[... skipped {takeFrom} earlier lines ...]");
+            for (int i = takeFrom; i < lines.Count; i++)
+                sb.AppendLine(lines[i]);
+
+            return sb.ToString().TrimEnd();
+        }
+        catch (Exception ex)
+        {
+            return $"(could not filter {Path.GetFileName(path)}: {ex.Message})";
         }
     }
 

@@ -7,8 +7,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationId>io.spacestation14.android</ApplicationId>
-    <ApplicationVersion>43</ApplicationVersion>
-    <ApplicationDisplayVersion>1.2.11</ApplicationDisplayVersion>
+    <ApplicationVersion>44</ApplicationVersion>
+    <ApplicationDisplayVersion>1.2.12</ApplicationDisplayVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <NoWarn>NU1701;CA1416</NoWarn>
     <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>
@@ -17,7 +17,7 @@
     <TrimMode>None</TrimMode>
     <AndroidUseAssemblyStore>false</AndroidUseAssemblyStore>
     <RunAOTCompilation>true</RunAOTCompilation>
-    <UseInterpreter>false</UseInterpreter>
+    <UseInterpreter>true</UseInterpreter>
     <RuntimeIdentifiers>android-arm64</RuntimeIdentifiers>
     <AndroidEnableMarshalMethods>false</AndroidEnableMarshalMethods>
     <ExcludeSatelliteAssemblies>true</ExcludeSatelliteAssemblies>

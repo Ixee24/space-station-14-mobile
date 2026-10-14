@@ -20,6 +20,7 @@ namespace Content.Android
         Exported = true,
         Icon = "@mipmap/ic_launcher",
         RoundIcon = "@mipmap/ic_launcher_round",
+        LaunchMode = global::Android.Content.PM.LaunchMode.SingleTask,
         Theme = "@android:style/Theme.NoTitleBar.Fullscreen",
         ConfigurationChanges =
             global::Android.Content.PM.ConfigChanges.Orientation |
@@ -628,6 +629,12 @@ namespace Content.Android
 
             try
             {
+                FlushLogs();
+            }
+            catch {}
+
+            try
+            {
                 global::Android.OS.Process.KillProcess(global::Android.OS.Process.MyPid());
             }
             catch {}
@@ -804,65 +811,161 @@ namespace Content.Android
             };
         }
 
+        private static AndroidLogcatWriter? _activeLogWriter;
+        private static int _mainRunning = 0;
+
+        public static void FlushLogs()
+        {
+            try
+            {
+                _activeLogWriter?.Flush();
+            }
+            catch {}
+        }
+
         private sealed class AndroidLogcatWriter : TextWriter
         {
             private readonly System.Text.StringBuilder _sb = new();
             private readonly string _tag;
             private readonly string? _filePath;
+            private readonly object _lock = new();
+            private System.IO.StreamWriter? _fileWriter;
 
             public AndroidLogcatWriter(string tag, string? filePath = null)
             {
                 _tag = tag;
                 _filePath = filePath;
+                if (_filePath != null)
+                {
+                    try
+                    {
+                        var dir = Path.GetDirectoryName(_filePath);
+                        if (!string.IsNullOrEmpty(dir))
+                            Directory.CreateDirectory(dir);
+
+                        var fi = new FileInfo(_filePath);
+                        if (fi.Exists && fi.Length > 2 * 1024 * 1024)
+                        {
+                            try { File.Delete(_filePath); } catch {}
+                        }
+
+                        var fs = new FileStream(_filePath, FileMode.Append, FileAccess.Write, FileShare.ReadWrite);
+                        _fileWriter = new StreamWriter(fs, System.Text.Encoding.UTF8) { AutoFlush = true };
+                    }
+                    catch (Exception ex)
+                    {
+                        global::Android.Util.Log.Error(_tag, $"Failed to open log file {_filePath}: {ex.Message}");
+                    }
+                }
             }
 
             public override System.Text.Encoding Encoding => System.Text.Encoding.UTF8;
 
             public override void Write(char value)
             {
-                if (value == '\n')
+                lock (_lock)
                 {
-                    var line = _sb.ToString();
-                    _sb.Clear();
-                    global::Android.Util.Log.Info(_tag, line);
-                    if (_filePath != null)
+                    if (value == '\n')
                     {
-                        try
+                        var line = _sb.ToString();
+                        _sb.Clear();
+                        global::Android.Util.Log.Info(_tag, line);
+                        if (_fileWriter != null)
                         {
-                            var fi = new System.IO.FileInfo(_filePath);
-                            if (fi.Exists && fi.Length > 512 * 1024)
+                            try
                             {
-                                System.IO.File.Delete(_filePath);
+                                _fileWriter.WriteLine(line);
                             }
-                            System.IO.File.AppendAllText(_filePath, line + "\n");
+                            catch {}
                         }
-                        catch {}
                     }
-                }
-                else if (value != '\r')
-                {
-                    _sb.Append(value);
+                    else if (value != '\r')
+                    {
+                        _sb.Append(value);
+                    }
                 }
             }
 
             public override void Write(string? value)
             {
                 if (value == null) return;
-                foreach (var c in value)
-                    Write(c);
+                lock (_lock)
+                {
+                    for (int i = 0; i < value.Length; i++)
+                    {
+                        char c = value[i];
+                        if (c == '\n')
+                        {
+                            var line = _sb.ToString();
+                            _sb.Clear();
+                            global::Android.Util.Log.Info(_tag, line);
+                            if (_fileWriter != null)
+                            {
+                                try
+                                {
+                                    _fileWriter.WriteLine(line);
+                                }
+                                catch {}
+                            }
+                        }
+                        else if (c != '\r')
+                        {
+                            _sb.Append(c);
+                        }
+                    }
+                }
+            }
+
+            public override void Flush()
+            {
+                lock (_lock)
+                {
+                    try
+                    {
+                        if (_sb.Length > 0)
+                        {
+                            var line = _sb.ToString();
+                            _sb.Clear();
+                            global::Android.Util.Log.Info(_tag, line);
+                            _fileWriter?.WriteLine(line);
+                        }
+                        _fileWriter?.Flush();
+                    }
+                    catch {}
+                }
+            }
+
+            protected override void Dispose(bool disposing)
+            {
+                if (disposing)
+                {
+                    Flush();
+                    lock (_lock)
+                    {
+                        try { _fileWriter?.Dispose(); } catch {}
+                        _fileWriter = null;
+                    }
+                }
+                base.Dispose(disposing);
             }
         }
 
         protected override void Main()
         {
+            if (System.Threading.Interlocked.Exchange(ref _mainRunning, 1) != 0)
+            {
+                global::Android.Util.Log.Warn("SS14_LOG", "MainActivity.Main() is already running; skipping re-entrant call.");
+                return;
+            }
+
             try
             {
                 var filesDir = CrashReporter.FilesDir;
                 try
                 {
-                    var logWriter = new AndroidLogcatWriter("SS14_LOG", Path.Combine(filesDir, "game.log"));
-                    Console.SetOut(logWriter);
-                    Console.SetError(logWriter);
+                    _activeLogWriter = new AndroidLogcatWriter("SS14_LOG", Path.Combine(filesDir, "game.log"));
+                    Console.SetOut(_activeLogWriter);
+                    Console.SetError(_activeLogWriter);
                     global::Android.Util.Log.Info("SS14_LOG", "=== Console redirected to AndroidLogcatWriter ===");
                 }
                 catch (Exception ex)
@@ -1017,6 +1120,11 @@ namespace Content.Android
             {
                 LogCrash("Main", ex);
                 throw;
+            }
+            finally
+            {
+                FlushLogs();
+                System.Threading.Interlocked.Exchange(ref _mainRunning, 0);
             }
         }
     }

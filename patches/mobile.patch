@@ -5408,7 +5408,7 @@ index 69e28e861..c6c10962a 100644
          {
              /*
 diff --git a/Robust.Shared/Log/ConsoleLogHandler.cs b/Robust.Shared/Log/ConsoleLogHandler.cs
-index 2633b8ec5..aca421a6f 100644
+index 2633b8ec5..beff6a03d 100644
 --- a/Robust.Shared/Log/ConsoleLogHandler.cs
 +++ b/Robust.Shared/Log/ConsoleLogHandler.cs
 @@ -1,4 +1,4 @@
@@ -5417,28 +5417,15 @@ index 2633b8ec5..aca421a6f 100644
  using System.Diagnostics;
  using System.IO;
  using System.Text;
-@@ -113,6 +113,21 @@ namespace Robust.Shared.Log
+@@ -113,7 +113,7 @@ namespace Robust.Shared.Log
                      _line.AppendLine(message.Exception.ToString());
                  }
  
-+                if (OperatingSystem.IsAndroid())
-+                {
-+                    try
-+                    {
-+                        var logPath = "/data/data/io.spacestation14.android/files/game.log";
-+                        var fi = new System.IO.FileInfo(logPath);
-+                        if (fi.Exists && fi.Length > 512 * 1024)
-+                        {
-+                            System.IO.File.Delete(logPath);
-+                        }
-+                        System.IO.File.AppendAllText(logPath, _line.ToString());
-+                    }
-+                    catch { }
-+                }
-+
-                 if (System.Console.OutputEncoding.CodePage == WindowsConsole.NativeMethods.CodePageUtf8)
+-                if (System.Console.OutputEncoding.CodePage == WindowsConsole.NativeMethods.CodePageUtf8)
++                if (!OperatingSystem.IsAndroid() && System.Console.OutputEncoding.CodePage == WindowsConsole.NativeMethods.CodePageUtf8)
                  {
                      // Fast path: if we can output as UTF-8, do it.
+                     Span<byte> buf = stackalloc byte[1024];
 diff --git a/Robust.Shared/Map/CoordinatesExtensions.cs b/Robust.Shared/Map/CoordinatesExtensions.cs
 index 38c8560ef..eb2975c89 100644
 --- a/Robust.Shared/Map/CoordinatesExtensions.cs
@@ -5714,7 +5701,7 @@ index 8e86a951f..9d9868bfe 100644
      }
  
 diff --git a/Robust.Shared/Network/NetManager.ClientConnect.cs b/Robust.Shared/Network/NetManager.ClientConnect.cs
-index 509322be6..c1614abbb 100644
+index 509322be6..979f33be9 100644
 --- a/Robust.Shared/Network/NetManager.ClientConnect.cs
 +++ b/Robust.Shared/Network/NetManager.ClientConnect.cs
 @@ -105,6 +105,7 @@ namespace Robust.Shared.Network
@@ -5757,6 +5744,83 @@ index 509322be6..c1614abbb 100644
                  request.Content = JsonContent.Create(joinReq);
                  request.Headers.Authorization = new AuthenticationHeaderValue("SS14Auth", authToken);
                  var joinResp = await _http.Client.SendAsync(request, cancel);
+@@ -251,6 +257,25 @@ namespace Robust.Shared.Network
+             return incHash.GetHashAndReset();
+         }
+ 
++        private static bool TryExtractNat64Ipv4(IPAddress addr, [System.Diagnostics.CodeAnalysis.NotNullWhen(true)] out IPAddress? ipv4)
++        {
++            ipv4 = null;
++            if (addr.AddressFamily != AddressFamily.InterNetworkV6)
++                return false;
++
++            var bytes = addr.GetAddressBytes();
++            if (bytes.Length == 16 &&
++                bytes[0] == 0x00 && bytes[1] == 0x64 && bytes[2] == 0xff && bytes[3] == 0x9b &&
++                bytes[4] == 0x00 && bytes[5] == 0x00 && bytes[6] == 0x00 && bytes[7] == 0x00 &&
++                bytes[8] == 0x00 && bytes[9] == 0x00 && bytes[10] == 0x00 && bytes[11] == 0x00)
++            {
++                ipv4 = new IPAddress(new ReadOnlySpan<byte>(bytes, 12, 4));
++                return true;
++            }
++
++            return false;
++        }
++
+         private async Task<(IPAddress first, IPAddress? second)?>
+             CCResolveHost(string host, CancellationToken mainCancelToken)
+         {
+@@ -268,9 +293,27 @@ namespace Robust.Shared.Network
+                 return null;
+             }
+ 
+-            // Try to get an IPv6 and IPv4 address.
+-            var ipv6 = endPoints.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetworkV6);
+-            var ipv4 = endPoints.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork);
++            // Extract embedded IPv4 from NAT64 (RFC 6052 64:ff9b::/96) and filter out NAT64 addresses
++            var candidateIps = new List<IPAddress>();
++            foreach (var addr in endPoints)
++            {
++                if (TryExtractNat64Ipv4(addr, out var extractedIpv4))
++                {
++                    _logger.Debug("Detected NAT64 synthesized address {0}, extracted embedded IPv4 {1}", addr, extractedIpv4);
++                    if (!candidateIps.Contains(extractedIpv4))
++                    {
++                        candidateIps.Add(extractedIpv4);
++                    }
++                }
++                else
++                {
++                    candidateIps.Add(addr);
++                }
++            }
++
++            // Prioritize native IPv4 first on mobile/WiFi/VPN to prevent UDP blackholing
++            var ipv4 = candidateIps.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork);
++            var ipv6 = candidateIps.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetworkV6);
+ 
+             if (ipv4 == null && ipv6 == null)
+             {
+@@ -280,15 +323,14 @@ namespace Robust.Shared.Network
+ 
+             IPAddress first;
+             IPAddress? second = null;
+-            if (ipv6 != null)
++            if (ipv4 != null)
+             {
+-                // If there's an IPv6 address try it first then the IPv4.
+-                first = ipv6;
+-                second = ipv4;
++                first = ipv4;
++                second = ipv6;
+             }
+             else
+             {
+-                first = ipv4!;
++                first = ipv6!;
+             }
+ 
+             return (first, second);
 diff --git a/Robust.Shared/Network/NetManager.cs b/Robust.Shared/Network/NetManager.cs
 index b79a8d0ef..fead03157 100644
 --- a/Robust.Shared/Network/NetManager.cs
@@ -6776,7 +6840,7 @@ index eeefefe85..d8d584c92 100644
      }
  }
 diff --git a/Robust.Shared/Serialization/Manager/SerializationManager.Reading.cs b/Robust.Shared/Serialization/Manager/SerializationManager.Reading.cs
-index b2b5d27b9..c040042ff 100644
+index b2b5d27b9..635bdc961 100644
 --- a/Robust.Shared/Serialization/Manager/SerializationManager.Reading.cs
 +++ b/Robust.Shared/Serialization/Manager/SerializationManager.Reading.cs
 @@ -1,5 +1,6 @@
@@ -6812,7 +6876,7 @@ index b2b5d27b9..c040042ff 100644
  
                                  var valObj = instanceProvider == null ? definition.InstantiateObj() : instanceProvider.Invoke()!;
                                  definition.PopulateObj(ref valObj, mapping, this, hookCtx, context);
-@@ -1456,9 +1466,233 @@ namespace Robust.Shared.Serialization.Manager
+@@ -1456,9 +1466,245 @@ namespace Robust.Shared.Serialization.Manager
  
          private TValue ReadNoSerializer<TValue>(DataNode node)
          {
@@ -6911,6 +6975,18 @@ index b2b5d27b9..c040042ff 100644
 +                        {
 +                            SetLegacySequenceMemberValue(field.FieldType, field.GetValue(instance), v => field.SetValue(instance, v), seqNode);
 +                        }
++                    }
++                }
++
++                if (instance is ISerializationHooks hooks)
++                {
++                    try
++                    {
++                        hooks.AfterDeserialization();
++                    }
++                    catch (Exception hookEx)
++                    {
++                        _sawmill?.Warning($"AfterDeserialization failed for {type}: {hookEx.Message}");
 +                    }
 +                }
 +
@@ -7916,7 +7992,7 @@ index 8831e60fa..2b328737c 100644
          }
  
          internal static bool HasParameterlessConstructor(this Type type, BindingFlags flags = BindingFlags.Instance | BindingFlags.Public)
-diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetConnection.Handshake.cs b/Lidgren.Network/NetConnection.Handshake.cs
+diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetConnection.Handshake.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetConnection.Handshake.cs
 index cdf6a36..895edd7 100644
 --- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetConnection.Handshake.cs
 +++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetConnection.Handshake.cs
@@ -7985,7 +8061,7 @@ index cdf6a36..895edd7 100644
  				ExecuteDisconnect("Handshake data validation failed", true);
  				m_peer.LogWarning($"ReadRemoteHandshakeData failed: {ex.Message}");
  				return false;
-diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Internal.cs b/Lidgren.Network/NetPeer.Internal.cs
+diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Internal.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Internal.cs
 index 341cca4..cf533ba 100644
 --- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Internal.cs
 +++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Internal.cs
@@ -8080,7 +8156,7 @@ index 341cca4..cf533ba 100644
  			//
  			// Library message from a completely unknown sender; lets just accept Connect
  			//
-diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs b/Lidgren.Network/NetPeer.Logging.cs
+diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs
 index ec31cda..d595516 100644
 --- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs
 +++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs
@@ -8131,7 +8207,7 @@ index ec31cda..d595516 100644
  		SendLogBase(NetIncomingMessageType.ErrorMessage, message);
  	}
  
-diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetFastSocket.cs b/Lidgren.Network/Sockets/NetFastSocket.cs
+diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetFastSocket.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetFastSocket.cs
 index 51cd824..bbbc5cb 100644
 --- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetFastSocket.cs
 +++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetFastSocket.cs
@@ -8175,7 +8251,7 @@ index 51cd824..bbbc5cb 100644
  			}
  
  			return ReceiveFrom(socket, buffer.AsSpan(offset, size), socketFlags, out socketAddress);
-diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetNativeSocket.cs b/Lidgren.Network/Sockets/NetNativeSocket.cs
+diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetNativeSocket.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetNativeSocket.cs
 index 4961b81..c728992 100644
 --- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetNativeSocket.cs
 +++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetNativeSocket.cs

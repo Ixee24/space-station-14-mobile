@@ -7916,7 +7916,7 @@ index 8831e60fa..2b328737c 100644
          }
  
          internal static bool HasParameterlessConstructor(this Type type, BindingFlags flags = BindingFlags.Instance | BindingFlags.Public)
-diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetConnection.Handshake.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetConnection.Handshake.cs
+diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetConnection.Handshake.cs b/Lidgren.Network/NetConnection.Handshake.cs
 index cdf6a36..895edd7 100644
 --- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetConnection.Handshake.cs
 +++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetConnection.Handshake.cs
@@ -7985,7 +7985,7 @@ index cdf6a36..895edd7 100644
  				ExecuteDisconnect("Handshake data validation failed", true);
  				m_peer.LogWarning($"ReadRemoteHandshakeData failed: {ex.Message}");
  				return false;
-diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Internal.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Internal.cs
+diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Internal.cs b/Lidgren.Network/NetPeer.Internal.cs
 index 341cca4..cf533ba 100644
 --- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Internal.cs
 +++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Internal.cs
@@ -8080,7 +8080,7 @@ index 341cca4..cf533ba 100644
  			//
  			// Library message from a completely unknown sender; lets just accept Connect
  			//
-diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs
+diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs b/Lidgren.Network/NetPeer.Logging.cs
 index ec31cda..d595516 100644
 --- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs
 +++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs
@@ -8131,11 +8131,11 @@ index ec31cda..d595516 100644
  		SendLogBase(NetIncomingMessageType.ErrorMessage, message);
  	}
  
-diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetFastSocket.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetFastSocket.cs
-index 51cd824..18f2b2c 100644
+diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetFastSocket.cs b/Lidgren.Network/Sockets/NetFastSocket.cs
+index 51cd824..bbbc5cb 100644
 --- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetFastSocket.cs
 +++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetFastSocket.cs
-@@ -40,25 +40,29 @@ public static int ReceiveFrom(
+@@ -40,25 +40,24 @@ public static int ReceiveFrom(
  		{
  			if (!IsLinux && !IsWindows)
  			{
@@ -8155,17 +8155,12 @@ index 51cd824..18f2b2c 100644
 +					return ret;
  				}
 -				else
-+				catch (SocketException sx) when (sx.SocketErrorCode == SocketError.WouldBlock)
++				catch (SocketException sx) when (sx.SocketErrorCode == SocketError.WouldBlock || sx.SocketErrorCode == SocketError.IOPending || sx.SocketErrorCode == SocketError.ConnectionReset)
  				{
 -					// IPv4
 -					NetIpv4Address ipAddress = default;
 -					ipEndPoint.Address.TryWriteBytes(MemoryMarshal.CreateSpan(ref ipAddress.Address[0], 4), out _);
 -					socketAddress = new NetSocketAddressV4(ipAddress, (ushort) ipEndPoint.Port);
-+					socketAddress = default;
-+					return 0;
-+				}
-+				catch (SocketException sx) when (sx.SocketErrorCode == SocketError.ConnectionReset)
-+				{
 +					socketAddress = default;
 +					return 0;
 +				}
@@ -8180,20 +8175,16 @@ index 51cd824..18f2b2c 100644
  			}
  
  			return ReceiveFrom(socket, buffer.AsSpan(offset, size), socketFlags, out socketAddress);
-diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetNativeSocket.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetNativeSocket.cs
-index 4961b81..503da58 100644
+diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetNativeSocket.cs b/Lidgren.Network/Sockets/NetNativeSocket.cs
+index 4961b81..c728992 100644
 --- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetNativeSocket.cs
 +++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetNativeSocket.cs
-@@ -9,7 +9,11 @@ namespace Lidgren.Network
+@@ -9,7 +9,7 @@ namespace Lidgren.Network
  	internal static unsafe class NetNativeSocket
  	{
  		internal static readonly bool IsWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
 -		internal static readonly bool IsLinux = RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
-+#if NET6_0_OR_GREATER
 +		internal static readonly bool IsLinux = RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && !OperatingSystem.IsAndroid();
-+#else
-+		internal static readonly bool IsLinux = RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && !RuntimeInformation.IsOSPlatform(OSPlatform.Create("ANDROID"));
-+#endif
  
  #pragma warning disable 649
  		// ReSharper disable InconsistentNaming

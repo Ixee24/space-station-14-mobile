@@ -10,6 +10,8 @@ on:
   push:
     branches:
       - master
+      - experimental
+      - 'experimental/**'
     tags:
       - 'v*'
 
@@ -41,7 +43,7 @@ jobs:
         id: ver
         run: |
           NEW=$(grep -oP '<ApplicationDisplayVersion>\K[^<]+' Content.Android/Content.Android.csproj)
-          if ! echo "$NEW" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+$'; then
+          if ! echo "$NEW" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+[a-zA-Z0-9.-]*$'; then
             echo "ERROR: unexpected DisplayVersion format: $NEW" >&2
             exit 1
           fi
@@ -51,8 +53,17 @@ jobs:
           else
             TAG="v$NEW"
           fi
+          IS_PRERELEASE="false"
+          RELEASE_NAME="$TAG"
+          if [ "${{ github.ref_name }}" != "master" ] && [[ "${{ github.ref_name }}" != v* ]]; then
+            TAG="${TAG}-exp"
+            RELEASE_NAME="${TAG} (Experimental)"
+            IS_PRERELEASE="true"
+          fi
           echo "tag=$TAG" >> "$GITHUB_OUTPUT"
-          echo "Releasing $TAG"
+          echo "release_name=$RELEASE_NAME" >> "$GITHUB_OUTPUT"
+          echo "is_prerelease=$IS_PRERELEASE" >> "$GITHUB_OUTPUT"
+          echo "Releasing $TAG (name: $RELEASE_NAME, prerelease: $IS_PRERELEASE)"
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -137,8 +148,9 @@ jobs:
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
           tag_name: ${{ steps.ver.outputs.tag }}
+          name: ${{ steps.ver.outputs.release_name }}
           files: ${{ steps.find_apk.outputs.apk_path }}
           draft: false
-          prerelease: false
+          prerelease: ${{ steps.ver.outputs.is_prerelease == 'true' }}
           generate_release_notes: true
           overwrite: true

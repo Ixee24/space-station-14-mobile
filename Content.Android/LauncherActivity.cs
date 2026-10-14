@@ -214,7 +214,7 @@ public sealed class LauncherActivity : Activity
         var websiteBtn = CreateHeaderLinkButton("Website", () => OpenUrl("https://spacestation14.com"));
         header.AddView(websiteBtn);
 
-        var githubBtn = CreateHeaderLinkButton("GitHub", () => OpenUrl("https://github.com/SolomonNumb1/space-station-14-mobile"));
+        var githubBtn = CreateHeaderLinkButton("GitHub", () => OpenUrl("https://github.com/Ixee24/space-station-14-mobile"));
         header.AddView(githubBtn);
 
         _accountBtn = new Button(this)
@@ -2532,7 +2532,7 @@ public sealed class LauncherActivity : Activity
         issuesBtn.Background = LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
         issuesBtn.SetTextColor(LauncherTheme.Foreground);
         issuesBtn.LayoutParameters = new LinearLayout.LayoutParams(0, (int)(34 * density), 1f);
-        issuesBtn.Click += (_, _) => OpenUrl("https://github.com/SolomonNumb1/space-station-14-mobile/issues");
+        issuesBtn.Click += (_, _) => OpenUrl("https://github.com/Ixee24/space-station-14-mobile/issues");
         btnRow.AddView(issuesBtn);
         view.AddView(btnRow);
 
@@ -2624,7 +2624,7 @@ public sealed class LauncherActivity : Activity
         catch {}
     }
 
-    public const string CurrentAppVersion = "v1.2.0";
+    public const string CurrentAppVersion = "v1.2.0a";
 
     public string GetCurrentAppVersion()
     {
@@ -2695,7 +2695,7 @@ public sealed class LauncherActivity : Activity
             RightMargin = (int)(6 * density)
         };
         issuesBtn.LayoutParameters = issuesLp;
-        issuesBtn.Click += (_, _) => OpenUrl("https://github.com/SolomonNumb1/space-station-14-mobile/issues");
+        issuesBtn.Click += (_, _) => OpenUrl("https://github.com/Ixee24/space-station-14-mobile/issues");
         btnRow.AddView(issuesBtn);
 
         AlertDialog? dialog = null;
@@ -2736,7 +2736,7 @@ public sealed class LauncherActivity : Activity
             http.Timeout = TimeSpan.FromSeconds(10);
             http.DefaultRequestHeaders.UserAgent.ParseAdd("SS14-Android-Launcher");
 
-            var json = await http.GetStringAsync("https://api.github.com/repos/SolomonNumb1/space-station-14-mobile/releases/latest");
+            var json = await http.GetStringAsync("https://api.github.com/repos/Ixee24/space-station-14-mobile/releases/latest");
             var release = JsonSerializer.Deserialize<GitHubReleaseInfo>(json);
             if (release == null || string.IsNullOrWhiteSpace(release.TagName))
             {
@@ -2882,7 +2882,7 @@ public sealed class LauncherActivity : Activity
         downloadBtn.LayoutParameters = downloadLp;
 
         var apkAsset = release.Assets?.FirstOrDefault(a => a.Name.EndsWith(".apk", StringComparison.OrdinalIgnoreCase));
-        var downloadUrl = apkAsset?.BrowserDownloadUrl ?? release.HtmlUrl ?? "https://github.com/SolomonNumb1/space-station-14-mobile/releases/latest";
+        var downloadUrl = apkAsset?.BrowserDownloadUrl ?? release.HtmlUrl ?? "https://github.com/Ixee24/space-station-14-mobile/releases/latest";
 
         downloadBtn.Click += (_, _) =>
         {

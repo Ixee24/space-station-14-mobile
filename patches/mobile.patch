@@ -5701,7 +5701,7 @@ index 8e86a951f..9d9868bfe 100644
      }
  
 diff --git a/Robust.Shared/Network/NetManager.ClientConnect.cs b/Robust.Shared/Network/NetManager.ClientConnect.cs
-index 509322be6..979f33be9 100644
+index 509322be6..f23088612 100644
 --- a/Robust.Shared/Network/NetManager.ClientConnect.cs
 +++ b/Robust.Shared/Network/NetManager.ClientConnect.cs
 @@ -105,6 +105,7 @@ namespace Robust.Shared.Network
@@ -5770,14 +5770,14 @@ index 509322be6..979f33be9 100644
          private async Task<(IPAddress first, IPAddress? second)?>
              CCResolveHost(string host, CancellationToken mainCancelToken)
          {
-@@ -268,9 +293,27 @@ namespace Robust.Shared.Network
+@@ -268,9 +293,34 @@ namespace Robust.Shared.Network
                  return null;
              }
  
 -            // Try to get an IPv6 and IPv4 address.
 -            var ipv6 = endPoints.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetworkV6);
 -            var ipv4 = endPoints.FirstOrDefault(a => a.AddressFamily == AddressFamily.InterNetwork);
-+            // Extract embedded IPv4 from NAT64 (RFC 6052 64:ff9b::/96) and filter out NAT64 addresses
++            // Extract embedded IPv4 from NAT64 (RFC 6052 64:ff9b::/96)
 +            var candidateIps = new List<IPAddress>();
 +            foreach (var addr in endPoints)
 +            {
@@ -5788,10 +5788,17 @@ index 509322be6..979f33be9 100644
 +                    {
 +                        candidateIps.Add(extractedIpv4);
 +                    }
++                    if (!candidateIps.Contains(addr))
++                    {
++                        candidateIps.Add(addr);
++                    }
 +                }
 +                else
 +                {
-+                    candidateIps.Add(addr);
++                    if (!candidateIps.Contains(addr))
++                    {
++                        candidateIps.Add(addr);
++                    }
 +                }
 +            }
 +
@@ -5801,28 +5808,16 @@ index 509322be6..979f33be9 100644
  
              if (ipv4 == null && ipv6 == null)
              {
-@@ -280,15 +323,14 @@ namespace Robust.Shared.Network
- 
-             IPAddress first;
+@@ -282,7 +332,6 @@ namespace Robust.Shared.Network
              IPAddress? second = null;
--            if (ipv6 != null)
-+            if (ipv4 != null)
+             if (ipv6 != null)
              {
 -                // If there's an IPv6 address try it first then the IPv4.
--                first = ipv6;
--                second = ipv4;
-+                first = ipv4;
-+                second = ipv6;
+                 first = ipv6;
+                 second = ipv4;
              }
-             else
-             {
--                first = ipv4!;
-+                first = ipv6!;
-             }
- 
-             return (first, second);
 diff --git a/Robust.Shared/Network/NetManager.cs b/Robust.Shared/Network/NetManager.cs
-index b79a8d0ef..fead03157 100644
+index b79a8d0ef..17ad889c6 100644
 --- a/Robust.Shared/Network/NetManager.cs
 +++ b/Robust.Shared/Network/NetManager.cs
 @@ -149,6 +149,7 @@ namespace Robust.Shared.Network
@@ -5911,7 +5906,15 @@ index b79a8d0ef..fead03157 100644
              netConfig.SetMessageTypeEnabled(
                  NetIncomingMessageType.WarningMessage,
                  _config.GetCVar(CVars.NetLidgrenLogWarning));
-@@ -1140,15 +1164,17 @@ namespace Robust.Shared.Network
+@@ -801,6 +825,7 @@ namespace Robust.Shared.Network
+             netConfig.SendBufferSize = _config.GetCVar(CVars.NetSendBufferSize);
+             netConfig.ReceiveBufferSize = _config.GetCVar(CVars.NetReceiveBufferSize);
+             netConfig.MaximumHandshakeAttempts = 5;
++            netConfig.ResendHandshakeInterval = 1.0f;
+ 
+             var verbose = _config.GetCVar(CVars.NetVerbose);
+             netConfig.SetMessageTypeEnabled(NetIncomingMessageType.VerboseDebugMessage, verbose);
+@@ -1140,15 +1165,17 @@ namespace Robust.Shared.Network
              }
              catch (InvalidCastException ice)
              {
@@ -7993,10 +7996,18 @@ index 8831e60fa..2b328737c 100644
  
          internal static bool HasParameterlessConstructor(this Type type, BindingFlags flags = BindingFlags.Instance | BindingFlags.Public)
 diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetConnection.Handshake.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetConnection.Handshake.cs
-index cdf6a36..895edd7 100644
+index cdf6a36..b52f7f3 100644
 --- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetConnection.Handshake.cs
 +++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetConnection.Handshake.cs
-@@ -104,6 +104,7 @@ internal void UnconnectedHeartbeat(double now)
+@@ -70,6 +70,7 @@ internal void UnconnectedHeartbeat(double now)
+ 				if (m_handshakeAttempts >= m_peerConfiguration.m_maximumHandshakeAttempts)
+ 				{
+ 					// failed to connect
++					m_peer.LogWarning($"Failed to establish connection to {m_remoteEndPoint} after {m_handshakeAttempts} attempts (timeout)");
+ 					ExecuteDisconnect("Failed to establish connection - no response from remote host", true);
+ 					return;
+ 				}
+@@ -104,6 +105,7 @@ internal void UnconnectedHeartbeat(double now)
  		internal void ExecuteDisconnect(string? reason, bool sendByeMessage)
  		{
  			m_peer.VerifyNetworkThread();
@@ -8004,18 +8015,18 @@ index cdf6a36..895edd7 100644
  
  			// clear send queues
  			for (int i = 0; i < m_sendChannels.Length; i++)
-@@ -166,9 +167,8 @@ internal void SendConnect(double now)
+@@ -166,9 +168,8 @@ internal void SendConnect(double now)
  			m_lastHandshakeSendTime = now;
  			m_handshakeAttempts++;
  
 -			if (m_handshakeAttempts > 1)
 -				m_peer.LogDebug("Resending Connect...");
  			SetStatus(NetConnectionStatus.InitiatedConnect, "Locally requested connect");
-+			m_peer.LogDebug($"SendConnect attempt {m_handshakeAttempts} to {m_remoteEndPoint}");
++			m_peer.LogDebug($"SendConnect attempt {m_handshakeAttempts}/{m_peerConfiguration.m_maximumHandshakeAttempts} to {m_remoteEndPoint} (resendInterval={m_peerConfiguration.m_resendHandshakeInterval:F1}s)");
  		}
  
  		internal void SendConnectResponse(double now, bool onLibraryThread)
-@@ -229,6 +229,7 @@ private void WriteLocalHail(NetOutgoingMessage om)
+@@ -229,6 +230,7 @@ private void WriteLocalHail(NetOutgoingMessage om)
  
  		internal void SendConnectionEstablished()
  		{
@@ -8023,7 +8034,7 @@ index cdf6a36..895edd7 100644
  			NetOutgoingMessage om = m_peer.CreateMessage(4);
  			om.m_messageType = NetMessageType.ConnectionEstablished;
  			om.Write((float)NetTime.Now);
-@@ -425,12 +426,17 @@ internal void ReceivedHandshake(double now, NetMessageType tp, int ptr, int payl
+@@ -425,12 +427,17 @@ internal void ReceivedHandshake(double now, NetMessageType tp, int ptr, int payl
  
  		private void HandleConnectResponse(double now, NetMessageType tp, int ptr, int payloadLength)
  		{
@@ -8041,7 +8052,7 @@ index cdf6a36..895edd7 100644
  					if (ok)
  					{
  						if (hail != null)
-@@ -480,8 +486,11 @@ private bool ValidateHandshakeData(int ptr, int payloadLength, out byte[]? hail)
+@@ -480,8 +487,11 @@ private bool ValidateHandshakeData(int ptr, int payloadLength, out byte[]? hail)
  				if (remainingBytes > 0)
  					hail = msg.ReadBytes(remainingBytes);
  
@@ -8053,7 +8064,7 @@ index cdf6a36..895edd7 100644
  					ExecuteDisconnect("Wrong application identifier!", true);
  					return false;
  				}
-@@ -491,6 +500,7 @@ private bool ValidateHandshakeData(int ptr, int payloadLength, out byte[]? hail)
+@@ -491,6 +501,7 @@ private bool ValidateHandshakeData(int ptr, int payloadLength, out byte[]? hail)
  			catch(Exception ex)
  			{
  				// whatever; we failed
@@ -8208,10 +8219,10 @@ index ec31cda..d595516 100644
  	}
  
 diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetFastSocket.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetFastSocket.cs
-index 51cd824..bbbc5cb 100644
+index 51cd824..d1159a7 100644
 --- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetFastSocket.cs
 +++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetFastSocket.cs
-@@ -40,25 +40,24 @@ public static int ReceiveFrom(
+@@ -40,25 +40,29 @@ public static int ReceiveFrom(
  		{
  			if (!IsLinux && !IsWindows)
  			{
@@ -8225,13 +8236,18 @@ index 51cd824..bbbc5cb 100644
 -					ipEndPoint.Address.TryWriteBytes(MemoryMarshal.CreateSpan(ref ipAddress.Address[0], 16), out _);
 -					socketAddress = new NetSocketAddressV6(ipAddress, (ushort) ipEndPoint.Port,
 -						(uint) ipEndPoint.Address.ScopeId);
++					if (endPoint == null)
++						endPoint = socket.AddressFamily == AddressFamily.InterNetworkV6
++							? (EndPoint)new IPEndPoint(IPAddress.IPv6Any, 0)
++							: (EndPoint)new IPEndPoint(IPAddress.Any, 0);
++
 +					var ret = socket.ReceiveFrom(buffer, offset, size, socketFlags, ref endPoint);
 +					var ipEndPoint = (IPEndPoint) endPoint;
 +					socketAddress = (NetSocketAddress) ipEndPoint;
 +					return ret;
  				}
 -				else
-+				catch (SocketException sx) when (sx.SocketErrorCode == SocketError.WouldBlock || sx.SocketErrorCode == SocketError.IOPending || sx.SocketErrorCode == SocketError.ConnectionReset)
++				catch (SocketException sx) when (sx.SocketErrorCode == SocketError.WouldBlock || sx.SocketErrorCode == SocketError.IOPending || sx.SocketErrorCode == SocketError.ConnectionReset || sx.SocketErrorCode == SocketError.TimedOut)
  				{
 -					// IPv4
 -					NetIpv4Address ipAddress = default;

@@ -597,6 +597,7 @@ namespace Content.Android
             }
             base.OnCreate(savedInstanceState);
             Instance = this;
+            BindProcessNetwork();
             try
             {
                 var im = (global::Android.Hardware.Input.InputManager?)GetSystemService(InputService);
@@ -613,6 +614,80 @@ namespace Content.Android
             }));
             UpdateHardwareKeyboardState();
             ApplyImmersiveMode();
+        }
+
+        private static global::Android.Net.ConnectivityManager.NetworkCallback? _networkCallback;
+
+        private void BindProcessNetwork()
+        {
+            try
+            {
+                var cm = (global::Android.Net.ConnectivityManager?)GetSystemService(ConnectivityService);
+                if (cm != null && Build.VERSION.SdkInt >= BuildVersionCodes.M)
+                {
+                    var activeNet = cm.ActiveNetwork;
+                    if (activeNet != null)
+                    {
+                        var bound = cm.BindProcessToNetwork(activeNet);
+                        global::Android.Util.Log.Info("SS14Network", $"[Network] BindProcessToNetwork: {bound}, net={activeNet}");
+                    }
+
+                    if (_networkCallback == null && Build.VERSION.SdkInt >= BuildVersionCodes.N)
+                    {
+                        _networkCallback = new NetworkRoutingCallback(cm);
+                        cm.RegisterDefaultNetworkCallback(_networkCallback);
+                        global::Android.Util.Log.Info("SS14Network", "[Network] Registered DefaultNetworkCallback for dynamic process routing.");
+                    }
+                }
+            }
+            catch (Exception ex)
+            {
+                global::Android.Util.Log.Warn("SS14Network", $"BindProcessNetwork failed: {ex.Message}");
+            }
+        }
+
+        private sealed class NetworkRoutingCallback : global::Android.Net.ConnectivityManager.NetworkCallback
+        {
+            private readonly global::Android.Net.ConnectivityManager _cm;
+            public NetworkRoutingCallback(global::Android.Net.ConnectivityManager cm) => _cm = cm;
+
+            public override void OnAvailable(global::Android.Net.Network network)
+            {
+                base.OnAvailable(network);
+                try
+                {
+                    if (Build.VERSION.SdkInt >= BuildVersionCodes.M)
+                    {
+                        var bound = _cm.BindProcessToNetwork(network);
+                        global::Android.Util.Log.Info("SS14Network", $"[Network] Default network changed -> BindProcessToNetwork: {bound}, net={network}");
+                    }
+                }
+                catch (Exception ex)
+                {
+                    global::Android.Util.Log.Warn("SS14Network", $"BindProcessToNetwork OnAvailable failed: {ex.Message}");
+                }
+            }
+
+            public override void OnLost(global::Android.Net.Network network)
+            {
+                base.OnLost(network);
+                try
+                {
+                    if (Build.VERSION.SdkInt >= BuildVersionCodes.M)
+                    {
+                        var active = _cm.ActiveNetwork;
+                        if (active != null)
+                        {
+                            var bound = _cm.BindProcessToNetwork(active);
+                            global::Android.Util.Log.Info("SS14Network", $"[Network] Network lost -> Fallback BindProcessToNetwork: {bound}, net={active}");
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    global::Android.Util.Log.Warn("SS14Network", $"BindProcessToNetwork OnLost failed: {ex.Message}");
+                }
+            }
         }
 
         protected override void OnDestroy()
@@ -764,6 +839,7 @@ namespace Content.Android
                     RequestedOrientation = global::Android.Content.PM.ScreenOrientation.SensorLandscape;
             }
             catch { }
+            BindProcessNetwork();
             UpdateHardwareKeyboardState();
             ApplyImmersiveMode();
             EnsureSurfaceFocus();

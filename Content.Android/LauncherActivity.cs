@@ -111,6 +111,7 @@ public sealed class LauncherActivity : Activity
 
         ApplyImmersiveMode();
         BuildOfficialUi();
+        BindProcessNetwork();
         _ = RefreshHubServersAsync();
 
         if (!_storage.Data.DisclaimerAccepted)
@@ -127,9 +128,31 @@ public sealed class LauncherActivity : Activity
         _ = Task.Run(() => MainActivity.EnsureResourcesExtracted(FilesDir?.AbsolutePath));
     }
 
+    private void BindProcessNetwork()
+    {
+        try
+        {
+            var cm = (global::Android.Net.ConnectivityManager?)GetSystemService(ConnectivityService);
+            if (cm != null && Build.VERSION.SdkInt >= BuildVersionCodes.M)
+            {
+                var activeNet = cm.ActiveNetwork;
+                if (activeNet != null)
+                {
+                    var bound = cm.BindProcessToNetwork(activeNet);
+                    global::Android.Util.Log.Info("SS14Network", $"[LauncherNetwork] BindProcessToNetwork: {bound}, net={activeNet}");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            global::Android.Util.Log.Warn("SS14Network", $"[LauncherNetwork] BindProcessNetwork failed: {ex.Message}");
+        }
+    }
+
     protected override void OnResume()
     {
         base.OnResume();
+        BindProcessNetwork();
         ApplyImmersiveMode();
         UpdateAccountButton();
 
@@ -3062,7 +3085,7 @@ public sealed class LauncherActivity : Activity
         catch {}
     }
 
-    public const string CurrentAppVersion = "v1.2.13";
+    public const string CurrentAppVersion = "v1.2.14";
 
     public string GetCurrentAppVersion()
     {

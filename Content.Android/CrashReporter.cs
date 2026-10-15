@@ -1,5 +1,6 @@
 using System;
 using System.IO;
+using System.IO.Compression;
 using System.Text;
 
 namespace Content.Android;
@@ -260,6 +261,61 @@ public static class CrashReporter
             return $"crash.txt: {FormatBytes(crashSize)}   game.log: {FormatBytes(logSize)}";
         }
         catch { return "Log status unavailable."; }
+    }
+
+    // Upper bound per file inside an exported zip (game.log can grow large).
+    private const long MaxExportBytesPerFile = 150L * 1024 * 1024;
+
+    /// <summary>
+    /// Builds a .zip of all diagnosable logs for file-based export.
+    /// Unlike share-sheet text extras (Binder ~1MB limit), the zip carries
+    /// FULL, untruncated files. Throws on failure; caller reports to UI.
+    /// </summary>
+    public static void BuildLogsZip(string destPath)
+    {
+        var dir = Path.GetDirectoryName(destPath);
+        if (!string.IsNullOrEmpty(dir))
+            Directory.CreateDirectory(dir);
+        using var zipStream = new FileStream(destPath, FileMode.Create, FileAccess.Write, FileShare.None);
+        using var zip = new ZipArchive(zipStream, ZipArchiveMode.Create);
+        AddZipText(zip, "report.txt", GetFullReport());
+        AddZipText(zip, "device.txt", GetDeviceSummary());
+        AddZipFile(zip, "crash.txt", CrashPath);
+        AddZipFile(zip, "game.log", GameLogPath);
+        AddZipText(zip, "game-filtered.log", GetFilteredLogTail(GameLogPath, 300));
+        var cfg = GetMobileConfigSection();
+        AddZipText(zip, "client-config-mobile.txt", cfg);
+        AddZipText(zip, "overlay-debug.txt", ReadOverlayDebugDump());
+    }
+
+    private static void AddZipText(ZipArchive zip, string name, string text)
+    {
+        var entry = zip.CreateEntry(name, CompressionLevel.Optimal);
+        using var writer = new StreamWriter(entry.Open(), Encoding.UTF8);
+        writer.Write(text);
+    }
+
+    private static void AddZipFile(ZipArchive zip, string name, string sourcePath)
+    {
+        if (!File.Exists(sourcePath))
+        {
+            AddZipText(zip, name + ".missing.txt", "(file not present on device)");
+            return;
+        }
+        var entry = zip.CreateEntry(name, CompressionLevel.Optimal);
+        using var writer = entry.Open();
+        using var reader = new FileStream(sourcePath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        if (reader.Length <= MaxExportBytesPerFile)
+        {
+            reader.CopyTo(writer);
+            return;
+        }
+        // Absurdly large: keep the tail so the export stays usable.
+        var note = "[... file exceeded export cap; tail kept ...]\n";
+        var noteBytes = Encoding.UTF8.GetBytes(note);
+        writer.Write(noteBytes, 0, noteBytes.Length);
+        reader.Seek(reader.Length - MaxExportBytesPerFile, SeekOrigin.Begin);
+        reader.CopyTo(writer);
     }
 
     /// <summary>

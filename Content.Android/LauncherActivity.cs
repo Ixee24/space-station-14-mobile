@@ -10,6 +10,7 @@ using Android.App;
 using Android.Content;
 using Android.Graphics;
 using Android.OS;
+using Android.Provider;
 using Android.Views;
 using Android.Widget;
 using Content.Android.Launcher.Api;
@@ -2855,14 +2856,14 @@ public sealed class LauncherActivity : Activity
         };
         btnRow.AddView(clearBtn);
 
-        var exportGameLogBtn = new Button(this) { Text = "Export game.log", TextSize = 11 };
+        var exportGameLogBtn = new Button(this) { Text = "Export Logs (.zip)", TextSize = 11 };
         exportGameLogBtn.Background = LauncherTheme.CreateBox(LauncherTheme.ControlMid, 3);
         exportGameLogBtn.SetTextColor(LauncherTheme.Foreground);
         exportGameLogBtn.LayoutParameters = new LinearLayout.LayoutParams(0, (int)(34 * density), 1.2f)
         {
             RightMargin = (int)(6 * density)
         };
-        exportGameLogBtn.Click += (_, _) => ShareGameLog();
+        exportGameLogBtn.Click += (_, _) => ExportGameLogsZip();
         btnRow.AddView(exportGameLogBtn);
 
         var issuesBtn = new Button(this) { Text = "GitHub Issues", TextSize = 11 };
@@ -2886,29 +2887,103 @@ public sealed class LauncherActivity : Activity
         CrashReporter.MarkSeen();
     }
 
-    private void ShareGameLog()
+    private void ExportGameLogsZip()
+    {
+        Toast.MakeText(this, "Exporting logs…", ToastLength.Long)?.Show();
+        Task.Run(() =>
+        {
+            try
+            {
+                var logPath = CrashReporter.GameLogPath;
+                var hasLog = File.Exists(logPath) && new FileInfo(logPath).Length > 0;
+                if (!CrashReporter.HasCrashReport() && !hasLog)
+                {
+                    RunOnUiThread(() => Toast.MakeText(this, "No logs to export yet.", ToastLength.Short)?.Show());
+                    return;
+                }
+
+                var cacheDir = CacheDir?.AbsolutePath ?? CrashReporter.FilesDir;
+                var tmp = Path.Combine(cacheDir, $"ss14-logs-tmp-{Guid.NewGuid():N}.zip");
+                try
+                {
+                    CrashReporter.BuildLogsZip(tmp);
+                    var fileName = $"ss14-logs-{GetCurrentAppVersion()}-{DateTime.Now:yyyyMMdd-HHmmss}.zip";
+                    var saved = SaveZipToDownloads(tmp, fileName);
+                    if (saved == null)
+                    {
+                        RunOnUiThread(() => Toast.MakeText(this, "Export failed: could not save file.", ToastLength.Long)?.Show());
+                        return;
+                    }
+                    RunOnUiThread(() =>
+                    {
+                        Toast.MakeText(this, $"Logs exported: {saved}", ToastLength.Long)?.Show();
+                    });
+                }
+                finally
+                {
+                    try { File.Delete(tmp); } catch { }
+                }
+            }
+            catch (Exception ex)
+            {
+                var msg = ex.Message;
+                RunOnUiThread(() => Toast.MakeText(this, $"Export failed: {msg}", ToastLength.Long)?.Show());
+            }
+        });
+    }
+
+    /// <summary>
+    /// Saves the built zip where the user can grab it without a share sheet:
+    /// public Downloads via MediaStore on API 29+, app-external files dir below that.
+    /// Returns a human-readable location string, or null on failure.
+    /// </summary>
+    private string? SaveZipToDownloads(string tmpPath, string fileName)
     {
         try
         {
-            var logPath = CrashReporter.GameLogPath;
-            if (!File.Exists(logPath) || new FileInfo(logPath).Length == 0)
+            if ((int)Build.VERSION.SdkInt >= 29)
             {
-                Toast.MakeText(this, "game.log is empty or not created yet.", ToastLength.Short)?.Show();
-                return;
+                var resolver = ContentResolver;
+                if (resolver == null)
+                    return null;
+                var values = new ContentValues();
+                values.Put(MediaStore.MediaColumns.DisplayName, fileName);
+                values.Put(MediaStore.MediaColumns.MimeType, "application/zip");
+                values.Put("is_pending", 1);
+                var uri = resolver.Insert(MediaStore.Downloads.ExternalContentUri!, values);
+                if (uri == null)
+                    return null;
+                try
+                {
+                    using var outStream = resolver.OpenOutputStream(uri);
+                    if (outStream == null)
+                        return null;
+                    using var inStream = File.OpenRead(tmpPath);
+                    inStream.CopyTo(outStream);
+                }
+                catch
+                {
+                    try { resolver.Delete(uri, null, null); } catch { }
+                    throw;
+                }
+                var done = new ContentValues();
+                done.Put("is_pending", 0);
+                resolver.Update(uri, done, null, null);
+                return $"Downloads/{fileName}";
             }
-            var text = File.ReadAllText(logPath);
-            if (text.Length > 250_000)
-                text = "[... truncated tail ...]\n" + text.Substring(text.Length - 250_000);
-
-            var intent = new Intent(Intent.ActionSend);
-            intent.SetType("text/plain");
-            intent.PutExtra(Intent.ExtraSubject, $"SS14 Android game.log {GetCurrentAppVersion()}");
-            intent.PutExtra(Intent.ExtraText, text);
-            StartActivity(Intent.CreateChooser(intent, "Share game.log"));
+            else
+            {
+                var dir = GetExternalFilesDir(global::Android.OS.Environment.DirectoryDownloads)?.AbsolutePath
+                    ?? CrashReporter.FilesDir;
+                Directory.CreateDirectory(dir);
+                var dest = Path.Combine(dir, fileName);
+                File.Copy(tmpPath, dest, overwrite: true);
+                return dest;
+            }
         }
-        catch (Exception ex)
+        catch
         {
-            Toast.MakeText(this, $"Export failed: {ex.Message}", ToastLength.Short)?.Show();
+            return null;
         }
     }
 

@@ -7,8 +7,8 @@
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
     <ApplicationId>io.spacestation14.android</ApplicationId>
-    <ApplicationVersion>44</ApplicationVersion>
-    <ApplicationDisplayVersion>1.2.12</ApplicationDisplayVersion>
+    <ApplicationVersion>45</ApplicationVersion>
+    <ApplicationDisplayVersion>1.2.13</ApplicationDisplayVersion>
     <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <NoWarn>NU1701;CA1416</NoWarn>
     <EmbedAssembliesIntoApk>true</EmbedAssembliesIntoApk>

@@ -5701,7 +5701,7 @@ index 8e86a951f..9d9868bfe 100644
      }
  
 diff --git a/Robust.Shared/Network/NetManager.ClientConnect.cs b/Robust.Shared/Network/NetManager.ClientConnect.cs
-index 509322be6..f23088612 100644
+index 509322be6..093c5f81a 100644
 --- a/Robust.Shared/Network/NetManager.ClientConnect.cs
 +++ b/Robust.Shared/Network/NetManager.ClientConnect.cs
 @@ -105,6 +105,7 @@ namespace Robust.Shared.Network
@@ -5808,16 +5808,28 @@ index 509322be6..f23088612 100644
  
              if (ipv4 == null && ipv6 == null)
              {
-@@ -282,7 +332,6 @@ namespace Robust.Shared.Network
+@@ -280,15 +330,14 @@ namespace Robust.Shared.Network
+ 
+             IPAddress first;
              IPAddress? second = null;
-             if (ipv6 != null)
+-            if (ipv6 != null)
++            if (ipv4 != null)
              {
 -                // If there's an IPv6 address try it first then the IPv4.
-                 first = ipv6;
-                 second = ipv4;
+-                first = ipv6;
+-                second = ipv4;
++                first = ipv4;
++                second = ipv6;
              }
+             else
+             {
+-                first = ipv4!;
++                first = ipv6!;
+             }
+ 
+             return (first, second);
 diff --git a/Robust.Shared/Network/NetManager.cs b/Robust.Shared/Network/NetManager.cs
-index b79a8d0ef..17ad889c6 100644
+index b79a8d0ef..adafbcecd 100644
 --- a/Robust.Shared/Network/NetManager.cs
 +++ b/Robust.Shared/Network/NetManager.cs
 @@ -149,6 +149,7 @@ namespace Robust.Shared.Network
@@ -5914,6 +5926,15 @@ index b79a8d0ef..17ad889c6 100644
  
              var verbose = _config.GetCVar(CVars.NetVerbose);
              netConfig.SetMessageTypeEnabled(NetIncomingMessageType.VerboseDebugMessage, verbose);
+@@ -812,7 +837,7 @@ namespace Robust.Shared.Network
+             }
+             else
+             {
+-                netConfig.ResendHandshakeInterval = _config.GetCVar(CVars.ResendHandshakeInterval);
++                netConfig.ResendHandshakeInterval = OperatingSystem.IsAndroid() ? 1.0f : _config.GetCVar(CVars.ResendHandshakeInterval);
+                 netConfig.MaximumHandshakeAttempts = _config.GetCVar(CVars.MaximumHandshakeAttempts);
+             }
+             netConfig.ConnectionTimeout = _config.GetCVar(CVars.NetConnectionTimeout);
 @@ -1140,15 +1165,17 @@ namespace Robust.Shared.Network
              }
              catch (InvalidCastException ice)
@@ -8168,7 +8189,7 @@ index 341cca4..cf533ba 100644
  			// Library message from a completely unknown sender; lets just accept Connect
  			//
 diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs
-index ec31cda..d595516 100644
+index ec31cda..54791f7 100644
 --- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs
 +++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs
 @@ -1,4 +1,4 @@
@@ -8177,7 +8198,7 @@ index ec31cda..d595516 100644
  
  Permission is hereby granted, free of charge, to any person obtaining a copy of this software
  and associated documentation files (the "Software"), to deal in the Software without
-@@ -70,37 +70,26 @@ private sealed class LogRateLimitState
+@@ -70,37 +70,24 @@ private sealed class LogRateLimitState
  		public int Suppressed;
  	}
  
@@ -8205,7 +8226,6 @@ index ec31cda..d595516 100644
 -#if __ANDROID__
 -		Android.Util.Log.WriteLine(Android.Util.LogPriority.Warn, "", message);
 -#endif
-+		System.Console.WriteLine($"[Lidgren:WARN] {message}");
  		SendLogBase(NetIncomingMessageType.WarningMessage, message);
  	}
  
@@ -8214,12 +8234,23 @@ index ec31cda..d595516 100644
 -#if __ANDROID__
 -		Android.Util.Log.WriteLine(Android.Util.LogPriority.Error, "", message);
 -#endif
-+		System.Console.WriteLine($"[Lidgren:ERROR] {message}");
  		SendLogBase(NetIncomingMessageType.ErrorMessage, message);
  	}
  
+@@ -185,6 +172,11 @@ private void PruneLogRateLimiters(double now, double window)
+ 
+ 	private void SendLogBase(NetIncomingMessageType type, string text)
+ 	{
++		if (type == NetIncomingMessageType.ErrorMessage)
++			System.Console.WriteLine($"[Lidgren:ERROR] {text}");
++		else if (type == NetIncomingMessageType.WarningMessage)
++			System.Console.WriteLine($"[Lidgren:WARN] {text}");
++
+ 		LogEvent?.Invoke(type, text);
+ 
+ 		if (m_configuration.IsMessageTypeEnabled(type))
 diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetFastSocket.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetFastSocket.cs
-index 51cd824..d1159a7 100644
+index 51cd824..a88ac3f 100644
 --- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetFastSocket.cs
 +++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetFastSocket.cs
 @@ -40,25 +40,29 @@ public static int ReceiveFrom(
@@ -8236,7 +8267,7 @@ index 51cd824..d1159a7 100644
 -					ipEndPoint.Address.TryWriteBytes(MemoryMarshal.CreateSpan(ref ipAddress.Address[0], 16), out _);
 -					socketAddress = new NetSocketAddressV6(ipAddress, (ushort) ipEndPoint.Port,
 -						(uint) ipEndPoint.Address.ScopeId);
-+					if (endPoint == null)
++					if (endPoint == null || endPoint.AddressFamily != socket.AddressFamily)
 +						endPoint = socket.AddressFamily == AddressFamily.InterNetworkV6
 +							? (EndPoint)new IPEndPoint(IPAddress.IPv6Any, 0)
 +							: (EndPoint)new IPEndPoint(IPAddress.Any, 0);

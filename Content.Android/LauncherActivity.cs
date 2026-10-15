@@ -135,17 +135,13 @@ public sealed class LauncherActivity : Activity
             var cm = (global::Android.Net.ConnectivityManager?)GetSystemService(ConnectivityService);
             if (cm != null && Build.VERSION.SdkInt >= BuildVersionCodes.M)
             {
-                var activeNet = cm.ActiveNetwork;
-                if (activeNet != null)
-                {
-                    var bound = cm.BindProcessToNetwork(activeNet);
-                    global::Android.Util.Log.Info("SS14Network", $"[LauncherNetwork] BindProcessToNetwork: {bound}, net={activeNet}");
-                }
+                cm.BindProcessToNetwork(null);
+                global::Android.Util.Log.Info("SS14Network", "[LauncherNetwork] Cleared BindProcessToNetwork to allow native OS routing & VPNs.");
             }
         }
         catch (Exception ex)
         {
-            global::Android.Util.Log.Warn("SS14Network", $"[LauncherNetwork] BindProcessNetwork failed: {ex.Message}");
+            global::Android.Util.Log.Warn("SS14Network", $"[LauncherNetwork] Clear BindProcessNetwork failed: {ex.Message}");
         }
     }
 
@@ -3085,7 +3081,7 @@ public sealed class LauncherActivity : Activity
         catch {}
     }
 
-    public const string CurrentAppVersion = "v1.2.14";
+    public const string CurrentAppVersion = "v1.2.15";
 
     public string GetCurrentAppVersion()
     {

@@ -616,8 +616,6 @@ namespace Content.Android
             ApplyImmersiveMode();
         }
 
-        private static global::Android.Net.ConnectivityManager.NetworkCallback? _networkCallback;
-
         private void BindProcessNetwork()
         {
             try
@@ -625,68 +623,15 @@ namespace Content.Android
                 var cm = (global::Android.Net.ConnectivityManager?)GetSystemService(ConnectivityService);
                 if (cm != null && Build.VERSION.SdkInt >= BuildVersionCodes.M)
                 {
-                    var activeNet = cm.ActiveNetwork;
-                    if (activeNet != null)
-                    {
-                        var bound = cm.BindProcessToNetwork(activeNet);
-                        global::Android.Util.Log.Info("SS14Network", $"[Network] BindProcessToNetwork: {bound}, net={activeNet}");
-                    }
-
-                    if (_networkCallback == null && Build.VERSION.SdkInt >= BuildVersionCodes.N)
-                    {
-                        _networkCallback = new NetworkRoutingCallback(cm);
-                        cm.RegisterDefaultNetworkCallback(_networkCallback);
-                        global::Android.Util.Log.Info("SS14Network", "[Network] Registered DefaultNetworkCallback for dynamic process routing.");
-                    }
+                    // Clear any explicit process-level network binding so that the Linux kernel,
+                    // CLAT (464XLAT), and VPN interfaces (Tailscale/WireGuard) handle UDP socket routing naturally.
+                    cm.BindProcessToNetwork(null);
+                    global::Android.Util.Log.Info("SS14Network", "[Network] Cleared BindProcessToNetwork to allow native OS routing & VPNs.");
                 }
             }
             catch (Exception ex)
             {
-                global::Android.Util.Log.Warn("SS14Network", $"BindProcessNetwork failed: {ex.Message}");
-            }
-        }
-
-        private sealed class NetworkRoutingCallback : global::Android.Net.ConnectivityManager.NetworkCallback
-        {
-            private readonly global::Android.Net.ConnectivityManager _cm;
-            public NetworkRoutingCallback(global::Android.Net.ConnectivityManager cm) => _cm = cm;
-
-            public override void OnAvailable(global::Android.Net.Network network)
-            {
-                base.OnAvailable(network);
-                try
-                {
-                    if (Build.VERSION.SdkInt >= BuildVersionCodes.M)
-                    {
-                        var bound = _cm.BindProcessToNetwork(network);
-                        global::Android.Util.Log.Info("SS14Network", $"[Network] Default network changed -> BindProcessToNetwork: {bound}, net={network}");
-                    }
-                }
-                catch (Exception ex)
-                {
-                    global::Android.Util.Log.Warn("SS14Network", $"BindProcessToNetwork OnAvailable failed: {ex.Message}");
-                }
-            }
-
-            public override void OnLost(global::Android.Net.Network network)
-            {
-                base.OnLost(network);
-                try
-                {
-                    if (Build.VERSION.SdkInt >= BuildVersionCodes.M)
-                    {
-                        var active = _cm.ActiveNetwork;
-                        if (active != null)
-                        {
-                            var bound = _cm.BindProcessToNetwork(active);
-                            global::Android.Util.Log.Info("SS14Network", $"[Network] Network lost -> Fallback BindProcessToNetwork: {bound}, net={active}");
-                        }
-                    }
-                }
-                catch (Exception ex)
-                {
-                    global::Android.Util.Log.Warn("SS14Network", $"BindProcessToNetwork OnLost failed: {ex.Message}");
-                }
+                global::Android.Util.Log.Warn("SS14Network", $"Clear BindProcessNetwork failed: {ex.Message}");
             }
         }
 

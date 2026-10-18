@@ -8031,6 +8031,7 @@ index 8831e60fa..2b328737c 100644
          }
  
          internal static bool HasParameterlessConstructor(this Type type, BindingFlags flags = BindingFlags.Instance | BindingFlags.Public)
+Submodule Lidgren.Network/Lidgren.Network contains modified content
 diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetConnection.Handshake.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetConnection.Handshake.cs
 index cdf6a36..b52f7f3 100644
 --- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetConnection.Handshake.cs
@@ -8109,19 +8110,32 @@ index cdf6a36..b52f7f3 100644
  				m_peer.LogWarning($"ReadRemoteHandshakeData failed: {ex.Message}");
  				return false;
 diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Internal.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Internal.cs
-index 341cca4..cf533ba 100644
+index 341cca4..70ad65d 100644
 --- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Internal.cs
 +++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Internal.cs
-@@ -427,7 +427,7 @@ private void Heartbeat()
+@@ -427,8 +427,19 @@ private void Heartbeat()
  			if (m_socket == null)
  				return;
  
 -			if (!m_socket.Poll(1000, SelectMode.SelectRead)) // wait up to 1 ms for data to arrive
-+			if (!m_socket.Poll(1000, SelectMode.SelectRead) && m_socket.Available <= 0) // wait up to 1 ms for data to arrive
- 				return;
+-				return;
++			if (OperatingSystem.IsAndroid())
++			{
++				if (m_socket.Available <= 0)
++				{
++					Thread.Sleep(1);
++					return;
++				}
++			}
++			else
++			{
++				if (!m_socket.Poll(1000, SelectMode.SelectRead)) // wait up to 1 ms for data to arrive
++					return;
++			}
  
  			//if (m_socket == null || m_socket.Available < 1)
-@@ -484,11 +484,14 @@ private int ReceiveSocketData(double now)
+ 			//	return;
+@@ -484,11 +495,14 @@ private int ReceiveSocketData(double now)
  				out var senderRemote,
  				ref m_senderRemote);
  
@@ -8138,7 +8152,7 @@ index 341cca4..cf533ba 100644
  			if (m_upnp != null && now < m_upnp.m_discoveryResponseDeadline && bytesReceived > 32)
  			{
  				// is this an UPnP response?
-@@ -518,6 +521,20 @@ private int ReceiveSocketData(double now)
+@@ -518,6 +532,20 @@ private int ReceiveSocketData(double now)
  			}
  
  			m_connectionLookup.TryGetValue(senderRemote, out NetConnection? sender);
@@ -8159,7 +8173,7 @@ index 341cca4..cf533ba 100644
  
  			//
  			// parse packet into messages
-@@ -708,12 +725,43 @@ internal void HandleIncomingDiscoveryResponse(double now, NetEndPoint senderEndP
+@@ -708,12 +736,43 @@ internal void HandleIncomingDiscoveryResponse(double now, NetEndPoint senderEndP
  
  		private void ReceivedUnconnectedLibraryMessage(double now, NetEndPoint senderEndPoint, NetMessageType tp, int ptr, int payloadByteLength)
  		{
@@ -8203,6 +8217,25 @@ index 341cca4..cf533ba 100644
  			//
  			// Library message from a completely unknown sender; lets just accept Connect
  			//
+diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.LatencySimulation.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.LatencySimulation.cs
+index 70d90d2..62516c8 100644
+--- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.LatencySimulation.cs
++++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.LatencySimulation.cs
+@@ -1,4 +1,4 @@
+-﻿/* Copyright (c) 2010 Michael Lidgren
++/* Copyright (c) 2010 Michael Lidgren
+ 
+ Permission is hereby granted, free of charge, to any person obtaining a copy of this software
+ and associated documentation files (the "Software"), to deal in the Software without
+@@ -194,7 +194,7 @@ internal bool ActuallySendPacket(byte[] data, int numBytes, NetEndPoint target,
+ 				if (numBytes != bytesSent)
+ 					LogWarning($"Failed to send the full {numBytes}; only {bytesSent} bytes sent in packet!");
+ 
+-				// LogDebug("Sent " + numBytes + " bytes");
++				LogDebug($"UDP sent {bytesSent} bytes to {realTarget}");
+ 			}
+ 			catch (SocketException sx)
+ 			{
 diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs
 index ec31cda..12602b0 100644
 --- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs

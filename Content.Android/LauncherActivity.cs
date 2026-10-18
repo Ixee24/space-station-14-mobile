@@ -2713,6 +2713,38 @@ public sealed class LauncherActivity : Activity
         var parsedAddr = UriHelper.TryParseSs14Uri(ss14Address, out var pAddr) ? pAddr : new Uri("ss14://127.0.0.1:1212");
         var realConnectAddr = UriHelper.GetConnectAddress(serverInfo, parsedAddr);
 
+        // Pre-resolve hostname to direct IP using Android's native Java DNS stack.
+        // This completely eliminates Mono's DNS deadlock inside the game process and works across all networks.
+        try
+        {
+            if (Uri.TryCreate(realConnectAddr, UriKind.Absolute, out var connUri) &&
+                !System.Net.IPAddress.TryParse(connUri.Host, out _))
+            {
+                var addrs = global::Java.Net.InetAddress.GetAllByName(connUri.Host);
+                if (addrs != null && addrs.Length > 0)
+                {
+                    // Prioritize IPv4 for broad carrier NAT compatibility, or IPv6 if IPv4 is not available
+                    var chosenAddr = addrs.FirstOrDefault(a => a is global::Java.Net.Inet4Address)?.HostAddress
+                                     ?? addrs[0].HostAddress;
+
+                    if (!string.IsNullOrEmpty(chosenAddr))
+                    {
+                        var pct = chosenAddr.IndexOf('%');
+                        if (pct >= 0) chosenAddr = chosenAddr.Substring(0, pct);
+
+                        var port = connUri.Port > 0 ? connUri.Port : 1212;
+                        var resolvedUri = $"{connUri.Scheme}://{chosenAddr}:{port}";
+                        global::Android.Util.Log.Info("SS14Launcher", $"Pre-resolved '{connUri.Host}' -> '{chosenAddr}': {resolvedUri}");
+                        realConnectAddr = resolvedUri;
+                    }
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            global::Android.Util.Log.Warn("SS14Launcher", $"Pre-resolve DNS failed for {realConnectAddr}: {ex.Message}");
+        }
+
         global::Android.Util.Log.Info("SS14Launcher", $"Launching MainActivity: connect_addr={realConnectAddr}, ss14_addr={ss14Address}, mount_zip={targetZip}");
 
         intent.PutExtra("connect_addr", realConnectAddr);
@@ -3081,7 +3113,7 @@ public sealed class LauncherActivity : Activity
         catch {}
     }
 
-    public const string CurrentAppVersion = "v1.2.16";
+    public const string CurrentAppVersion = "v1.2.17";
 
     public string GetCurrentAppVersion()
     {

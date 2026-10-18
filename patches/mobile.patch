@@ -5701,7 +5701,7 @@ index 8e86a951f..9d9868bfe 100644
      }
  
 diff --git a/Robust.Shared/Network/NetManager.ClientConnect.cs b/Robust.Shared/Network/NetManager.ClientConnect.cs
-index 509322be6..093c5f81a 100644
+index 509322be6..faf7c88f2 100644
 --- a/Robust.Shared/Network/NetManager.ClientConnect.cs
 +++ b/Robust.Shared/Network/NetManager.ClientConnect.cs
 @@ -105,6 +105,7 @@ namespace Robust.Shared.Network
@@ -5828,6 +5828,54 @@ index 509322be6..093c5f81a 100644
              }
  
              return (first, second);
+@@ -472,13 +521,44 @@ namespace Robust.Shared.Network
+                 throw new ArgumentException("This method will not currently resolve other than IPv4 or IPv6 addresses");
+             }
+ 
++            // 1. If an OS-specific DNS resolver delegate is registered (e.g. Android Java InetAddress), try it first.
++            if (AppDomain.CurrentDomain.GetData("SS14_RESOLVE_DNS") is Func<string, string[]?> osResolver)
++            {
++                try
++                {
++                    var resolvedStrings = await Task.Run(() => osResolver(ipOrHost)).WaitAsync(TimeSpan.FromSeconds(3));
++                    if (resolvedStrings != null && resolvedStrings.Length > 0)
++                    {
++                        var ips = new List<IPAddress>();
++                        foreach (var s in resolvedStrings)
++                        {
++                            if (IPAddress.TryParse(s, out var parsed))
++                                ips.Add(parsed);
++                        }
++                        if (ips.Count > 0)
++                        {
++                            System.Console.WriteLine($"[DNS] OS resolver resolved '{ipOrHost}' to [{string.Join(", ", ips)}]");
++                            return ips.ToArray();
++                        }
++                    }
++                }
++                catch (Exception ex)
++                {
++                    System.Console.WriteLine($"[DNS] OS resolver failed for '{ipOrHost}': {ex.Message}");
++                }
++            }
++
++            // 2. Standard BCL forward DNS resolution with 4s timeout (avoiding reverse PTR lookup from GetHostEntryAsync).
+             try
+             {
+-                var entry = await Dns.GetHostEntryAsync(ipOrHost);
+-                return entry.AddressList;
++                var dnsTask = Dns.GetHostAddressesAsync(ipOrHost);
++                var addresses = await dnsTask.WaitAsync(TimeSpan.FromSeconds(4));
++                System.Console.WriteLine($"[DNS] BCL resolved '{ipOrHost}' to [{string.Join(", ", (IEnumerable<IPAddress>)addresses)}]");
++                return addresses;
+             }
+-            catch (SocketException)
++            catch (Exception ex)
+             {
++                System.Console.WriteLine($"[DNS] Failed to resolve '{ipOrHost}': {ex.Message}");
+                 return null;
+             }
+         }
 diff --git a/Robust.Shared/Network/NetManager.cs b/Robust.Shared/Network/NetManager.cs
 index b79a8d0ef..adafbcecd 100644
 --- a/Robust.Shared/Network/NetManager.cs
@@ -8189,7 +8237,7 @@ index 341cca4..cf533ba 100644
  			// Library message from a completely unknown sender; lets just accept Connect
  			//
 diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs
-index ec31cda..54791f7 100644
+index ec31cda..12602b0 100644
 --- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs
 +++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs
 @@ -1,4 +1,4 @@
@@ -8237,7 +8285,7 @@ index ec31cda..54791f7 100644
  		SendLogBase(NetIncomingMessageType.ErrorMessage, message);
  	}
  
-@@ -185,6 +172,11 @@ private void PruneLogRateLimiters(double now, double window)
+@@ -185,6 +172,13 @@ private void PruneLogRateLimiters(double now, double window)
  
  	private void SendLogBase(NetIncomingMessageType type, string text)
  	{
@@ -8245,6 +8293,8 @@ index ec31cda..54791f7 100644
 +			System.Console.WriteLine($"[Lidgren:ERROR] {text}");
 +		else if (type == NetIncomingMessageType.WarningMessage)
 +			System.Console.WriteLine($"[Lidgren:WARN] {text}");
++		else if (type == NetIncomingMessageType.DebugMessage)
++			System.Console.WriteLine($"[Lidgren:DEBUG] {text}");
 +
  		LogEvent?.Invoke(type, text);
  

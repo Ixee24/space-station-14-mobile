@@ -1,3 +1,351 @@
+Submodule Lidgren.Network/Lidgren.Network contains modified content
+diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetConnection.Handshake.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetConnection.Handshake.cs
+index cdf6a36..b52f7f3 100644
+--- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetConnection.Handshake.cs
++++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetConnection.Handshake.cs
+@@ -70,6 +70,7 @@ internal void UnconnectedHeartbeat(double now)
+ 				if (m_handshakeAttempts >= m_peerConfiguration.m_maximumHandshakeAttempts)
+ 				{
+ 					// failed to connect
++					m_peer.LogWarning($"Failed to establish connection to {m_remoteEndPoint} after {m_handshakeAttempts} attempts (timeout)");
+ 					ExecuteDisconnect("Failed to establish connection - no response from remote host", true);
+ 					return;
+ 				}
+@@ -104,6 +105,7 @@ internal void UnconnectedHeartbeat(double now)
+ 		internal void ExecuteDisconnect(string? reason, bool sendByeMessage)
+ 		{
+ 			m_peer.VerifyNetworkThread();
++			System.Console.WriteLine($"[Lidgren] ExecuteDisconnect: reason='{reason}', prevStatus={m_status}");
+ 
+ 			// clear send queues
+ 			for (int i = 0; i < m_sendChannels.Length; i++)
+@@ -166,9 +168,8 @@ internal void SendConnect(double now)
+ 			m_lastHandshakeSendTime = now;
+ 			m_handshakeAttempts++;
+ 
+-			if (m_handshakeAttempts > 1)
+-				m_peer.LogDebug("Resending Connect...");
+ 			SetStatus(NetConnectionStatus.InitiatedConnect, "Locally requested connect");
++			m_peer.LogDebug($"SendConnect attempt {m_handshakeAttempts}/{m_peerConfiguration.m_maximumHandshakeAttempts} to {m_remoteEndPoint} (resendInterval={m_peerConfiguration.m_resendHandshakeInterval:F1}s)");
+ 		}
+ 
+ 		internal void SendConnectResponse(double now, bool onLibraryThread)
+@@ -229,6 +230,7 @@ private void WriteLocalHail(NetOutgoingMessage om)
+ 
+ 		internal void SendConnectionEstablished()
+ 		{
++			System.Console.WriteLine($"[Lidgren] SendConnectionEstablished to {m_remoteEndPoint}");
+ 			NetOutgoingMessage om = m_peer.CreateMessage(4);
+ 			om.m_messageType = NetMessageType.ConnectionEstablished;
+ 			om.Write((float)NetTime.Now);
+@@ -425,12 +427,17 @@ internal void ReceivedHandshake(double now, NetMessageType tp, int ptr, int payl
+ 
+ 		private void HandleConnectResponse(double now, NetMessageType tp, int ptr, int payloadLength)
+ 		{
++			m_peer.LogDebug($"HandleConnectResponse status={m_status} len={payloadLength} from {m_remoteEndPoint}");
+ 			byte[]? hail;
+ 			switch (m_status)
+ 			{
+ 				case NetConnectionStatus.InitiatedConnect:
+ 					// awesome
+ 					bool ok = ValidateHandshakeData(ptr, payloadLength, out hail);
++					if (!ok)
++					{
++						m_peer.LogWarning($"ValidateHandshakeData returned false for {m_remoteEndPoint}!");
++					}
+ 					if (ok)
+ 					{
+ 						if (hail != null)
+@@ -480,8 +487,11 @@ private bool ValidateHandshakeData(int ptr, int payloadLength, out byte[]? hail)
+ 				if (remainingBytes > 0)
+ 					hail = msg.ReadBytes(remainingBytes);
+ 
++				m_peer.LogDebug($"ValidateHandshakeData: remoteAppId='{remoteAppIdentifier}' myAppId='{m_peer.m_configuration.AppIdentifier}' uid={remoteUniqueIdentifier}");
++
+ 				if (remoteAppIdentifier != m_peer.m_configuration.AppIdentifier)
+ 				{
++					m_peer.LogError($"APP IDENTIFIER MISMATCH! '{remoteAppIdentifier}' != '{m_peer.m_configuration.AppIdentifier}'");
+ 					ExecuteDisconnect("Wrong application identifier!", true);
+ 					return false;
+ 				}
+@@ -491,6 +501,7 @@ private bool ValidateHandshakeData(int ptr, int payloadLength, out byte[]? hail)
+ 			catch(Exception ex)
+ 			{
+ 				// whatever; we failed
++				m_peer.LogError($"ValidateHandshakeData EXCEPTION: {ex}");
+ 				ExecuteDisconnect("Handshake data validation failed", true);
+ 				m_peer.LogWarning($"ReadRemoteHandshakeData failed: {ex.Message}");
+ 				return false;
+diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Internal.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Internal.cs
+index 341cca4..e1ddb06 100644
+--- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Internal.cs
++++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Internal.cs
+@@ -338,6 +338,11 @@ private void Heartbeat()
+ 				// do handshake heartbeats
+ 				if ((m_frameCounter % 3) == 0)
+ 				{
++					if (m_handshakes.Count > 0 && (m_frameCounter % 300) == 0)
++					{
++						LogDebug($"Heartbeat: frame={m_frameCounter} handshakes={m_handshakes.Count} connections={m_connections.Count}");
++					}
++
+ 					foreach (var kvp in m_handshakes)
+ 					{
+ 						NetConnection conn = kvp.Value as NetConnection;
+@@ -427,8 +432,21 @@ private void Heartbeat()
+ 			if (m_socket == null)
+ 				return;
+ 
+-			if (!m_socket.Poll(1000, SelectMode.SelectRead)) // wait up to 1 ms for data to arrive
++			int available = 0;
++			try
++			{
++				available = m_socket.Available;
++			}
++			catch (Exception ex)
++			{
++				LogDebug($"m_socket.Available error: {ex.Message}");
++			}
++
++			if (available <= 0)
++			{
++				Thread.Sleep(1);
+ 				return;
++			}
+ 
+ 			//if (m_socket == null || m_socket.Available < 1)
+ 			//	return;
+@@ -484,11 +502,14 @@ private int ReceiveSocketData(double now)
+ 				out var senderRemote,
+ 				ref m_senderRemote);
+ 
++			if (bytesReceived > 0)
++			{
++				LogDebug($"UDP recv {bytesReceived} bytes from {(NetEndPoint)senderRemote}");
++			}
++
+ 			if (bytesReceived < NetConstants.HeaderByteSize)
+ 				return bytesReceived;
+ 
+-			//LogVerbose("Received " + bytesReceived + " bytes");
+-
+ 			if (m_upnp != null && now < m_upnp.m_discoveryResponseDeadline && bytesReceived > 32)
+ 			{
+ 				// is this an UPnP response?
+@@ -518,6 +539,20 @@ private int ReceiveSocketData(double now)
+ 			}
+ 
+ 			m_connectionLookup.TryGetValue(senderRemote, out NetConnection? sender);
++			if (sender == null)
++			{
++				var senderEp = (IPEndPoint)senderRemote;
++				if (senderEp.Address.IsIPv4MappedToIPv6)
++				{
++					var unmapped = new IPEndPoint(senderEp.Address.MapToIPv4(), senderEp.Port);
++					m_connectionLookup.TryGetValue((NetSocketAddress)unmapped, out sender);
++				}
++				else if (senderEp.AddressFamily == AddressFamily.InterNetwork)
++				{
++					var mapped = new IPEndPoint(senderEp.Address.MapToIPv6(), senderEp.Port);
++					m_connectionLookup.TryGetValue((NetSocketAddress)mapped, out sender);
++				}
++			}
+ 
+ 			//
+ 			// parse packet into messages
+@@ -708,12 +743,43 @@ internal void HandleIncomingDiscoveryResponse(double now, NetEndPoint senderEndP
+ 
+ 		private void ReceivedUnconnectedLibraryMessage(double now, NetEndPoint senderEndPoint, NetMessageType tp, int ptr, int payloadByteLength)
+ 		{
++			LogDebug($"Unconnected message {tp} ({payloadByteLength}b) from {senderEndPoint}");
+ 			if (m_handshakes.TryGetValue(senderEndPoint, out NetConnection? shake))
+ 			{
++				LogDebug($"Matched handshake for {senderEndPoint}");
++				shake.ReceivedHandshake(now, tp, ptr, payloadByteLength);
++				return;
++			}
++
++			// Try matching with normalized address (IPv4 vs IPv6-mapped IPv4)
++			NetEndPoint? altEndPoint = null;
++			if (senderEndPoint.Address.IsIPv4MappedToIPv6)
++			{
++				altEndPoint = new NetEndPoint(senderEndPoint.Address.MapToIPv4(), senderEndPoint.Port);
++			}
++			else if (senderEndPoint.AddressFamily == AddressFamily.InterNetwork)
++			{
++				altEndPoint = new NetEndPoint(senderEndPoint.Address.MapToIPv6(), senderEndPoint.Port);
++			}
++
++			if (altEndPoint != null && m_handshakes.TryGetValue(altEndPoint, out shake))
++			{
++				LogDebug($"Matched handshake for {senderEndPoint} using alternate {altEndPoint}");
+ 				shake.ReceivedHandshake(now, tp, ptr, payloadByteLength);
+ 				return;
+ 			}
+ 
++			// If this is a ConnectResponse and the client only has 1 active outgoing handshake, adopt it!
++			if (tp == NetMessageType.ConnectResponse && m_handshakes.Count == 1)
++			{
++				var onlyHs = System.Linq.Enumerable.First(m_handshakes.Values);
++				LogWarning($"ConnectResponse from {senderEndPoint} did not match handshake key {onlyHs.RemoteEndPoint}; adopting for single active outgoing handshake!");
++				onlyHs.ReceivedHandshake(now, tp, ptr, payloadByteLength);
++				return;
++			}
++
++			LogWarning($"No match in m_handshakes for {senderEndPoint}! Handshakes: [{string.Join(", ", m_handshakes.Keys)}]");
++
+ 			//
+ 			// Library message from a completely unknown sender; lets just accept Connect
+ 			//
+diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.LatencySimulation.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.LatencySimulation.cs
+index 70d90d2..62516c8 100644
+--- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.LatencySimulation.cs
++++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.LatencySimulation.cs
+@@ -1,4 +1,4 @@
+-﻿/* Copyright (c) 2010 Michael Lidgren
++/* Copyright (c) 2010 Michael Lidgren
+ 
+ Permission is hereby granted, free of charge, to any person obtaining a copy of this software
+ and associated documentation files (the "Software"), to deal in the Software without
+@@ -194,7 +194,7 @@ internal bool ActuallySendPacket(byte[] data, int numBytes, NetEndPoint target,
+ 				if (numBytes != bytesSent)
+ 					LogWarning($"Failed to send the full {numBytes}; only {bytesSent} bytes sent in packet!");
+ 
+-				// LogDebug("Sent " + numBytes + " bytes");
++				LogDebug($"UDP sent {bytesSent} bytes to {realTarget}");
+ 			}
+ 			catch (SocketException sx)
+ 			{
+diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs
+index ec31cda..12602b0 100644
+--- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs
++++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs
+@@ -1,4 +1,4 @@
+-﻿/* Copyright (c) 2010 Michael Lidgren
++/* Copyright (c) 2010 Michael Lidgren
+ 
+ Permission is hereby granted, free of charge, to any person obtaining a copy of this software
+ and associated documentation files (the "Software"), to deal in the Software without
+@@ -70,37 +70,24 @@ private sealed class LogRateLimitState
+ 		public int Suppressed;
+ 	}
+ 
+-	[Conditional("DEBUG")]
+ 	internal void LogVerbose(string message)
+ 	{
+-#if __ANDROID__
+-		Android.Util.Log.WriteLine(Android.Util.LogPriority.Verbose, "", message);
+-#endif
+ 		SendLogBase(NetIncomingMessageType.VerboseDebugMessage, message);
+ 	}
+ 
+-	[Conditional("DEBUG")]
+ 	internal void LogDebug(string message)
+ 	{
+-#if __ANDROID__
+-		Android.Util.Log.WriteLine(Android.Util.LogPriority.Debug, "", message);
+-#endif
++		System.Console.WriteLine($"[Lidgren:DEBUG] {message}");
+ 		SendLogBase(NetIncomingMessageType.DebugMessage, message);
+ 	}
+ 
+ 	internal void LogWarning(string message)
+ 	{
+-#if __ANDROID__
+-		Android.Util.Log.WriteLine(Android.Util.LogPriority.Warn, "", message);
+-#endif
+ 		SendLogBase(NetIncomingMessageType.WarningMessage, message);
+ 	}
+ 
+ 	internal void LogError(string message)
+ 	{
+-#if __ANDROID__
+-		Android.Util.Log.WriteLine(Android.Util.LogPriority.Error, "", message);
+-#endif
+ 		SendLogBase(NetIncomingMessageType.ErrorMessage, message);
+ 	}
+ 
+@@ -185,6 +172,13 @@ private void PruneLogRateLimiters(double now, double window)
+ 
+ 	private void SendLogBase(NetIncomingMessageType type, string text)
+ 	{
++		if (type == NetIncomingMessageType.ErrorMessage)
++			System.Console.WriteLine($"[Lidgren:ERROR] {text}");
++		else if (type == NetIncomingMessageType.WarningMessage)
++			System.Console.WriteLine($"[Lidgren:WARN] {text}");
++		else if (type == NetIncomingMessageType.DebugMessage)
++			System.Console.WriteLine($"[Lidgren:DEBUG] {text}");
++
+ 		LogEvent?.Invoke(type, text);
+ 
+ 		if (m_configuration.IsMessageTypeEnabled(type))
+diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetFastSocket.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetFastSocket.cs
+index 51cd824..a88ac3f 100644
+--- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetFastSocket.cs
++++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetFastSocket.cs
+@@ -40,25 +40,29 @@ public static int ReceiveFrom(
+ 		{
+ 			if (!IsLinux && !IsWindows)
+ 			{
+-				var ret = socket.ReceiveFrom(buffer, offset, size, socketFlags, ref endPoint);
+-				var ipEndPoint = (IPEndPoint) endPoint;
+-				if (ipEndPoint.AddressFamily == AddressFamily.InterNetworkV6)
++				try
+ 				{
+-					// IPv6
+-					NetIpv6Address ipAddress = default;
+-					ipEndPoint.Address.TryWriteBytes(MemoryMarshal.CreateSpan(ref ipAddress.Address[0], 16), out _);
+-					socketAddress = new NetSocketAddressV6(ipAddress, (ushort) ipEndPoint.Port,
+-						(uint) ipEndPoint.Address.ScopeId);
++					if (endPoint == null || endPoint.AddressFamily != socket.AddressFamily)
++						endPoint = socket.AddressFamily == AddressFamily.InterNetworkV6
++							? (EndPoint)new IPEndPoint(IPAddress.IPv6Any, 0)
++							: (EndPoint)new IPEndPoint(IPAddress.Any, 0);
++
++					var ret = socket.ReceiveFrom(buffer, offset, size, socketFlags, ref endPoint);
++					var ipEndPoint = (IPEndPoint) endPoint;
++					socketAddress = (NetSocketAddress) ipEndPoint;
++					return ret;
+ 				}
+-				else
++				catch (SocketException sx) when (sx.SocketErrorCode == SocketError.WouldBlock || sx.SocketErrorCode == SocketError.IOPending || sx.SocketErrorCode == SocketError.ConnectionReset || sx.SocketErrorCode == SocketError.TimedOut)
+ 				{
+-					// IPv4
+-					NetIpv4Address ipAddress = default;
+-					ipEndPoint.Address.TryWriteBytes(MemoryMarshal.CreateSpan(ref ipAddress.Address[0], 4), out _);
+-					socketAddress = new NetSocketAddressV4(ipAddress, (ushort) ipEndPoint.Port);
++					socketAddress = default;
++					return 0;
++				}
++				catch (Exception ex)
++				{
++					System.Console.WriteLine($"[Lidgren] BCL ReceiveFrom error: {ex.GetType().Name}: {ex.Message}");
++					socketAddress = default;
++					return 0;
+ 				}
+-
+-				return ret;
+ 			}
+ 
+ 			return ReceiveFrom(socket, buffer.AsSpan(offset, size), socketFlags, out socketAddress);
+diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetNativeSocket.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetNativeSocket.cs
+index 4961b81..43d2078 100644
+--- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetNativeSocket.cs
++++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetNativeSocket.cs
+@@ -8,8 +8,12 @@ namespace Lidgren.Network
+ {
+ 	internal static unsafe class NetNativeSocket
+ 	{
++		internal static readonly bool IsAndroid = OperatingSystem.IsAndroid()
++			|| (RuntimeInformation.OSDescription?.IndexOf("Android", StringComparison.OrdinalIgnoreCase) >= 0)
++			|| Type.GetType("Android.OS.Build, Mono.Android") != null;
++
+ 		internal static readonly bool IsWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
+-		internal static readonly bool IsLinux = RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
++		internal static readonly bool IsLinux = RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && !IsAndroid;
+ 
+ #pragma warning disable 649
+ 		// ReSharper disable InconsistentNaming
 diff --git a/MSBuild/Robust.DefineConstants.targets b/MSBuild/Robust.DefineConstants.targets
 index f67e982e5..46cb74941 100644
 --- a/MSBuild/Robust.DefineConstants.targets
@@ -8031,333 +8379,3 @@ index 8831e60fa..2b328737c 100644
          }
  
          internal static bool HasParameterlessConstructor(this Type type, BindingFlags flags = BindingFlags.Instance | BindingFlags.Public)
-Submodule Lidgren.Network/Lidgren.Network contains modified content
-diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetConnection.Handshake.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetConnection.Handshake.cs
-index cdf6a36..b52f7f3 100644
---- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetConnection.Handshake.cs
-+++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetConnection.Handshake.cs
-@@ -70,6 +70,7 @@ internal void UnconnectedHeartbeat(double now)
- 				if (m_handshakeAttempts >= m_peerConfiguration.m_maximumHandshakeAttempts)
- 				{
- 					// failed to connect
-+					m_peer.LogWarning($"Failed to establish connection to {m_remoteEndPoint} after {m_handshakeAttempts} attempts (timeout)");
- 					ExecuteDisconnect("Failed to establish connection - no response from remote host", true);
- 					return;
- 				}
-@@ -104,6 +105,7 @@ internal void UnconnectedHeartbeat(double now)
- 		internal void ExecuteDisconnect(string? reason, bool sendByeMessage)
- 		{
- 			m_peer.VerifyNetworkThread();
-+			System.Console.WriteLine($"[Lidgren] ExecuteDisconnect: reason='{reason}', prevStatus={m_status}");
- 
- 			// clear send queues
- 			for (int i = 0; i < m_sendChannels.Length; i++)
-@@ -166,9 +168,8 @@ internal void SendConnect(double now)
- 			m_lastHandshakeSendTime = now;
- 			m_handshakeAttempts++;
- 
--			if (m_handshakeAttempts > 1)
--				m_peer.LogDebug("Resending Connect...");
- 			SetStatus(NetConnectionStatus.InitiatedConnect, "Locally requested connect");
-+			m_peer.LogDebug($"SendConnect attempt {m_handshakeAttempts}/{m_peerConfiguration.m_maximumHandshakeAttempts} to {m_remoteEndPoint} (resendInterval={m_peerConfiguration.m_resendHandshakeInterval:F1}s)");
- 		}
- 
- 		internal void SendConnectResponse(double now, bool onLibraryThread)
-@@ -229,6 +230,7 @@ private void WriteLocalHail(NetOutgoingMessage om)
- 
- 		internal void SendConnectionEstablished()
- 		{
-+			System.Console.WriteLine($"[Lidgren] SendConnectionEstablished to {m_remoteEndPoint}");
- 			NetOutgoingMessage om = m_peer.CreateMessage(4);
- 			om.m_messageType = NetMessageType.ConnectionEstablished;
- 			om.Write((float)NetTime.Now);
-@@ -425,12 +427,17 @@ internal void ReceivedHandshake(double now, NetMessageType tp, int ptr, int payl
- 
- 		private void HandleConnectResponse(double now, NetMessageType tp, int ptr, int payloadLength)
- 		{
-+			m_peer.LogDebug($"HandleConnectResponse status={m_status} len={payloadLength} from {m_remoteEndPoint}");
- 			byte[]? hail;
- 			switch (m_status)
- 			{
- 				case NetConnectionStatus.InitiatedConnect:
- 					// awesome
- 					bool ok = ValidateHandshakeData(ptr, payloadLength, out hail);
-+					if (!ok)
-+					{
-+						m_peer.LogWarning($"ValidateHandshakeData returned false for {m_remoteEndPoint}!");
-+					}
- 					if (ok)
- 					{
- 						if (hail != null)
-@@ -480,8 +487,11 @@ private bool ValidateHandshakeData(int ptr, int payloadLength, out byte[]? hail)
- 				if (remainingBytes > 0)
- 					hail = msg.ReadBytes(remainingBytes);
- 
-+				m_peer.LogDebug($"ValidateHandshakeData: remoteAppId='{remoteAppIdentifier}' myAppId='{m_peer.m_configuration.AppIdentifier}' uid={remoteUniqueIdentifier}");
-+
- 				if (remoteAppIdentifier != m_peer.m_configuration.AppIdentifier)
- 				{
-+					m_peer.LogError($"APP IDENTIFIER MISMATCH! '{remoteAppIdentifier}' != '{m_peer.m_configuration.AppIdentifier}'");
- 					ExecuteDisconnect("Wrong application identifier!", true);
- 					return false;
- 				}
-@@ -491,6 +501,7 @@ private bool ValidateHandshakeData(int ptr, int payloadLength, out byte[]? hail)
- 			catch(Exception ex)
- 			{
- 				// whatever; we failed
-+				m_peer.LogError($"ValidateHandshakeData EXCEPTION: {ex}");
- 				ExecuteDisconnect("Handshake data validation failed", true);
- 				m_peer.LogWarning($"ReadRemoteHandshakeData failed: {ex.Message}");
- 				return false;
-diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Internal.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Internal.cs
-index 341cca4..70ad65d 100644
---- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Internal.cs
-+++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Internal.cs
-@@ -427,8 +427,19 @@ private void Heartbeat()
- 			if (m_socket == null)
- 				return;
- 
--			if (!m_socket.Poll(1000, SelectMode.SelectRead)) // wait up to 1 ms for data to arrive
--				return;
-+			if (OperatingSystem.IsAndroid())
-+			{
-+				if (m_socket.Available <= 0)
-+				{
-+					Thread.Sleep(1);
-+					return;
-+				}
-+			}
-+			else
-+			{
-+				if (!m_socket.Poll(1000, SelectMode.SelectRead)) // wait up to 1 ms for data to arrive
-+					return;
-+			}
- 
- 			//if (m_socket == null || m_socket.Available < 1)
- 			//	return;
-@@ -484,11 +495,14 @@ private int ReceiveSocketData(double now)
- 				out var senderRemote,
- 				ref m_senderRemote);
- 
-+			if (bytesReceived > 0)
-+			{
-+				LogDebug($"UDP recv {bytesReceived} bytes from {(NetEndPoint)senderRemote}");
-+			}
-+
- 			if (bytesReceived < NetConstants.HeaderByteSize)
- 				return bytesReceived;
- 
--			//LogVerbose("Received " + bytesReceived + " bytes");
--
- 			if (m_upnp != null && now < m_upnp.m_discoveryResponseDeadline && bytesReceived > 32)
- 			{
- 				// is this an UPnP response?
-@@ -518,6 +532,20 @@ private int ReceiveSocketData(double now)
- 			}
- 
- 			m_connectionLookup.TryGetValue(senderRemote, out NetConnection? sender);
-+			if (sender == null)
-+			{
-+				var senderEp = (IPEndPoint)senderRemote;
-+				if (senderEp.Address.IsIPv4MappedToIPv6)
-+				{
-+					var unmapped = new IPEndPoint(senderEp.Address.MapToIPv4(), senderEp.Port);
-+					m_connectionLookup.TryGetValue((NetSocketAddress)unmapped, out sender);
-+				}
-+				else if (senderEp.AddressFamily == AddressFamily.InterNetwork)
-+				{
-+					var mapped = new IPEndPoint(senderEp.Address.MapToIPv6(), senderEp.Port);
-+					m_connectionLookup.TryGetValue((NetSocketAddress)mapped, out sender);
-+				}
-+			}
- 
- 			//
- 			// parse packet into messages
-@@ -708,12 +736,43 @@ internal void HandleIncomingDiscoveryResponse(double now, NetEndPoint senderEndP
- 
- 		private void ReceivedUnconnectedLibraryMessage(double now, NetEndPoint senderEndPoint, NetMessageType tp, int ptr, int payloadByteLength)
- 		{
-+			LogDebug($"Unconnected message {tp} ({payloadByteLength}b) from {senderEndPoint}");
- 			if (m_handshakes.TryGetValue(senderEndPoint, out NetConnection? shake))
- 			{
-+				LogDebug($"Matched handshake for {senderEndPoint}");
- 				shake.ReceivedHandshake(now, tp, ptr, payloadByteLength);
- 				return;
- 			}
- 
-+			// Try matching with normalized address (IPv4 vs IPv6-mapped IPv4)
-+			NetEndPoint? altEndPoint = null;
-+			if (senderEndPoint.Address.IsIPv4MappedToIPv6)
-+			{
-+				altEndPoint = new NetEndPoint(senderEndPoint.Address.MapToIPv4(), senderEndPoint.Port);
-+			}
-+			else if (senderEndPoint.AddressFamily == AddressFamily.InterNetwork)
-+			{
-+				altEndPoint = new NetEndPoint(senderEndPoint.Address.MapToIPv6(), senderEndPoint.Port);
-+			}
-+
-+			if (altEndPoint != null && m_handshakes.TryGetValue(altEndPoint, out shake))
-+			{
-+				LogDebug($"Matched handshake for {senderEndPoint} using alternate {altEndPoint}");
-+				shake.ReceivedHandshake(now, tp, ptr, payloadByteLength);
-+				return;
-+			}
-+
-+			// If this is a ConnectResponse and the client only has 1 active outgoing handshake, adopt it!
-+			if (tp == NetMessageType.ConnectResponse && m_handshakes.Count == 1)
-+			{
-+				var onlyHs = System.Linq.Enumerable.First(m_handshakes.Values);
-+				LogWarning($"ConnectResponse from {senderEndPoint} did not match handshake key {onlyHs.RemoteEndPoint}; adopting for single active outgoing handshake!");
-+				onlyHs.ReceivedHandshake(now, tp, ptr, payloadByteLength);
-+				return;
-+			}
-+
-+			LogWarning($"No match in m_handshakes for {senderEndPoint}! Handshakes: [{string.Join(", ", m_handshakes.Keys)}]");
-+
- 			//
- 			// Library message from a completely unknown sender; lets just accept Connect
- 			//
-diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.LatencySimulation.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.LatencySimulation.cs
-index 70d90d2..62516c8 100644
---- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.LatencySimulation.cs
-+++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.LatencySimulation.cs
-@@ -1,4 +1,4 @@
--﻿/* Copyright (c) 2010 Michael Lidgren
-+/* Copyright (c) 2010 Michael Lidgren
- 
- Permission is hereby granted, free of charge, to any person obtaining a copy of this software
- and associated documentation files (the "Software"), to deal in the Software without
-@@ -194,7 +194,7 @@ internal bool ActuallySendPacket(byte[] data, int numBytes, NetEndPoint target,
- 				if (numBytes != bytesSent)
- 					LogWarning($"Failed to send the full {numBytes}; only {bytesSent} bytes sent in packet!");
- 
--				// LogDebug("Sent " + numBytes + " bytes");
-+				LogDebug($"UDP sent {bytesSent} bytes to {realTarget}");
- 			}
- 			catch (SocketException sx)
- 			{
-diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs
-index ec31cda..12602b0 100644
---- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs
-+++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/NetPeer.Logging.cs
-@@ -1,4 +1,4 @@
--﻿/* Copyright (c) 2010 Michael Lidgren
-+/* Copyright (c) 2010 Michael Lidgren
- 
- Permission is hereby granted, free of charge, to any person obtaining a copy of this software
- and associated documentation files (the "Software"), to deal in the Software without
-@@ -70,37 +70,24 @@ private sealed class LogRateLimitState
- 		public int Suppressed;
- 	}
- 
--	[Conditional("DEBUG")]
- 	internal void LogVerbose(string message)
- 	{
--#if __ANDROID__
--		Android.Util.Log.WriteLine(Android.Util.LogPriority.Verbose, "", message);
--#endif
- 		SendLogBase(NetIncomingMessageType.VerboseDebugMessage, message);
- 	}
- 
--	[Conditional("DEBUG")]
- 	internal void LogDebug(string message)
- 	{
--#if __ANDROID__
--		Android.Util.Log.WriteLine(Android.Util.LogPriority.Debug, "", message);
--#endif
-+		System.Console.WriteLine($"[Lidgren:DEBUG] {message}");
- 		SendLogBase(NetIncomingMessageType.DebugMessage, message);
- 	}
- 
- 	internal void LogWarning(string message)
- 	{
--#if __ANDROID__
--		Android.Util.Log.WriteLine(Android.Util.LogPriority.Warn, "", message);
--#endif
- 		SendLogBase(NetIncomingMessageType.WarningMessage, message);
- 	}
- 
- 	internal void LogError(string message)
- 	{
--#if __ANDROID__
--		Android.Util.Log.WriteLine(Android.Util.LogPriority.Error, "", message);
--#endif
- 		SendLogBase(NetIncomingMessageType.ErrorMessage, message);
- 	}
- 
-@@ -185,6 +172,13 @@ private void PruneLogRateLimiters(double now, double window)
- 
- 	private void SendLogBase(NetIncomingMessageType type, string text)
- 	{
-+		if (type == NetIncomingMessageType.ErrorMessage)
-+			System.Console.WriteLine($"[Lidgren:ERROR] {text}");
-+		else if (type == NetIncomingMessageType.WarningMessage)
-+			System.Console.WriteLine($"[Lidgren:WARN] {text}");
-+		else if (type == NetIncomingMessageType.DebugMessage)
-+			System.Console.WriteLine($"[Lidgren:DEBUG] {text}");
-+
- 		LogEvent?.Invoke(type, text);
- 
- 		if (m_configuration.IsMessageTypeEnabled(type))
-diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetFastSocket.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetFastSocket.cs
-index 51cd824..a88ac3f 100644
---- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetFastSocket.cs
-+++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetFastSocket.cs
-@@ -40,25 +40,29 @@ public static int ReceiveFrom(
- 		{
- 			if (!IsLinux && !IsWindows)
- 			{
--				var ret = socket.ReceiveFrom(buffer, offset, size, socketFlags, ref endPoint);
--				var ipEndPoint = (IPEndPoint) endPoint;
--				if (ipEndPoint.AddressFamily == AddressFamily.InterNetworkV6)
-+				try
- 				{
--					// IPv6
--					NetIpv6Address ipAddress = default;
--					ipEndPoint.Address.TryWriteBytes(MemoryMarshal.CreateSpan(ref ipAddress.Address[0], 16), out _);
--					socketAddress = new NetSocketAddressV6(ipAddress, (ushort) ipEndPoint.Port,
--						(uint) ipEndPoint.Address.ScopeId);
-+					if (endPoint == null || endPoint.AddressFamily != socket.AddressFamily)
-+						endPoint = socket.AddressFamily == AddressFamily.InterNetworkV6
-+							? (EndPoint)new IPEndPoint(IPAddress.IPv6Any, 0)
-+							: (EndPoint)new IPEndPoint(IPAddress.Any, 0);
-+
-+					var ret = socket.ReceiveFrom(buffer, offset, size, socketFlags, ref endPoint);
-+					var ipEndPoint = (IPEndPoint) endPoint;
-+					socketAddress = (NetSocketAddress) ipEndPoint;
-+					return ret;
- 				}
--				else
-+				catch (SocketException sx) when (sx.SocketErrorCode == SocketError.WouldBlock || sx.SocketErrorCode == SocketError.IOPending || sx.SocketErrorCode == SocketError.ConnectionReset || sx.SocketErrorCode == SocketError.TimedOut)
- 				{
--					// IPv4
--					NetIpv4Address ipAddress = default;
--					ipEndPoint.Address.TryWriteBytes(MemoryMarshal.CreateSpan(ref ipAddress.Address[0], 4), out _);
--					socketAddress = new NetSocketAddressV4(ipAddress, (ushort) ipEndPoint.Port);
-+					socketAddress = default;
-+					return 0;
-+				}
-+				catch (Exception ex)
-+				{
-+					System.Console.WriteLine($"[Lidgren] BCL ReceiveFrom error: {ex.GetType().Name}: {ex.Message}");
-+					socketAddress = default;
-+					return 0;
- 				}
--
--				return ret;
- 			}
- 
- 			return ReceiveFrom(socket, buffer.AsSpan(offset, size), socketFlags, out socketAddress);
-diff --git a/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetNativeSocket.cs b/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetNativeSocket.cs
-index 4961b81..c728992 100644
---- a/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetNativeSocket.cs
-+++ b/Lidgren.Network/Lidgren.Network/Lidgren.Network/Sockets/NetNativeSocket.cs
-@@ -9,7 +9,7 @@ namespace Lidgren.Network
- 	internal static unsafe class NetNativeSocket
- 	{
- 		internal static readonly bool IsWindows = RuntimeInformation.IsOSPlatform(OSPlatform.Windows);
--		internal static readonly bool IsLinux = RuntimeInformation.IsOSPlatform(OSPlatform.Linux);
-+		internal static readonly bool IsLinux = RuntimeInformation.IsOSPlatform(OSPlatform.Linux) && !OperatingSystem.IsAndroid();
- 
- #pragma warning disable 649
- 		// ReSharper disable InconsistentNaming
